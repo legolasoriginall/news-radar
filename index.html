@@ -292,71 +292,6 @@ footer ul { margin: 0; padding-inline-start: 18px; }
   <section>
     <div class="panel">
       <div class="panel-head">
-        <h2><span class="ico">◈</span> خلاصهٔ اجرایی</h2>
-        <span class="hint" id="window-hint"></span>
-      </div>
-      <div class="headline" id="headline">در حال بارگذاری داده‌ها…</div>
-      <ul class="summary-list" id="summary-lines"></ul>
-      <div class="alerts" id="alerts"></div>
-    </div>
-  </section>
-
-  <section class="grid-2">
-    <div class="panel">
-      <div class="panel-head">
-        <h2><span class="ico">◔</span> تحلیل کامل</h2>
-        <span class="hint">بر پایهٔ همین به‌روزرسانی</span>
-      </div>
-      <div class="grid-3" id="findings"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-head">
-        <h2><span class="ico">◎</span> احساس خبری</h2>
-        <span class="hint" id="sentiment-score"></span>
-      </div>
-      <div class="donut-wrap">
-        <div class="donut" id="donut"><div class="donut-center" id="donut-center"><b>—</b><small>در حال محاسبه</small></div></div>
-        <div class="legend" id="legend"></div>
-      </div>
-      <div class="panel-head" style="margin-top:16px;margin-bottom:6px">
-        <h2 style="font-size:14px"><span class="ico">⌁</span> ترکیب زبانی</h2>
-      </div>
-      <div class="langbar" id="langbar"></div>
-      <div class="legend" id="lang-legend"></div>
-    </div>
-  </section>
-
-  <section class="grid-2">
-    <div class="panel">
-      <div class="panel-head">
-        <h2><span class="ico">▤</span> نقشهٔ موضوعات</h2>
-        <span class="hint">برای فیلتر کردن خبر‌ها کلیک کنید</span>
-      </div>
-      <div id="topics"></div>
-    </div>
-    <div class="panel">
-      <div class="panel-head">
-        <h2><span class="ico">◷</span> تراکم انتشار در ۲۴ ساعت</h2>
-        <span class="hint" id="peak-hint"></span>
-      </div>
-      <div class="hourly" id="hourly"></div>
-      <div class="hourly-axis"><span>۲۴ ساعت پیش</span><span>۱۲ ساعت پیش</span><span>اکنون</span></div>
-    </div>
-  </section>
-
-  <section>
-    <div class="panel">
-      <div class="panel-head">
-        <h2><span class="ico">◆</span> کلیدواژه‌ها</h2>
-        <span class="hint">تعداد خبرهای حاوی هر کلیدواژه</span>
-      </div>
-      <div id="keywords"></div>
-    </div>
-  </section>
-
-  <section>
-    <div class="panel">
-      <div class="panel-head">
         <h2><span class="ico">▥</span> مهم‌ترین قصه‌های خبری</h2>
         <span class="hint" id="stories-hint"></span>
       </div>
@@ -388,16 +323,6 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     </div>
   </section>
 
-  <section>
-    <div class="panel">
-      <div class="panel-head">
-        <h2><span class="ico">◫</span> منابع رصدشده</h2>
-        <span class="hint" id="sources-hint"></span>
-      </div>
-      <div class="sources-grid" id="sources"></div>
-    </div>
-  </section>
-
   <footer>
     <div class="fgrid">
       <div>
@@ -405,7 +330,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
         <ul>
           <li>هر خبر از خوراک رسمی منابع دریافت و عنوان، خلاصه و زمان انتشار آن یکسان‌سازی می‌شود.</li>
           <li>خبرهای انگلیسی به‌صورت خودکار به فارسی ترجمه و متن اصلی نیز حفظ می‌شود.</li>
-          <li>درصد اهمیت از ترکیب تازگی، اعتبار منبع، پوشش چندمنبعی، اهمیت موضوعی و شدت احساس حاصل می‌شود.</li>
+          <li>اهمیت هر خبر از ترکیب تازگی، اعتبار منبع، پوشش چندمنبعی، اهمیت موضوعی و شدت احساس حاصل می‌شود.</li>
           <li>خبرهای هم‌مضمون در «قصه‌های خبری» خوشه‌بندی می‌شوند؛ پوشش هر خبر بر پایهٔ تعداد منابع ناشر آن سنجیده می‌شود.</li>
         </ul>
       </div>
@@ -421,7 +346,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
         <h4>یادداشت</h4>
         <ul>
           <li id="method-note">ترجمهٔ ماشینی ممکن است در برخی عنوان‌ها ناقص باشد؛ پیوند اصل خبر همیشه در دسترس است.</li>
-          <li>ترتیب خبر‌ها و درصدها به‌طور خودکار و بدون دخالت دستی محاسبه می‌شود.</li>
+          <li>ترتیب خبر‌ها به‌طور خودکار و بدون دخالت دستی تعیین می‌شود.</li>
           <li><a href="data.json" download>داده خام JSON</a> · <a href="news.xlsx" download>جدول اکسل</a></li>
         </ul>
       </div>
@@ -643,10 +568,10 @@ footer ul { margin: 0; padding-inline-start: 18px; }
 
   function renderSkeleton() {
     $('kpis').innerHTML = '<div class="kpi"><div class="label">کل خبرها</div><div class="value">—</div><div class="sub">در انتظار داده</div></div>' +
-      '<div class="kpi"><div class="label">سهم فارسی</div><div class="value">—</div></div>' +
+      '<div class="kpi"><div class="label">خبرهای فارسی</div><div class="value">—</div></div>' +
       '<div class="kpi"><div class="label">منابع سالم</div><div class="value">—</div></div>' +
-      '<div class="kpi"><div class="label">میانگین اهمیت</div><div class="value">—</div></div>' +
-      '<div class="kpi"><div class="label">پوشش ترجمه</div><div class="value">—</div></div>';
+      '<div class="kpi"><div class="label">خبرهای چندمنبعی</div><div class="value">—</div></div>' +
+      '<div class="kpi"><div class="label">ترجمه‌شده</div><div class="value">—</div></div>';
   }
 
   function renderAll() {
@@ -654,16 +579,9 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     renderClockOnly();
     renderHeroChips();
     renderKpis();
-    renderSummary();
-    renderAnalysis();
-    renderSentiment();
-    renderTopics();
-    renderHourly();
-    renderKeywords();
     renderStories();
     renderFilters();
     renderFeed();
-    renderSources();
     var note = $('method-note');
     if (note && state.data.translations) {
       note.textContent = 'ترجمهٔ ماشینی (' + (state.data.translations.provider || 'MyMemory') + ') ممکن است در برخی عنوان‌ها ناقص باشد؛ پیوند اصل خبر همیشه در دسترس است.';
@@ -701,7 +619,6 @@ footer ul { margin: 0; padding-inline-start: 18px; }
       '<span class="chip">ترجمه‌شده <b>' + fmt(s.translated) + '</b></span>',
       '<span class="chip">خبر تازه در این دور <b>' + fmt(s.new_since_last) + '</b></span>'
     ].join('');
-    $('window-hint').textContent = 'بازه: همهٔ خبرها · آخرین به‌روزرسانی ' + dateTime(state.data.generated_at) + ' به وقت تهران';
   }
 
   function renderKpis() {
@@ -721,150 +638,6 @@ footer ul { margin: 0; padding-inline-start: 18px; }
         '</div>';
     }).join('') +
       '<div class="kpi"><div class="label">خبرهای ۲۴ ساعت اخیر</div><div class="value" data-ready="1">' + fmt(s.fresh_24h) + '</div><div class="sub">از ' + fmt(s.total) + ' خبر</div><div class="bar"><span style="width:' + Math.max(2, s.fresh_24h_percent) + '%"></span></div></div>';
-  }
-
-  function renderSummary() {
-    var d = state.data;
-    var s = d.stats;
-    var topics = (d.topics || []).slice(0, 3);
-    var sentiment = d.sentiment || {};
-    var dist = sentiment.distribution || [];
-    var byKey = {};
-    dist.forEach(function (item) { byKey[item.key] = item; });
-    var stories = (d.stories || []).slice();
-    stories.sort(function (a, b) { return (b.source_count || 0) - (a.source_count || 0) || (b.importance || 0) - (a.importance || 0); });
-    var lead = stories[0];
-    var keywords = (d.keywords || []).slice(0, 4).map(function (k) { return k.word; });
-    var sources = (d.source_health || []).slice().sort(function (a, b) { return (b.count || 0) - (a.count || 0); }).slice(0, 3);
-    var lines = [];
-    if (s.total) {
-      lines.push('در مجموع ' + fmt(s.total) + ' خبر از ' + fmt(s.sources_with_news) + ' منبع فعال رصد شد؛ ' + fmt(s.fa) + ' خبر فارسی و ' + fmt(s.en) + ' خبر انگلیسی.');
-    }
-    if (topics.length) {
-      lines.push('پرجوش‌ترین حوزه‌ها: ' + topics.map(function (t) { return esc(t.name) + ' (' + fmt(t.count) + ' خبر)'; }).join('، ') + '.');
-    }
-    if (lead) {
-      lines.push('پرپوشش‌ترین خبر: «' + esc(lead.title) + '» با ' + fmt(lead.source_count) + ' منبع مستقل.');
-    }
-    if (sentiment.dominant_label) {
-      lines.push('احساس غالب خبر‌ها «' + sentiment.dominant_label + '» است: ' + fmt((byKey.neutral || {}).count || 0) + ' خنثی، ' + fmt((byKey.negative || {}).count || 0) + ' منفی و ' + fmt((byKey.positive || {}).count || 0) + ' مثبت.');
-    }
-    if (keywords.length) {
-      lines.push('کلیدواژه‌های پرتکرار: ' + keywords.map(esc).join('، ') + '.');
-    }
-    if (sources.length) {
-      lines.push('پرکارترین منابع: ' + sources.map(function (source) { return esc(source.name) + ' (' + fmt(source.count) + ' خبر)'; }).join('، ') + '.');
-    }
-    if (s.multi_source_articles) {
-      lines.push(fmt(s.multi_source_articles) + ' خبر توسط بیش از یک منبع پوشش داده شده و ' + fmt(s.multi_source_stories) + ' قصهٔ چندمنبعی شکل گرفته است.');
-    }
-    if (s.new_since_last) {
-      lines.push(fmt(s.new_since_last) + ' خبر از آخرین به‌روزرسانی به این دور اضافه شده است.');
-    }
-    $('headline').textContent = lead
-      ? 'مهم‌ترین خبر: «' + lead.title + '» با پوشش ' + fmt(lead.source_count) + ' منبع'
-      : 'در حال بارگذاری خبر‌ها…';
-    $('summary-lines').innerHTML = lines.map(function (line) { return '<li>' + line + '</li>'; }).join('');
-    $('alerts').innerHTML = '';
-  }
-
-  function renderAnalysis() {
-    var d = state.data;
-    var s = d.stats;
-    var topics = d.topics || [];
-    var top = topics[0];
-    var dist = (d.sentiment || {}).distribution || [];
-    var byKey = {};
-    dist.forEach(function (item) { byKey[item.key] = item; });
-    var multiStories = (d.stories || []).filter(function (story) { return (story.source_count || 1) > 1; }).length;
-    var peak = (d.hourly && d.hourly.peak) || {};
-    var findings = [];
-    if (top) {
-      findings.push({ title: 'تمرکز اصلی خبر‌ها', detail: esc(top.name) + ' با ' + fmt(top.count) + ' خبر پرجوش‌ترین حوزه است؛ کلیدواژه‌های اصلی این حوزه: ' + esc((top.top_keywords || []).slice(0, 3).join('، ')) + '.' });
-    }
-    findings.push({ title: 'ترکیب زبانی', detail: fmt(s.fa) + ' خبر فارسی و ' + fmt(s.en) + ' خبر انگلیسی رصد شد؛ ' + fmt(s.translated) + ' خبر انگلیسی به فارسی برگردانده شده است.' });
-    findings.push({ title: 'تنوع منابع', detail: 'از ' + fmt(s.sources_total) + ' منبع پیکربندی‌شده، ' + fmt(s.sources_ok) + ' منبع سالم است و ' + fmt(s.sources_with_news) + ' منبع در این دور خبر داشته‌اند؛ ' + fmt(s.iran_sources) + ' منبع ایرانی و ' + fmt(s.foreign_sources) + ' منبع خارجی.' });
-    findings.push({ title: 'وضعیت احساس', detail: 'احساس غالب «' + (d.sentiment.dominant_label || '—') + '» است؛ ' + fmt((byKey.neutral || {}).count || 0) + ' خبر خنثی، ' + fmt((byKey.negative || {}).count || 0) + ' خبر منفی و ' + fmt((byKey.positive || {}).count || 0) + ' خبر مثبت.' });
-    findings.push({ title: 'پوشش چندمنبعی', detail: fmt(s.multi_source_articles) + ' خبر توسط بیش از یک منبع پوشش داده شده و ' + fmt(multiStories) + ' قصهٔ چندمنبعی ساخته شده است؛ میانگین منبع هر خبر ' + fmt(Number(s.avg_sources_per_article) || 1, 2) + ' است.' });
-    findings.push({ title: 'ترجمهٔ خبرهای انگلیسی', detail: s.untranslated ? fmt(s.translated) + ' از ' + fmt(s.en) + ' خبر انگلیسی ترجمه شده و ' + fmt(s.untranslated) + ' خبر در انتظار ترجمه است.' : fmt(s.en) + ' خبر انگلیسی رصد و همهٔ آن‌ها به فارسی ترجمه شده‌اند.' });
-    if (peak && peak.hour) {
-      findings.push({ title: 'اوج انتشار خبر', detail: 'بیشترین تراکم انتشار در ساعت ' + clockText(peak.hour) + ' به وقت تهران با ' + fmt(peak.count) + ' خبر ثبت شد.' });
-    }
-    $('findings').innerHTML = findings.map(function (finding) {
-      return '<div class="finding">' +
-        '<h3>' + finding.title + '</h3>' +
-        '<p>' + finding.detail + '</p>' +
-        '</div>';
-    }).join('');
-  }
-
-  function renderSentiment() {
-    var s = state.data.sentiment;
-    var dist = s.distribution || [];
-    var segments = [];
-    var acc = 0;
-    dist.forEach(function (item) {
-      var start = acc;
-      acc += Number(item.percent) || 0;
-      segments.push(item.color + ' ' + start + '% ' + acc + '%');
-    });
-    $('donut').style.background = 'conic-gradient(' + segments.join(',') + ')';
-    var dominant = null;
-    dist.forEach(function (item) { if (!dominant || (item.count || 0) > (dominant.count || 0)) dominant = item; });
-    $('donut-center').innerHTML = dominant
-      ? '<div><b>' + esc(dominant.label) + '</b><small>' + fmt(dominant.count) + ' خبر</small></div>'
-      : '<div><b>—</b><small>داده‌ای نیست</small></div>';
-    $('sentiment-score').textContent = 'احساس غالب: ' + (s.dominant_label || '—') + ' — ' + fmt(dominant ? dominant.count : 0) + ' خبر';
-    $('legend').innerHTML = dist.map(function (item) {
-      return '<div class="legend-row"><span><span class="dot" style="background:' + esc(item.color) + '"></span>' + esc(item.label) + '</span><span><b>' + fmt(item.count) + '</b> <small>خبر</small></span></div>';
-    }).join('');
-
-    var stats = state.data.stats;
-    $('langbar').innerHTML = '<span style="width:' + Math.max(2, stats.fa_percent) + '%;background:#0d9488"></span><span style="width:' + Math.max(2, stats.en_percent) + '%;background:#60a5fa"></span>';
-    $('lang-legend').innerHTML =
-      '<div class="legend-row"><span><span class="dot" style="background:#0d9488"></span>فارسی</span><span><b>' + fmt(stats.fa) + '</b> <small>خبر</small></span></div>' +
-      '<div class="legend-row"><span><span class="dot" style="background:#60a5fa"></span>انگلیسی (ترجمه‌شده)</span><span><b>' + fmt(stats.en) + '</b> <small>خبر</small></span></div>';
-  }
-
-  function renderTopics() {
-    var topics = state.data.topics || [];
-    var max = Math.max.apply(null, topics.map(function (topic) { return Number(topic.count) || 1; }).concat([1]));
-    $('topics').innerHTML = topics.map(function (topic) {
-      var trend = Number(topic.trend_percent);
-      var trendHtml = isFinite(trend) && trend > 0
-        ? '<span class="trend up" title="رو به رشد">▲</span>'
-        : isFinite(trend) && trend < 0
-          ? '<span class="trend down" title="رو به کاهش">▼</span>'
-          : '<span class="trend stable" title="بدون تغییر محسوس">•</span>';
-      return '<div class="topic-row" data-topic="' + esc(topic.id) + '">' +
-        '<span class="topic-name">' + esc(topic.name) + '</span>' +
-        '<span class="topic-bar"><span style="width:' + Math.max(3, (Number(topic.count) || 0) / max * 100) + '%"></span></span>' +
-        '<span class="topic-count">' + fmt(topic.count) + '</span>' +
-        trendHtml +
-        '</div>';
-    }).join('');
-  }
-
-  function renderHourly() {
-    var hourly = state.data.hourly || { buckets: [], peak: { count: 0 } };
-    $('hourly').innerHTML = (hourly.buckets || []).map(function (bucket) {
-      return '<div class="h" style="height:' + Math.max(2, Number(bucket.height_percent) || 0) + '%" title="' + esc(clockText(bucket.hour)) + ' · ' + fmt(bucket.count) + ' خبر"></div>';
-    }).join('');
-    $('peak-hint').textContent = hourly.peak && hourly.peak.hour
-      ? 'اوج: ' + clockText(hourly.peak.hour) + ' با ' + fmt(hourly.peak.count) + ' خبر'
-      : 'داده‌ای ثبت نشده';
-  }
-
-  function renderKeywords() {
-    var keywords = state.data.keywords || [];
-    var max = Math.max.apply(null, keywords.map(function (k) { return Number(k.count) || 1; }).concat([1]));
-    $('keywords').innerHTML = '<div class="pills" style="gap:8px">' + keywords.slice(0, 26).map(function (k) {
-      var size = 12 + Math.round((Number(k.count) / max) * 8);
-      var strong = k.count >= Math.max(3, max * 0.35);
-      var bg = strong ? '#e6f6f4' : '#f8fafc';
-      var border = strong ? '#99f6e4' : '#e6e9f0';
-      return '<span class="pill" style="font-size:' + size + 'px;background:' + bg + ';border-color:' + border + ';cursor:default" title="' + fmt(k.count) + ' خبر">' + esc(k.word) + ' <b style="color:#0d9488">' + fmt(k.count) + '</b></span>';
-    }).join('') + '</div>';
   }
 
   function renderStories() {
@@ -968,21 +741,6 @@ footer ul { margin: 0; padding-inline-start: 18px; }
       ? 'نمایش ' + fmt(Math.min(state.page, list.length)) + ' از ' + fmt(list.length) + ' خبر' + (state.topic !== 'all' || state.lang !== 'all' || state.query ? ' (فیلترشده از ' + fmt(data.articles.length) + ')' : '')
       : '';
     $('feed-hint').textContent = 'همهٔ خبرها بدون محدودیت زمانی · ' + fmt(data.articles.length) + ' خبر';
-  }
-
-  function renderSources() {
-    var sources = state.data.source_health || [];
-    $('sources-hint').textContent = fmt(state.data.stats.sources_ok) + ' منبع سالم · ' + fmt(state.data.stats.errors) + ' منبع خطا';
-    $('sources').innerHTML = sources.map(function (source) {
-      var status = source.status || (source.ok ? (source.count ? 'ok' : 'idle') : 'fail');
-      var label = status === 'fail' ? 'خطا' : status === 'idle' ? 'بدون خبر' : fmt(source.count) + ' خبر';
-      var title = source.error ? 'خطا: ' + source.error : source.count + ' خبر · ' + source.elapsed_ms + 'ms';
-      return '<div class="source ' + status + '" title="' + esc(title) + '">' +
-        '<div class="source-top"><span class="nm">' + esc(source.name) + ' <span class="lang">' + (source.lang === 'fa' ? 'فارسی' : 'انگلیسی') + '</span></span><span class="cnt">' + label + '</span></div>' +
-        '<div class="sbar"><span style="width:' + Math.max(2, Number(source.success_percent) || 0) + '%"></span></div>' +
-        '<div class="cnt" style="text-align:right">' + (source.error ? esc(source.error).slice(0, 48) : 'زمان پاسخ ' + fmt(source.elapsed_ms) + ' میلی‌ثانیه') + '</div>' +
-        '</div>';
-    }).join('');
   }
 
   /* ---------------- events ---------------- */
