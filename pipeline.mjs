@@ -340,14 +340,32 @@ export async function runPipeline({ quiet = false } = {}) {
     ...english.map((item) => item.title),
     ...(includeSummaries ? english.filter((item) => item.summary).map((item) => item.summary.slice(0, 900)) : []),
   ];
-  const budgetMs = Number(process.env.TRANSLATE_BUDGET_MS ?? 240000);
-  const deadline = budgetMs > 0 ? Date.now() + budgetMs : 0;
-  log(`› ترجمهٔ ${translationInputs.length} متن انگلیسی به فارسی…`);
-  const translations = await translateMany(translationInputs, {
+  const budgetMs = Number(process.env.TRANSLATE_BUDGET_MS ?? 600000);
+  const translateStarted = Date.now();
+  const titleTexts = english.map((item) => item.title);
+  const summaryTexts = includeSummaries ? english.filter((item) => item.summary).map((item) => item.summary.slice(0, 900)) : [];
+  log(`› ترجمهٔ ${titleTexts.length} عنوان و ${summaryTexts.length} خلاصهٔ انگلیسی به فارسی…`);
+  const translations = new Map();
+  // اولویت اول: عنوان‌ها (کیفیت نمایش صفحه به آن‌ها وابسته است)
+  const titleMap = await translateMany(titleTexts, {
     concurrency: Number(process.env.TRANSLATE_CONCURRENCY || 4),
-    deadline,
-    onProgress: (done, total) => { if (!quiet && (done % 20 === 0 || done === total)) console.log(`   ${done}/${total}`); },
+    deadline: Date.now() + Math.round(budgetMs * 0.65),
+    onProgress: (done, total) => { if (!quiet && (done % 20 === 0 || done === total)) console.log(`   عنوان ${done}/${total}`); },
   });
+  for (const [key, value] of titleMap) translations.set(key, value);
+  const titleCoverage = titleTexts.length ? [...titleMap.values()].filter((value) => value?.text).length / titleTexts.length : 1;
+  // خلاصه‌ها فقط وقتی ۸۰٪ عنوان‌ها ترجمه شده باشند (تا بودجه هدر نرود)
+  if (summaryTexts.length && titleCoverage >= 0.8) {
+    const remaining = Math.max(60000, budgetMs - (Date.now() - translateStarted));
+    const summaryMap = await translateMany(summaryTexts, {
+      concurrency: Number(process.env.TRANSLATE_CONCURRENCY || 4),
+      deadline: Date.now() + remaining,
+      onProgress: (done, total) => { if (!quiet && (done % 50 === 0 || done === total)) console.log(`   خلاصه ${done}/${total}`); },
+    });
+    for (const [key, value] of summaryMap) translations.set(key, value);
+  } else if (summaryTexts.length) {
+    log(`› خلاصه‌ها به اجرای بعد موکول شد (پوشش عنوان‌ها ${Math.round(titleCoverage * 100)}٪)`);
+  }
   await saveCache();
 
   const articles = [];
