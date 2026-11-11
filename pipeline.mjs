@@ -344,7 +344,7 @@ export async function runPipeline({ quiet = false } = {}) {
   const deadline = budgetMs > 0 ? Date.now() + budgetMs : 0;
   log(`› ترجمهٔ ${translationInputs.length} متن انگلیسی به فارسی…`);
   const translations = await translateMany(translationInputs, {
-    concurrency: 2,
+    concurrency: Number(process.env.TRANSLATE_CONCURRENCY || 4),
     deadline,
     onProgress: (done, total) => { if (!quiet && (done % 20 === 0 || done === total)) console.log(`   ${done}/${total}`); },
   });
@@ -366,7 +366,7 @@ export async function runPipeline({ quiet = false } = {}) {
     const topics = detectTopics(item.title, item.summary, source.lang, source.defaultTopic);
     const sentiment = analyzeSentiment(item.title, item.summary, source.lang);
 
-    const REAL_PROVIDERS = ['bing', 'mymemory', 'libretranslate'];
+    const REAL_PROVIDERS = ['google', 'llm', 'pollinations', 'bing', 'mymemory', 'libretranslate'];
     let titleFa = '';
     let summaryFa = '';
     let translation = { provider: 'none', quality: 0, is_translation: false, translated_at: null };
@@ -615,7 +615,11 @@ export async function runPipeline({ quiet = false } = {}) {
     source_health: sourceHealth,
     hourly,
     translations: {
-      provider: 'Bing',
+      provider: (() => {
+        const labels = { google: 'Google', bing: 'Bing', mymemory: 'MyMemory', libretranslate: 'LibreTranslate', llm: 'LLM', pollinations: 'Pollinations AI' };
+        const top = Object.entries(providerCounts).sort((a, b) => b[1] - a[1])[0];
+        return top ? labels[top[0]] || top[0] : 'none';
+      })(),
       providers: providerCounts,
       total: englishCount,
       translated,
