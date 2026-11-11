@@ -1,9 +1,12 @@
 name: به‌روزرسانی خودکار اخبار
 
 on:
+  # تریگر خارجی برای زمان‌بندی پایدار (وقتی cron گیت‌هاب کار نکند)
+  repository_dispatch:
+    types: [update-news]
   schedule:
-    # هر ۵ دقیقه؛ توجه: GitHub Actions ممکن است در ساعات شلوغ با تأخیر اجرا شود
-    - cron: '*/5 * * * *'
+    # هر ۱۵ دقیقه؛ GitHub ممکن است اجراهای cron را چند دقیقه با تأخیر اجرا کند
+    - cron: '*/15 * * * *'
   workflow_dispatch:
   push:
     branches: [main]
@@ -23,10 +26,12 @@ concurrency:
 jobs:
   update:
     runs-on: ubuntu-latest
-    timeout-minutes: 12
+    timeout-minutes: 20
     steps:
       - name: دریافت مخزن
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
 
       - name: نصب Node.js
         uses: actions/setup-node@v4
@@ -48,12 +53,30 @@ jobs:
 
       - name: انتشار تغییرات
         run: |
+          set -u
           git config user.name "news-radar-bot"
           git config user.email "actions@users.noreply.github.com"
           git add data.json index.html news.xlsx
           if git diff --cached --quiet; then
             echo "تغییری برای انتشار نیست"
-          else
-            git commit -m "به‌روزرسانی خودکار اخبار و تحلیل"
-            git push
+            exit 0
           fi
+          git commit -m "به‌روزرسانی خودکار اخبار و تحلیل"
+          for attempt in 1 2 3; do
+            echo "تلاش $attempt برای انتشار"
+            git fetch origin main
+            if ! git rebase origin/main; then
+              echo "همگام‌سازی ناموفق بود؛ تلاش مجدد"
+              git rebase --abort || true
+              git fetch origin main
+              sleep 5
+              continue
+            fi
+            if git push origin HEAD:main; then
+              echo "انتشار با موفقیت انجام شد"
+              exit 0
+            fi
+            sleep 5
+          done
+          echo "انتشار پس از سه تلاش ناموفق بود" >&2
+          exit 1
