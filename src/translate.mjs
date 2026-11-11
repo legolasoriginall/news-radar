@@ -19,8 +19,8 @@ let googleBlockedUntil = 0;
 let googleProbed = false;
 
 // --- Bing (جایگزین) ---
-const LANE_COUNT = clamp(Number(process.env.BING_SESSIONS || 5), 1, 5);
-const LANE_GAP_MS = clamp(Number(process.env.BING_GAP_MS || 800), 600, 2000);
+const LANE_COUNT = clamp(Number(process.env.BING_SESSIONS || 4), 1, 5);
+const LANE_GAP_MS = clamp(Number(process.env.BING_GAP_MS || 950), 600, 2000);
 
 let cache = null;
 let cacheDirty = false;
@@ -252,6 +252,7 @@ async function llmBatch(chunks) {
 /* ------------------------- Bing (جایگزین) ------------------------- */
 
 const lanes = Array.from({ length: LANE_COUNT }, () => ({
+  cooldownUntil: 0,
   session: null,
   uses: 0,
   lastAt: 0,
@@ -294,7 +295,12 @@ async function getSession(lane, force = false) {
 }
 
 async function bingInLane(lane, text) {
-  if (lane.failures >= 12) throw new Error('Bing محدود شد');
+  if (lane.cooldownUntil && Date.now() < lane.cooldownUntil) throw new Error('Bing در تعطیلی موقت');
+  if (lane.failures >= 8) {
+    lane.cooldownUntil = Date.now() + 90 * 1000;
+    lane.failures = 0;
+    throw new Error('Bing محدود شد؛ تعطیلی موقت');
+  }
   let session = await getSession(lane);
   for (let attempt = 0; attempt < 3; attempt++) {
     const wait = Math.max(0, lane.lastAt + LANE_GAP_MS - Date.now());
@@ -333,6 +339,7 @@ async function bingInLane(lane, text) {
     const translated = String(json?.[0]?.translations?.[0]?.text || '').trim();
     if (translated) {
       lane.failures = 0;
+      lane.cooldownUntil = 0;
       return { text: translated, match: 0.95, provider: 'bing' };
     }
     lane.failures += 1;
