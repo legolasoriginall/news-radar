@@ -532,15 +532,19 @@ footer ul { margin: 0; padding-inline-start: 18px; }
 
   /* ---------------- data loading ---------------- */
 
+  var statusAvailable = null; // null = نامشخص، false = سرور محلی در دسترس نیست (میزبانی استاتیک)
   async function fetchStatus() {
+    if (statusAvailable === false) return null;
     try {
       var res = await fetch('api/status?_=' + Date.now(), { cache: 'no-store' });
-      if (!res.ok) return null;
+      if (!res.ok) { statusAvailable = false; return null; }
       var json = await res.json();
+      statusAvailable = true;
       state.source = 'server';
       if (json.next_run_at) state.nextUpdate = new Date(json.next_run_at).getTime();
       return json;
     } catch (e) {
+      statusAvailable = false;
       return null;
     }
   }
@@ -582,12 +586,16 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     btn.classList.add('busy');
     $('refresh-label').textContent = 'در حال به‌روزرسانی…';
     try {
-      try {
-        var res = await fetch('api/refresh', { method: 'POST' });
-        if (res.ok) {
-          await res.json();
-        }
-      } catch (e) { /* استاتیک: فقط داده را دوباره می‌خوانیم */ }
+      if (statusAvailable !== false) {
+        try {
+          var res = await fetch('api/refresh', { method: 'POST' });
+          if (res.ok) {
+            await res.json();
+          } else {
+            statusAvailable = false;
+          }
+        } catch (e) { statusAvailable = false; }
+      }
       await loadData(true);
       toast('به‌روزرسانی انجام شد');
     } finally {
