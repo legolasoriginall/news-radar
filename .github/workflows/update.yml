@@ -20,8 +20,9 @@ permissions:
   contents: write
 
 concurrency:
+  # اجراهای هم‌زمان لغو می‌شوند تا دو commit روی data.json با هم تصادم نکنند
   group: news-update
-  cancel-in-progress: false
+  cancel-in-progress: true
 
 jobs:
   update:
@@ -62,21 +63,29 @@ jobs:
             exit 0
           fi
           git commit -m "به‌روزرسانی خودکار اخبار و تحلیل"
+
+          # نسخهٔ داده‌های تازه‌تولیدشده را نگه می‌داریم تا در صورت تعارض، مال ما برنده شود
+          mkdir -p /tmp/newsradar-out
+          cp -f data.json news.xlsx index.html /tmp/newsradar-out/ 2>/dev/null || true
+
           for attempt in 1 2 3; do
             echo "تلاش $attempt برای انتشار"
             git fetch origin main
             if ! git rebase origin/main; then
-              echo "همگام‌سازی ناموفق بود؛ تلاش مجدد"
+              echo "تعارض در همگام‌سازی؛ داده‌های تازه جایگزین می‌شوند"
               git rebase --abort || true
-              git fetch origin main
-              sleep 5
-              continue
+              git reset --hard origin/main
+              cp -f /tmp/newsradar-out/data.json data.json 2>/dev/null || true
+              cp -f /tmp/newsradar-out/news.xlsx news.xlsx 2>/dev/null || true
+              cp -f /tmp/newsradar-out/index.html index.html 2>/dev/null || true
+              git add data.json index.html news.xlsx
+              git commit -m "به‌روزرسانی خودکار اخبار و تحلیل" || true
             fi
             if git push origin HEAD:main; then
               echo "انتشار با موفقیت انجام شد"
               exit 0
             fi
-            sleep 5
+            sleep 8
           done
           echo "انتشار پس از سه تلاش ناموفق بود" >&2
           exit 1
