@@ -1,0 +1,59 @@
+name: به‌روزرسانی خودکار اخبار
+
+on:
+  schedule:
+    # هر ۵ دقیقه؛ توجه: GitHub Actions ممکن است در ساعات شلوغ با تأخیر اجرا شود
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/sources.mjs'
+      - 'pipeline.mjs'
+      - 'src/**'
+      - '.github/workflows/update.yml'
+
+permissions:
+  contents: write
+
+concurrency:
+  group: news-update
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 12
+    steps:
+      - name: دریافت مخزن
+        uses: actions/checkout@v4
+
+      - name: نصب Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: نگه‌داشتن حافظهٔ ترجمه بین اجراها
+        uses: actions/cache@v4
+        with:
+          path: .cache
+          key: news-cache-${{ github.run_id }}
+          restore-keys: |
+            news-cache-
+
+      - name: تولید داده‌ها
+        env:
+          MYMEMORY_EMAIL: ${{ secrets.MYMEMORY_EMAIL }}
+        run: node pipeline.mjs
+
+      - name: انتشار تغییرات
+        run: |
+          git config user.name "news-radar-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add data.json index.html news.xlsx
+          if git diff --cached --quiet; then
+            echo "تغییری برای انتشار نیست"
+          else
+            git commit -m "به‌روزرسانی خودکار اخبار و تحلیل"
+            git push
+          fi

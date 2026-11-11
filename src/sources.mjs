@@ -1,0 +1,71 @@
+// فهرست منابع رصد خبر — همه منابع با وزن اعتبار (weight) و خاستگاه (origin)
+// origin: iran = خبرگزاری/رسانه ایرانی، foreign = رسانه خارجی
+export const SOURCES = [
+  // ── فارسی (ایران) ──────────────────────────────────────────────
+  { id: 'googlenews_fa', name: 'گوگل‌نیوز فارسی', url: 'https://news.google.com/rss?hl=fa&gl=IR&ceid=IR:fa', lang: 'fa', weight: 0.62, aggregator: true, origin: 'iran' },
+  { id: 'isna', name: 'ایسنا', url: 'https://www.isna.ir/rss', lang: 'fa', weight: 0.86, origin: 'iran' },
+  { id: 'mehr', name: 'خبرگزاری مهر', url: 'https://www.mehrnews.com/rss', lang: 'fa', weight: 0.84, origin: 'iran' },
+  { id: 'irna', name: 'ایرنا', url: 'https://www.irna.ir/rss', lang: 'fa', weight: 0.85, origin: 'iran' },
+  { id: 'khabaronline', name: 'خبرآنلاین', url: 'https://www.khabaronline.ir/rss', lang: 'fa', weight: 0.8, origin: 'iran' },
+  { id: 'tabnak', name: 'تابناک', url: 'https://www.tabnak.ir/rss', lang: 'fa', weight: 0.78, origin: 'iran' },
+  { id: 'donya', name: 'دنیای اقتصاد', url: 'https://donya-e-eqtesad.com/rss', lang: 'fa', weight: 0.8, origin: 'iran' },
+  { id: 'hamshahri', name: 'همشهری', url: 'https://www.hamshahrionline.ir/rss', lang: 'fa', weight: 0.78, origin: 'iran' },
+  { id: 'imna', name: 'ایمنا', url: 'https://www.imna.ir/rss', lang: 'fa', weight: 0.72, origin: 'iran' },
+  { id: 'yjc', name: 'باشگاه خبرنگاران جوان', url: 'https://www.yjc.ir/fa/rss/allnews', lang: 'fa', weight: 0.7, origin: 'iran' },
+  { id: 'zoomit', name: 'زومیت', url: 'https://www.zoomit.ir/feed/', lang: 'fa', weight: 0.7, defaultTopic: 'tech', origin: 'iran' },
+  { id: 'iribnews', name: 'خبرگزاری صداوسیما', url: 'https://www.iribnews.ir/fa/rss/allnews', lang: 'fa', weight: 0.74, origin: 'iran' },
+
+  // ── فارسی (خارج از ایران) ──────────────────────────────────────
+  { id: 'bbc_persian', name: 'بی‌بی‌سی فارسی', url: 'https://feeds.bbci.co.uk/persian/rss.xml', lang: 'fa', weight: 0.82, origin: 'foreign' },
+  { id: 'iranintl_fa', name: 'ایران اینترنشنال', url: 'https://www.iranintl.com/fa/feed', lang: 'fa', weight: 0.78, origin: 'foreign' },
+  { id: 'iranwire_fa', name: 'ایران‌وایر', url: 'https://iranwire.com/fa/feed/', lang: 'fa', weight: 0.72, origin: 'foreign' },
+  { id: 'kayhan_london', name: 'کیهان لندن', url: 'https://kayhan.london/fa/feed/', lang: 'fa', weight: 0.7, origin: 'foreign' },
+  { id: 'euronews_fa', name: 'یورونیوز فارسی', url: 'https://parsi.euronews.com/rss', lang: 'fa', weight: 0.76, origin: 'foreign' },
+  { id: 'radiofarda', name: 'رادیو فردا', url: 'https://news.google.com/rss/search?q=site%3Aradiofarda.com&hl=fa&gl=IR&ceid=IR:fa', lang: 'fa', weight: 0.78, origin: 'foreign', aggregator: true },
+  { id: 'voa_persian', name: 'صدای آمریکا (فارسی)', url: 'https://news.google.com/rss/search?q=site%3Air.voanews.com&hl=fa&gl=IR&ceid=IR:fa', lang: 'fa', weight: 0.76, origin: 'foreign', aggregator: true },
+  { id: 'dw_persian', name: 'دویچه‌وله فارسی', url: 'https://news.google.com/rss/search?q=site%3Adw.com%2Ffa&hl=fa&gl=IR&ceid=IR:fa', lang: 'fa', weight: 0.76, origin: 'foreign', aggregator: true },
+  { id: 'alarabiya_fa', name: 'العربیه فارسی', url: 'https://news.google.com/rss/search?q=site%3Afarsi.alarabiya.net&hl=fa&gl=IR&ceid=IR:fa', lang: 'fa', weight: 0.7, origin: 'foreign', aggregator: true },
+
+  // ── انگلیسی: خبرگزاری‌های بین‌المللی ───────────────────────────
+  { id: 'bbc_world', name: 'BBC World', url: 'https://feeds.bbci.co.uk/news/world/rss.xml', lang: 'en', weight: 0.88, origin: 'foreign' },
+  { id: 'iranintl_en', name: 'Iran International English', url: 'https://www.iranintl.com/en/feed', lang: 'en', weight: 0.78, origin: 'foreign' },
+  { id: 'cnn', name: 'CNN World', url: 'http://rss.cnn.com/rss/edition_world.rss', lang: 'en', weight: 0.84, origin: 'foreign' },
+  { id: 'npr', name: 'NPR', url: 'https://feeds.npr.org/1001/rss.xml', lang: 'en', weight: 0.85, origin: 'foreign' },
+  { id: 'skynews', name: 'Sky News', url: 'https://feeds.skynews.com/feeds/rss/world.xml', lang: 'en', weight: 0.8, origin: 'foreign' },
+  { id: 'aljazeera', name: 'الجزیره انگلیسی', url: 'https://www.aljazeera.com/xml/rss/all.xml', lang: 'en', weight: 0.82, origin: 'foreign' },
+  { id: 'guardian', name: 'The Guardian', url: 'https://www.theguardian.com/world/rss', lang: 'en', weight: 0.85, origin: 'foreign' },
+  { id: 'nytimes', name: 'New York Times World', url: 'https://rss.nytimes.com/services/xml/rss/nyt/World.xml', lang: 'en', weight: 0.9, origin: 'foreign' },
+  { id: 'washingtonpost', name: 'Washington Post World', url: 'https://feeds.washingtonpost.com/rss/world', lang: 'en', weight: 0.87, origin: 'foreign' },
+  { id: 'wsj', name: 'WSJ World News', url: 'https://feeds.a.dj.com/rss/RSSWorldNews.xml', lang: 'en', weight: 0.88, origin: 'foreign' },
+  { id: 'foxnews', name: 'Fox News World', url: 'https://feeds.foxnews.com/foxnews/world', lang: 'en', weight: 0.78, origin: 'foreign' },
+  { id: 'abcnews', name: 'ABC News International', url: 'https://feeds.abcnews.com/abcnews/internationalheadlines', lang: 'en', weight: 0.8, origin: 'foreign' },
+  { id: 'cbsnews', name: 'CBS News World', url: 'https://www.cbsnews.com/latest/rss/world', lang: 'en', weight: 0.8, origin: 'foreign' },
+  { id: 'nbcnews', name: 'NBC News World', url: 'https://feeds.nbcnews.com/nbcnews/public/world', lang: 'en', weight: 0.8, origin: 'foreign' },
+  { id: 'dw', name: 'DW English', url: 'https://rss.dw.com/rdf/rss-en-world', lang: 'en', weight: 0.84, origin: 'foreign' },
+  { id: 'france24', name: 'France 24', url: 'https://www.france24.com/en/rss', lang: 'en', weight: 0.82, origin: 'foreign' },
+  { id: 'lemonde', name: 'Le Monde English', url: 'https://www.lemonde.fr/en/rss/une.xml', lang: 'en', weight: 0.83, origin: 'foreign' },
+  { id: 'euronews', name: 'Euronews', url: 'https://www.euronews.com/rss?level=theme&name=news', lang: 'en', weight: 0.78, origin: 'foreign' },
+  { id: 'spiegel', name: 'Spiegel International', url: 'https://www.spiegel.de/international/index.rss', lang: 'en', weight: 0.8, origin: 'foreign' },
+  { id: 'timesofisrael', name: 'Times of Israel', url: 'https://www.timesofisrael.com/feed/', lang: 'en', weight: 0.76, origin: 'foreign' },
+  { id: 'jpost', name: 'Jerusalem Post', url: 'https://www.jpost.com/rss/rssfeedsfrontpage.aspx', lang: 'en', weight: 0.75, origin: 'foreign' },
+  { id: 'moscowtimes', name: 'The Moscow Times', url: 'https://www.themoscowtimes.com/rss/news', lang: 'en', weight: 0.78, origin: 'foreign' },
+  { id: 'scmp', name: 'South China Morning Post', url: 'https://www.scmp.com/rss/91/feed', lang: 'en', weight: 0.82, origin: 'foreign' },
+  { id: 'japantimes', name: 'The Japan Times', url: 'https://www.japantimes.co.jp/feed/', lang: 'en', weight: 0.8, origin: 'foreign' },
+  { id: 'nikkei', name: 'Nikkei Asia', url: 'https://asia.nikkei.com/rss/feed/nar', lang: 'en', weight: 0.84, origin: 'foreign' },
+  { id: 'abc_au', name: 'ABC News Australia', url: 'https://www.abc.net.au/news/feed/51120/rss.xml', lang: 'en', weight: 0.8, origin: 'foreign' },
+  { id: 'cbc', name: 'CBC World', url: 'https://www.cbc.ca/webfeed/rss/rss-world', lang: 'en', weight: 0.8, origin: 'foreign' },
+  { id: 'foreignpolicy', name: 'Foreign Policy', url: 'https://foreignpolicy.com/feed/', lang: 'en', weight: 0.82, origin: 'foreign' },
+  { id: 'un_news', name: 'UN News', url: 'https://news.un.org/feed/subscribe/en/news/all/rss.xml', lang: 'en', weight: 0.85, origin: 'foreign' },
+  { id: 'anadolu', name: 'Anadolu Agency', url: 'https://www.aa.com.tr/en/rss/default?cat=guncel', lang: 'en', weight: 0.78, origin: 'foreign' },
+  { id: 'tass', name: 'TASS', url: 'https://tass.com/rss/v2.xml', lang: 'en', weight: 0.76, origin: 'foreign' },
+
+  // ── انگلیسی: فناوری و فناوری خبری ─────────────────────────────
+  { id: 'wired', name: 'Wired', url: 'https://www.wired.com/feed/rss', lang: 'en', weight: 0.78, origin: 'foreign' },
+  { id: 'techcrunch', name: 'TechCrunch', url: 'https://techcrunch.com/feed/', lang: 'en', weight: 0.75, origin: 'foreign' },
+  { id: 'arstechnica', name: 'Ars Technica', url: 'https://arstechnica.com/feed/', lang: 'en', weight: 0.76, origin: 'foreign' },
+  { id: 'verge', name: 'The Verge', url: 'https://www.theverge.com/rss/index.xml', lang: 'en', weight: 0.74, origin: 'foreign' },
+  { id: 'hackernews', name: 'Hacker News', url: 'https://news.ycombinator.com/rss', lang: 'en', weight: 0.66, defaultTopic: 'tech', origin: 'foreign' },
+  { id: 'googlenews_en', name: 'Google News World', url: 'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en', lang: 'en', weight: 0.62, aggregator: true, origin: 'foreign' },
+];
+
+export const UPDATE_INTERVAL_MINUTES = Number(process.env.UPDATE_INTERVAL_MINUTES || 5);

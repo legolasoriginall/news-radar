@@ -1,0 +1,6 @@
+.cache/
+node_modules/
+update.log
+*.log
+.DS_Store
+.env
