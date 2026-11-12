@@ -218,6 +218,74 @@ export async function loadGlobalOunce({ timeoutMs = 15000 } = {}) {
   return { items: [item], feed: COINGECKO_FEED };
 }
 
+/* ── تاریخچهٔ قیمت برای نمودار روند ───────────────────────────── */
+export const HISTORY_SERIES = ['dollar', 'gold18', 'coin', 'ounce'];
+export const HISTORY_MAX_POINTS = 720;
+
+// فقط برای پر کردن اولیهٔ نمودار استفاده می‌شود (نقاط روزانه، به تومان)
+const HISTORY_SEED_FEEDS = {
+  dollar: 'https://nerkhara.com/api/v1/history/usd.json',
+  gold18: 'https://nerkhara.com/api/v1/history/gold-18k.json',
+};
+
+export async function loadHistorySeed({ days = 60, timeoutMs = 20000 } = {}) {
+  const points = new Map();
+  for (const [id, url] of Object.entries(HISTORY_SEED_FEEDS)) {
+    try {
+      const payload = await fetchJson(url, timeoutMs);
+      const list = Array.isArray(payload?.points) ? payload.points.slice(-days) : [];
+      for (const entry of list) {
+        const [day, price] = entry || [];
+        const value = toNumber(price);
+        if (!day || value === null) continue;
+        const at = `${day}T12:00:00.000Z`;
+        const existing = points.get(at) || { at, prices: {} };
+        existing.prices[id] = Math.round(value);
+        points.set(at, existing);
+      }
+    } catch {
+      // پر کردن اولیه اختیاری است؛ خطای آن مانع کار نیست
+    }
+  }
+  return [...points.values()].sort((a, b) => a.at.localeCompare(b.at));
+}
+
+export function appendHistoryPoint(history, markets, { maxPoints = HISTORY_MAX_POINTS, minGapMs = 4 * 60 * 1000 } = {}) {
+  const list = Array.isArray(history)
+    ? history.filter((point) => point && point.at && point.prices).map((point) => ({ at: point.at, prices: { ...point.prices } }))
+    : [];
+  const prices = {};
+  for (const item of markets?.items || []) {
+    if (HISTORY_SERIES.includes(item.id)) prices[item.id] = Math.round(item.value * 100) / 100;
+  }
+  if (!Object.keys(prices).length) return list.slice(-maxPoints);
+  const at = markets.fetched_at || new Date().toISOString();
+  const last = list[list.length - 1];
+  if (last && Math.abs(new Date(at).getTime() - new Date(last.at).getTime()) < minGapMs) {
+    list[list.length - 1] = { at, prices: { ...last.prices, ...prices } };
+  } else {
+    list.push({ at, prices });
+  }
+  return list.slice(-maxPoints);
+}
+
+/**
+ * تاریخچهٔ نمودار را می‌سازد: اگر نمونه‌ای وجود نداشته باشد، ابتدا
+ * از آرشیو روزانهٔ نرخ‌آرا پر می‌شود و سپس نقطهٔ فعلی اضافه می‌شود.
+ */
+export async function buildMarketHistory({ previousHistory = null, markets } = {}) {
+  let history = Array.isArray(previousHistory) ? previousHistory : [];
+  if (history.length < 10) {
+    const seed = await loadHistorySeed();
+    if (seed.length) {
+      const byTime = new Map(seed.map((point) => [point.at, point]));
+      for (const point of history) byTime.set(point.at, point);
+      history = [...byTime.values()].sort((a, b) => a.at.localeCompare(b.at));
+    }
+  }
+  return appendHistoryPoint(history, markets);
+}
+
 export const MARKET_PROVIDERS = [
   { id: 'tgju', label: 'TGJU', load: loadTgju },
   { id: 'nerkhara', label: 'نرخ‌آرا', load: loadNerkhara },

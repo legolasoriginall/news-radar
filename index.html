@@ -42,7 +42,7 @@ a:hover { text-decoration: underline; }
     radial-gradient(1000px 380px at 85% -10%, rgba(13,148,136,.38), transparent 60%),
     radial-gradient(700px 300px at 5% 0%, rgba(37,99,235,.24), transparent 55%),
     linear-gradient(160deg, var(--navy) 0%, var(--navy-2) 100%);
-  color: #fff; padding: 30px 0 82px; position: relative; overflow: hidden;
+  color: #fff; padding: 26px 0 30px; position: relative; overflow: hidden;
 }
 .hero::after {
   content: ""; position: absolute; inset: auto 0 0 0; height: 120px;
@@ -80,25 +80,6 @@ a:hover { text-decoration: underline; }
 .btn .spin { display: none; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
 .btn.busy .spin { display: inline-block; }
 @keyframes spin { to { transform: rotate(360deg); } }
-.chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; position: relative; z-index: 1; }
-.chip {
-  display: inline-flex; align-items: center; gap: 6px;
-  background: rgba(255,255,255,.1); border: 1px solid rgba(255,255,255,.16);
-  color: #fff; border-radius: 999px; padding: 3px 12px; font-size: 12.5px;
-}
-.chip b { font-weight: 700; color: #5eead4; }
-
-.kpis { display: grid; grid-template-columns: repeat(5, minmax(0,1fr)); gap: 14px; margin-top: -56px; position: relative; z-index: 3; }
-.kpi { background: var(--panel); border-radius: var(--radius); padding: 16px 18px; box-shadow: var(--shadow); border: 1px solid rgba(16,24,40,.03); }
-.kpi .label { font-size: 12.5px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
-.kpi .value { font-size: 26px; font-weight: 800; margin-top: 4px; line-height: 1.2; letter-spacing: -.5px; }
-.kpi .value small { font-size: 13px; font-weight: 600; color: var(--muted); margin-inline-start: 4px; }
-.kpi .sub { font-size: 11.5px; color: var(--muted); margin-top: 4px; }
-.kpi .bar { height: 5px; border-radius: 99px; background: #eef2f7; margin-top: 9px; overflow: hidden; }
-.kpi .bar span { display: block; height: 100%; border-radius: 99px; background: linear-gradient(90deg, #0d9488, #22c55e); }
-.kpi.tone-amber .value { color: var(--amber); }
-.kpi.tone-blue .value { color: var(--blue); }
-.kpi.tone-teal .value { color: var(--teal); }
 .kpi.tone-red .value { color: var(--red); }
 
 .market-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(184px, 1fr)); gap: 10px; }
@@ -115,6 +96,15 @@ a:hover { text-decoration: underline; }
 .market-card.tone-up .m-value { color: var(--green); }
 .market-card.tone-down .m-value { color: var(--red); }
 .market-note { font-size: 11.8px; color: var(--muted); margin-top: 10px; }
+
+.trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 1fr)); gap: 12px; margin-top: 14px; }
+.trend-card { border: 1px solid var(--line); border-radius: 13px; padding: 11px 14px 8px; background: #fcfdfe; }
+.trend-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12.5px; color: #344054; }
+.trend-value { font-size: 18px; font-weight: 800; letter-spacing: -.3px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.trend-value small { font-size: 11.5px; font-weight: 600; color: var(--muted); margin-inline-start: 5px; }
+.trend-svg { width: 100%; height: 94px; display: block; margin-top: 6px; }
+.trend-axis { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.trend-empty { font-size: 12px; color: var(--muted); padding: 18px 0 14px; }
 .market-note.warn { color: #92400e; }
 
 section { margin-top: 22px; }
@@ -187,16 +177,6 @@ section { margin-top: 22px; }
 .src-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .src-chips span { background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font-size: 11px; color: #475467; }
 
-.toolbar { display: flex; flex-wrap: wrap; gap: 9px; align-items: center; margin-bottom: 12px; }
-.search { flex: 1 1 260px; min-width: 200px; padding: 9px 14px; border-radius: 11px; border: 1px solid var(--line); background: #fbfcfe; font: inherit; font-size: 14px; }
-.search:focus { outline: 2px solid #99f6e4; border-color: var(--teal); }
-.pills { display: flex; flex-wrap: wrap; gap: 6px; }
-.pill { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 5px 12px; font-size: 12.5px; cursor: pointer; font-family: inherit; color: #344054; }
-.pill.active { background: var(--navy); border-color: var(--navy); color: #fff; }
-.pill .n { opacity: .65; font-size: 11px; margin-inline-start: 4px; }
-select.pill { padding: 6px 10px; }
-.toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: #344054; cursor: pointer; background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 5px 12px; }
-.toggle input { accent-color: var(--teal); }
 
 .feed { list-style: none; margin: 0; padding: 0; }
 .news { display: grid; gap: 6px; padding: 13px 4px; border-bottom: 1px solid var(--line); }
@@ -247,26 +227,21 @@ footer ul { margin: 0; padding-inline-start: 18px; }
 .toast.show { transform: translateY(0); }
 
 @media (max-width: 1020px) {
-  .kpis { grid-template-columns: repeat(3, minmax(0,1fr)); }
   .grid-2 { grid-template-columns: 1fr; }
 }
 @media (max-width: 760px) {
-  .kpis { grid-template-columns: repeat(2, minmax(0,1fr)); }
   .stories { grid-template-columns: 1fr; }
   .grid-3 { grid-template-columns: 1fr; }
   .brand h1 { font-size: 24px; }
-  .hero { padding-bottom: 70px; }
-  .kpi .value { font-size: 22px; }
   .topic-row { grid-template-columns: 94px 1fr 66px 52px; }
   .clock-panel { width: 100%; }
 }
 @media print {
   .hero { background: #fff; color: #000; padding-bottom: 10px; }
-  .actions, .toolbar, .more-wrap, .toast { display: none; }
+  .actions, .more-wrap, .toast { display: none; }
   body { background: #fff; }
-  .kpis { margin-top: 10px; }
   .news { break-inside: avoid; }
-  .panel, .kpi { box-shadow: none; }
+  .panel { box-shadow: none; }
 }
 </style>
 </head>
@@ -291,18 +266,11 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     <div class="actions">
       <button class="btn primary" id="refresh-btn" type="button"><span class="spin"></span><span id="refresh-label">به‌روزرسانی فوری</span></button>
       <button class="btn" id="auto-btn" type="button" aria-pressed="true">توقف به‌روزرسانی خودکار</button>
-      <button class="btn" id="print-btn" type="button">چاپ / PDF</button>
-      <a class="btn" id="xlsx-link" href="news.xlsx" download>دریافت خروجی اکسل</a>
     </div>
-    <div class="chips" id="hero-chips"></div>
   </div>
 </header>
 
 <main class="wrap">
-  <div class="kpis" id="kpis" aria-live="polite">
-    <div class="kpi"><div class="label">کل خبرها</div><div class="value">—</div></div>
-  </div>
-
   <div class="error-box" id="error-box"></div>
 
   <section id="market">
@@ -312,6 +280,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
         <span class="hint" id="market-hint"></span>
       </div>
       <div class="market-grid" id="market-grid"></div>
+      <div class="trend-grid" id="market-trend"></div>
       <div class="market-note" id="market-note"></div>
     </div>
   </section>
@@ -332,17 +301,6 @@ footer ul { margin: 0; padding-inline-start: 18px; }
         <h2><span class="ico">☰</span> همهٔ خبرها</h2>
         <span class="hint" id="feed-hint"></span>
       </div>
-      <div class="toolbar">
-        <input class="search" id="search" type="search" placeholder="جستجو در عنوان، خلاصه، منبع و کلیدواژه…" autocomplete="off">
-        <select class="pill" id="sort" aria-label="ترتیب">
-          <option value="new">تازه‌ترین</option>
-          <option value="important">بیشترین اهمیت</option>
-          <option value="coverage">بیشترین پوشش</option>
-        </select>
-        <label class="toggle" title="نمایش متن اصلی خبرهای ترجمه‌شده"><input type="checkbox" id="show-original"> نمایش متن اصلی</label>
-      </div>
-      <div class="pills" id="lang-pills" style="margin-bottom:8px"></div>
-      <div class="pills" id="topic-pills" style="margin-bottom:12px"></div>
       <ul class="feed" id="feed-list"></ul>
       <div class="empty" id="empty">خبری با این فیلترها پیدا نشد.</div>
       <div class="more-wrap"><button class="more" id="more" type="button">نمایش بیشتر</button></div>
@@ -391,12 +349,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
   var REFRESH_MINUTES = 5;
   var state = {
     data: null,
-    topic: 'all',
-    lang: 'all',
-    query: '',
-    sort: 'new',
     page: PAGE,
-    showOriginal: false,
     auto: true,
     generatedAt: '',
     nextUpdate: 0,
@@ -513,7 +466,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
       REFRESH_MINUTES = Number(data.update_interval_minutes || 5);
       state.nextUpdate = data.next_update_at ? new Date(data.next_update_at).getTime() : Date.now() + REFRESH_MINUTES * 60000;
       setError('');
-      if (changed || force || !document.querySelector('#kpis .kpi .value[data-ready]')) {
+      if (changed || force || !state._rendered) {
         renderAll();
         if (state.generatedAt && !force) {
           // فقط پس از نخستین رندر پیام نمایش داده می‌شود
@@ -594,21 +547,16 @@ footer ul { margin: 0; padding-inline-start: 18px; }
   /* ---------------- renderers ---------------- */
 
   function renderSkeleton() {
-    $('kpis').innerHTML = '<div class="kpi"><div class="label">کل خبرها</div><div class="value">—</div><div class="sub">در انتظار داده</div></div>' +
-      '<div class="kpi"><div class="label">خبرهای فارسی</div><div class="value">—</div></div>' +
-      '<div class="kpi"><div class="label">منابع سالم</div><div class="value">—</div></div>' +
-      '<div class="kpi"><div class="label">خبرهای چندمنبعی</div><div class="value">—</div></div>' +
-      '<div class="kpi"><div class="label">ترجمه‌شده</div><div class="value">—</div></div>';
+    $('stories').innerHTML = '';
+    $('feed-list').innerHTML = '';
+    $('counter').textContent = '';
   }
 
   function renderAll() {
     if (!state.data) { renderSkeleton(); return; }
     renderClockOnly();
-    renderHeroChips();
-    renderKpis();
     renderMarkets();
     renderStories();
-    renderFilters();
     renderFeed();
     var note = $('method-note');
     if (note && state.data.translations) {
@@ -636,38 +584,6 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     }
   }
 
-  function renderHeroChips() {
-    var s = state.data.stats;
-    $('hero-chips').innerHTML = [
-      '<span class="chip">منابع فعال <b>' + fmt(s.sources_with_news) + '</b> از ' + fmt(s.sources_total) + '</span>',
-      '<span class="chip">خبرهای فارسی <b>' + fmt(s.fa) + '</b></span>',
-      '<span class="chip">خبرهای انگلیسی <b>' + fmt(s.en) + '</b></span>',
-      '<span class="chip">رسانه‌های خارجی <b>' + fmt(s.foreign_sources) + '</b></span>',
-      '<span class="chip">خبرهای چندمنبعی <b>' + fmt(s.multi_source_articles) + '</b></span>',
-      '<span class="chip">ترجمه‌شده <b>' + fmt(s.translated) + '</b></span>',
-      '<span class="chip">خبر تازه در این دور <b>' + fmt(s.new_since_last) + '</b></span>'
-    ].join('');
-  }
-
-  function renderKpis() {
-    var s = state.data.stats;
-    var cards = [
-      { label: 'کل خبرها', value: fmt(s.total), sub: 'در ' + fmt(s.stories) + ' قصهٔ خبری', tone: 'blue', bar: 100 },
-      { label: 'خبرهای فارسی', value: fmt(s.fa), sub: fmt(s.en) + ' خبر انگلیسی', tone: 'teal', bar: s.fa_percent },
-      { label: 'منابع سالم', value: fmt(s.sources_ok) + ' از ' + fmt(s.sources_total), sub: fmt(s.sources_with_news) + ' منبع دارای خبر', tone: 'teal', bar: s.health_percent },
-      { label: 'خبرهای چندمنبعی', value: fmt(s.multi_source_articles), sub: 'از ' + fmt(s.total) + ' خبر', tone: 'amber', bar: s.multi_source_articles_percent }
-    ];
-    $('kpis').innerHTML = cards.map(function (card) {
-      return '<div class="kpi tone-' + card.tone + '">' +
-        '<div class="label">' + esc(card.label) + '</div>' +
-        '<div class="value" data-ready="1">' + card.value + '</div>' +
-        '<div class="sub">' + esc(card.sub) + '</div>' +
-        '<div class="bar"><span style="width:' + Math.max(2, Math.min(100, Number(card.bar) || 0)) + '%"></span></div>' +
-        '</div>';
-    }).join('') +
-      '<div class="kpi"><div class="label">خبرهای ۲۴ ساعت اخیر</div><div class="value" data-ready="1">' + fmt(s.fresh_24h) + '</div><div class="sub">از ' + fmt(s.total) + ' خبر</div><div class="bar"><span style="width:' + Math.max(2, s.fresh_24h_percent) + '%"></span></div></div>';
-  }
-
   function renderMarkets() {
     var markets = state.data.markets || {};
     var items = markets.items || [];
@@ -675,6 +591,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     var note = $('market-note');
     if (!items.length) {
       grid.innerHTML = '';
+      $('market-trend').innerHTML = '';
       $('market-hint').textContent = 'در دسترس نیست';
       note.classList.add('warn');
       note.textContent = markets.error
@@ -697,10 +614,96 @@ footer ul { margin: 0; padding-inline-start: 18px; }
         '<div class="m-time">' + (item.updated_at ? clockText(item.updated_at) + ' · ' + timeAgo(item.updated_at) : 'زمان نامشخص') + (item.stale ? ' · قدیمی' : '') + '</div>' +
         '</article>';
     }).join('');
+    renderMarketTrend();
     note.classList.toggle('warn', !markets.ok);
     note.textContent = markets.ok
       ? 'نرخ طلا، سکه و ارز به تومان (انس طلا به دلار) است و همراه با هر به‌روزرسانی خبرها دوباره خوانده می‌شود · منبع: ' + (markets.source || 'TGJU')
       : 'دریافت تازهٔ نرخ‌ها ممکن نشد؛ آخرین مقدارهای موفق نمایش داده می‌شود. ' + (markets.error || '');
+  }
+
+  var TREND_SERIES = [
+    { id: 'dollar', label: 'روند دلار آمریکا', unit: 'تومان', color: '#0d9488' },
+    { id: 'gold18', label: 'روند گرم طلای ۱۸ عیار', unit: 'تومان', color: '#d97706' }
+  ];
+
+  function trendPoints(seriesId) {
+    var history = (state.data && state.data.markets && state.data.markets.history) || [];
+    var points = [];
+    for (var i = 0; i < history.length; i++) {
+      var entry = history[i] || {};
+      var value = Number(entry.prices ? entry.prices[seriesId] : NaN);
+      var ts = entry.at ? new Date(entry.at).getTime() : NaN;
+      if (!isFinite(value) || !isFinite(ts)) continue;
+      points.push({ at: ts, value: value });
+    }
+    points.sort(function (a, b) { return a.at - b.at; });
+    return points;
+  }
+
+  function thinPoints(points, maxPoints) {
+    if (points.length <= maxPoints) return points;
+    var step = Math.ceil(points.length / maxPoints);
+    var out = [];
+    for (var i = 0; i < points.length; i += step) out.push(points[i]);
+    if (out[out.length - 1] !== points[points.length - 1]) out.push(points[points.length - 1]);
+    return out;
+  }
+
+  function shortDay(ts) {
+    try {
+      return new Intl.DateTimeFormat('fa-IR', { month: 'short', day: 'numeric', timeZone: 'Asia/Tehran' }).format(new Date(ts));
+    } catch (e) { return ''; }
+  }
+
+  function renderMarketTrend() {
+    var box = $('market-trend');
+    if (!box) return;
+    box.innerHTML = TREND_SERIES.map(function (series) {
+      var points = thinPoints(trendPoints(series.id), 140);
+      if (points.length < 2) {
+        return '<article class="trend-card">' +
+          '<div class="trend-head"><span>' + esc(series.label) + '</span></div>' +
+          '<div class="trend-empty">برای رسم نمودار هنوز نمونهٔ کافی ثبت نشده است؛ پس از به‌روزرسانی‌های بعدی ساخته می‌شود.</div>' +
+          '</article>';
+      }
+      var values = points.map(function (point) { return point.value; });
+      var min = Math.min.apply(null, values);
+      var max = Math.max.apply(null, values);
+      var span = (max - min) || 1;
+      var w = 320, h = 94, pad = 9;
+      var coords = points.map(function (point, index) {
+        var x = pad + (index / (points.length - 1)) * (w - pad * 2);
+        var y = h - pad - ((point.value - min) / span) * (h - pad * 2);
+        return [x, y];
+      });
+      var line = coords.map(function (coord, index) {
+        return (index ? 'L' : 'M') + coord[0].toFixed(1) + ' ' + coord[1].toFixed(1);
+      }).join(' ');
+      var area = line +
+        ' L' + coords[coords.length - 1][0].toFixed(1) + ' ' + (h - pad) +
+        ' L' + coords[0][0].toFixed(1) + ' ' + (h - pad) + ' Z';
+      var first = values[0];
+      var last = values[values.length - 1];
+      var changePct = first ? ((last - first) / first) * 100 : 0;
+      var tone = changePct > 0.05 ? 'up' : changePct < -0.05 ? 'down' : 'flat';
+      return '<article class="trend-card">' +
+        '<div class="trend-head">' +
+          '<span>' + esc(series.label) + '</span>' +
+          '<span class="m-pct ' + tone + '">' + (changePct > 0 ? '+' : changePct < 0 ? '−' : '') + pctText(Math.abs(changePct), 2) + '</span>' +
+        '</div>' +
+        '<div class="trend-value">' + fmt(Math.round(last)) + '<small>' + esc(series.unit) + '</small></div>' +
+        '<svg class="trend-svg" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none" role="img" aria-label="' + esc(series.label) + '">' +
+          '<path d="' + area + '" fill="' + series.color + '" fill-opacity="0.12"></path>' +
+          '<path d="' + line + '" fill="none" stroke="' + series.color + '" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" vector-effect="non-scaling-stroke"></path>' +
+        '</svg>' +
+        '<div class="trend-axis">' +
+          '<span>' + esc(shortDay(points[0].at)) + '</span>' +
+          '<span>کمینه ' + fmt(Math.round(min)) + '</span>' +
+          '<span>بیشینه ' + fmt(Math.round(max)) + '</span>' +
+          '<span>' + esc(shortDay(points[points.length - 1].at)) + '</span>' +
+        '</div>' +
+        '</article>';
+    }).join('');
   }
 
   function renderStories() {
@@ -720,49 +723,10 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     }).join('');
   }
 
-  function renderFilters() {
-    var data = state.data;
-    var counts = { all: data.articles.length, fa: 0, en: 0, translated: 0 };
-    data.articles.forEach(function (article) {
-      if (article.lang === 'fa') counts.fa += 1; else counts.en += 1;
-      if (article.translation && article.translation.is_translation) counts.translated += 1;
-    });
-    var langs = [
-      { id: 'all', label: 'همه', n: counts.all },
-      { id: 'fa', label: 'فارسی', n: counts.fa },
-      { id: 'en', label: 'انگلیسی', n: counts.en },
-      { id: 'translated', label: 'ترجمه‌شده', n: counts.translated }
-    ];
-    $('lang-pills').innerHTML = langs.map(function (item) {
-      return '<button class="pill' + (state.lang === item.id ? ' active' : '') + '" data-lang="' + item.id + '" type="button">' + esc(item.label) + '<span class="n">' + fmt(item.n) + '</span></button>';
-    }).join('');
-
-    var topics = data.topics || [];
-    $('topic-pills').innerHTML =
-      '<button class="pill' + (state.topic === 'all' ? ' active' : '') + '" data-topic-filter="all" type="button">همهٔ موضوع‌ها<span class="n">' + fmt(counts.all) + '</span></button>' +
-      topics.map(function (topic) {
-        return '<button class="pill' + (state.topic === topic.id ? ' active' : '') + '" data-topic-filter="' + esc(topic.id) + '" type="button">' + esc(topic.name) + '<span class="n">' + fmt(topic.count) + '</span></button>';
-      }).join('');
-  }
-
   function filteredArticles() {
     var data = state.data;
     if (!data) return [];
-    var query = state.query.trim().toLowerCase();
-    var list = data.articles.filter(function (article) {
-      if (state.lang === 'fa' && article.lang !== 'fa') return false;
-      if (state.lang === 'en' && article.lang !== 'en') return false;
-      if (state.lang === 'translated' && !(article.translation && article.translation.is_translation)) return false;
-      if (state.topic !== 'all' && !(article.topics || []).some(function (t) { return t.id === state.topic; })) return false;
-      if (!query) return true;
-      var haystack = [article.title, article.title_fa, article.summary, article.summary_fa, article.source_name]
-        .concat(article.keywords || []).join(' ').toLowerCase();
-      return haystack.indexOf(query) !== -1;
-    });
-    if (state.sort === 'important') list.sort(function (a, b) { return (b.importance || 0) - (a.importance || 0); });
-    else if (state.sort === 'coverage') list.sort(function (a, b) { return (b.cluster_size || 1) - (a.cluster_size || 1) || (b.importance || 0) - (a.importance || 0); });
-    else list.sort(function (a, b) { return new Date(b.published) - new Date(a.published); });
-    return list;
+    return data.articles.slice().sort(function (a, b) { return new Date(b.published) - new Date(a.published); });
   }
 
   function renderFeed() {
@@ -770,8 +734,6 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     if (!data) return;
     var list = filteredArticles();
     var visible = list.slice(0, state.page);
-    var documentEl = document.body;
-    documentEl.classList.toggle('show-original', state.showOriginal);
 
     $('feed-list').innerHTML = visible.map(function (article) {
       var isTranslation = article.translation && article.translation.is_translation;
@@ -801,53 +763,18 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     $('empty').style.display = list.length ? 'none' : 'block';
     $('more').style.display = list.length > state.page ? 'inline-block' : 'none';
     $('counter').textContent = list.length
-      ? 'نمایش ' + fmt(Math.min(state.page, list.length)) + ' از ' + fmt(list.length) + ' خبر' + (state.topic !== 'all' || state.lang !== 'all' || state.query ? ' (فیلترشده از ' + fmt(data.articles.length) + ')' : '')
+      ? 'نمایش ' + fmt(Math.min(state.page, list.length)) + ' از ' + fmt(list.length) + ' خبر'
       : '';
     $('feed-hint').textContent = 'همهٔ خبرها بدون محدودیت زمانی · ' + fmt(data.articles.length) + ' خبر';
   }
 
   /* ---------------- events ---------------- */
 
-  document.addEventListener('click', function (event) {
-    var target = event.target.closest ? event.target.closest('[data-lang],[data-topic-filter],[data-topic]') : null;
-    if (!target) return;
-    if (target.hasAttribute('data-lang')) {
-      state.lang = target.getAttribute('data-lang');
-      state.page = PAGE;
-      renderFilters(); renderFeed();
-    } else if (target.hasAttribute('data-topic-filter')) {
-      state.topic = target.getAttribute('data-topic-filter');
-      state.page = PAGE;
-      renderFilters(); renderFeed();
-      if (state.topic !== 'all') document.getElementById('feed').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    } else if (target.hasAttribute('data-topic')) {
-      state.topic = target.getAttribute('data-topic');
-      state.page = PAGE;
-      renderFilters(); renderFeed();
-      document.getElementById('feed').scrollIntoView({ behavior: 'smooth', block: 'start' });
-    }
-  });
-
-  $('search').addEventListener('input', function (event) {
-    state.query = event.target.value || '';
-    state.page = PAGE;
-    renderFeed();
-  });
-  $('sort').addEventListener('change', function (event) {
-    state.sort = event.target.value;
-    state.page = PAGE;
-    renderFeed();
-  });
-  $('show-original').addEventListener('change', function (event) {
-    state.showOriginal = Boolean(event.target.checked);
-    renderFeed();
-  });
   $('more').addEventListener('click', function () {
     state.page += PAGE * 2;
     renderFeed();
   });
   $('refresh-btn').addEventListener('click', manualRefresh);
-  $('print-btn').addEventListener('click', function () { window.print(); });
   $('auto-btn').addEventListener('click', function () {
     state.auto = !state.auto;
     storeSet('newsradar:auto', state.auto);
@@ -862,7 +789,6 @@ footer ul { margin: 0; padding-inline-start: 18px; }
   state.auto = storeGet('newsradar:auto', true);
   $('auto-btn').setAttribute('aria-pressed', String(state.auto));
   $('auto-btn').textContent = state.auto ? 'توقف به‌روزرسانی خودکار' : 'فعال‌سازی به‌روزرسانی خودکار';
-  $('show-original').checked = false;
 
   (async function boot() {
     await fetchStatus();

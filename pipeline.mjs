@@ -16,7 +16,7 @@ import {
   TOPICS,
 } from './src/analyze.mjs';
 import { translateMany, saveCache } from './src/translate.mjs';
-import { fetchMarkets, MARKET_SOURCE } from './src/markets.mjs';
+import { fetchMarkets, buildMarketHistory, MARKET_SOURCE } from './src/markets.mjs';
 import { buildXlsx } from './src/xlsx.mjs';
 
 const ROOT = path.resolve('.');
@@ -628,6 +628,9 @@ export async function runPipeline({ quiet = false } = {}) {
   };
 
   const markets = await marketsPromise;
+  if (markets.items.length) {
+    markets.history = await buildMarketHistory({ previousHistory: previousData?.markets?.history || null, markets });
+  }
   log(
     markets.items.length
       ? `› بازار: ${markets.items.length} نرخ (${markets.ok ? 'تازه' : 'آخرین مقدار موفق'})`
