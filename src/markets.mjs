@@ -222,11 +222,15 @@ export async function loadGlobalOunce({ timeoutMs = 15000 } = {}) {
 export const HISTORY_SERIES = ['dollar', 'gold18', 'coin', 'ounce'];
 export const HISTORY_MAX_POINTS = 720;
 
-// فقط برای پر کردن اولیهٔ نمودار استفاده می‌شود (نقاط روزانه، به تومان)
+// فقط برای پر کردن اولیهٔ نمودار استفاده می‌شود (نقاط روزانه؛ نرخ‌آرا به تومان)
 const HISTORY_SEED_FEEDS = {
   dollar: 'https://nerkhara.com/api/v1/history/usd.json',
   gold18: 'https://nerkhara.com/api/v1/history/gold-18k.json',
+  coin: 'https://nerkhara.com/api/v1/history/coin-emami.json',
 };
+
+// انس جهانی به دلار؛ آرشیو روزانهٔ CoinGecko
+const OUNCE_HISTORY_FEED = 'https://api.coingecko.com/api/v3/coins/tether-gold/market_chart?vs_currency=usd&days=60&interval=daily';
 
 export async function loadHistorySeed({ days = 60, timeoutMs = 20000 } = {}) {
   const points = new Map();
@@ -246,6 +250,22 @@ export async function loadHistorySeed({ days = 60, timeoutMs = 20000 } = {}) {
     } catch {
       // پر کردن اولیه اختیاری است؛ خطای آن مانع کار نیست
     }
+  }
+  try {
+    const payload = await fetchJson(OUNCE_HISTORY_FEED, timeoutMs);
+    const list = Array.isArray(payload?.prices) ? payload.prices.slice(-days) : [];
+    for (const entry of list) {
+      const [timestamp, price] = entry || [];
+      const value = toNumber(price);
+      if (!timestamp || value === null) continue;
+      const day = new Date(Number(timestamp)).toISOString().slice(0, 10);
+      const at = `${day}T12:00:00.000Z`;
+      const existing = points.get(at) || { at, prices: {} };
+      existing.prices.ounce = Math.round(value * 100) / 100;
+      points.set(at, existing);
+    }
+  } catch {
+    // آرشیو انس هم اختیاری است
   }
   return [...points.values()].sort((a, b) => a.at.localeCompare(b.at));
 }
@@ -275,11 +295,20 @@ export function appendHistoryPoint(history, markets, { maxPoints = HISTORY_MAX_P
  */
 export async function buildMarketHistory({ previousHistory = null, markets } = {}) {
   let history = Array.isArray(previousHistory) ? previousHistory : [];
-  if (history.length < 10) {
+  // اگر سری‌ای هنوز نمونهٔ کافی ندارد (مثل سکه و انس در نخستین اجرا) آرشیو روزانه خوانده می‌شود
+  const countSeries = (id) => history.filter((point) => point && point.prices && point.prices[id] !== undefined).length;
+  const sparseSeries = HISTORY_SERIES.filter((id) => countSeries(id) < 10);
+  if (history.length < 10 || sparseSeries.length) {
     const seed = await loadHistorySeed();
     if (seed.length) {
-      const byTime = new Map(seed.map((point) => [point.at, point]));
-      for (const point of history) byTime.set(point.at, point);
+      // ادغام در سطح قیمت‌ها: مقدارهای موجود حفظ و سری‌های تازه اضافه می‌شوند
+      const byTime = new Map(seed.map((point) => [point.at, { at: point.at, prices: { ...point.prices } }]));
+      for (const point of history) {
+        const existing = byTime.get(point.at);
+        byTime.set(point.at, existing
+          ? { at: point.at, prices: { ...existing.prices, ...point.prices } }
+          : { at: point.at, prices: { ...point.prices } });
+      }
       history = [...byTime.values()].sort((a, b) => a.at.localeCompare(b.at));
     }
   }
