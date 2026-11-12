@@ -11,6 +11,7 @@ export const MARKET_FEEDS = [
 ];
 
 export const NERKHARA_FEED = 'https://nerkhara.com/api/v1/latest.json';
+export const IRANMARKET_FEED = 'https://raw.githubusercontent.com/iran-market/iran-market.github.io/main/data/latest-toman.json';
 export const COINGECKO_FEED = 'https://api.coingecko.com/api/v3/simple/price?ids=tether-gold&vs_currencies=usd&include_24hr_change=true';
 
 // قیمت‌های TGJU به ریال است؛ scale=0.1 آن‌ها را تومان می‌کند. نرخ‌آرا از ابتدا تومان می‌دهد.
@@ -22,6 +23,7 @@ export const MARKET_DEFINITIONS = [
     unit: 'تومان',
     tgju: { key: 'price_dollar_rl', scale: 0.1 },
     nerkhara: { key: 'usd', scale: 1 },
+    iranmarket: { key: 'USD_IRR_FREE', scale: 1 },
   },
   {
     id: 'euro',
@@ -30,6 +32,7 @@ export const MARKET_DEFINITIONS = [
     unit: 'تومان',
     tgju: { key: 'price_eur', scale: 0.1 },
     nerkhara: { key: 'eur', scale: 1 },
+    iranmarket: { key: 'EUR_IRR_FREE', scale: 1 },
   },
   {
     id: 'dirham',
@@ -38,6 +41,7 @@ export const MARKET_DEFINITIONS = [
     unit: 'تومان',
     tgju: { key: 'price_aed', scale: 0.1 },
     nerkhara: { key: 'aed', scale: 1 },
+    iranmarket: { key: 'AED_IRR_FREE', scale: 1 },
   },
   {
     id: 'gold18',
@@ -46,6 +50,7 @@ export const MARKET_DEFINITIONS = [
     unit: 'تومان',
     tgju: { key: 'geram18', scale: 0.1 },
     nerkhara: { key: 'gold-18k', scale: 1 },
+    iranmarket: { key: 'GOLD_18K_IRR', scale: 1 },
   },
   {
     id: 'gold24',
@@ -54,6 +59,7 @@ export const MARKET_DEFINITIONS = [
     unit: 'تومان',
     tgju: { key: 'geram24', scale: 0.1 },
     nerkhara: { key: 'gold-24k', scale: 1 },
+    iranmarket: { key: 'GOLD_24K_IRR', scale: 1 },
   },
   {
     id: 'mesghal',
@@ -62,6 +68,7 @@ export const MARKET_DEFINITIONS = [
     unit: 'تومان',
     tgju: { key: 'mesghal', scale: 0.1 },
     nerkhara: { key: 'gold-mesghal', scale: 1 },
+    iranmarket: { key: 'GOLD_MESGHAL_IRR', scale: 1 },
   },
   {
     id: 'coin',
@@ -70,6 +77,7 @@ export const MARKET_DEFINITIONS = [
     unit: 'تومان',
     tgju: { key: 'retail_sekee', scale: 0.1 },
     nerkhara: { key: 'coin-emami', scale: 1 },
+    iranmarket: { key: 'COIN_EMAMI_RETAIL_IRR', scale: 1 },
   },
   {
     id: 'ounce',
@@ -203,6 +211,35 @@ export async function loadNerkhara({ timeoutMs = 20000 } = {}) {
   }
   if (!items.length) throw new Error('نرخی برای موارد موردنظر یافت نشد');
   return { items, feed: NERKHARA_FEED };
+}
+
+/* ── مرحلهٔ سوم: ایران‌مارکت (فایل ثابت گیت‌هاب، قیمت‌ها به تومان) ── */
+export async function loadIranMarket({ timeoutMs = 25000 } = {}) {
+  const payload = await fetchJson(IRANMARKET_FEED, timeoutMs);
+  const categories = payload?.data?.categories || payload?.categories || {};
+  const rows = [];
+  for (const list of Object.values(categories)) {
+    if (Array.isArray(list)) rows.push(...list);
+  }
+  if (!rows.length) throw new Error('فهرست نرخ‌ها خالی بود');
+  const bySymbol = new Map(rows.map((row) => [String(row?.symbol || ''), row]));
+  const items = [];
+  for (const definition of MARKET_DEFINITIONS) {
+    const mapping = definition.iranmarket;
+    if (!mapping) continue;
+    const row = bySymbol.get(mapping.key);
+    const raw = toNumber(row?.price);
+    if (raw === null) continue;
+    const item = buildItem(definition, {
+      value: raw * mapping.scale,
+      change: toNumber(row?.change),
+      changePercent: toNumber(row?.change_pct),
+      updatedAt: toIsoUtc(row?.timestamp),
+    });
+    if (item) items.push(item);
+  }
+  if (!items.length) throw new Error('نرخی برای موارد موردنظر یافت نشد');
+  return { items, feed: IRANMARKET_FEED };
 }
 
 /* ── پشتیبان انس جهانی ───────────────────────────────────────── */
@@ -360,6 +397,7 @@ export function computeDivergence(items, attempts, threshold = DIVERGENCE_THRESH
 export const MARKET_PROVIDERS = [
   { id: 'tgju', label: 'TGJU', load: loadTgju },
   { id: 'nerkhara', label: 'نرخ‌آرا', load: loadNerkhara },
+  { id: 'iranmarket', label: 'ایران‌مارکت', load: loadIranMarket },
 ];
 
 export const GLOBAL_PROVIDERS = [{ id: 'coingecko', label: 'CoinGecko', load: loadGlobalOunce }];
@@ -437,7 +475,29 @@ export async function fetchMarkets({ previous = null, timeoutMs = 20000 } = {}) 
     }
   }
 
-  const items = MARKET_DEFINITIONS.map((definition) => byId.get(definition.id)).filter(Boolean);
+  let items = MARKET_DEFINITIONS.map((definition) => byId.get(definition.id)).filter(Boolean);
+  // اگر هیچ منبعی نرخی را نداد، آخرین مقدار موفق همان نرخ حفظ می‌شود
+  const filledFromPrevious = [];
+  if (previous && Array.isArray(previous.items) && previous.items.length) {
+    const resolved = new Map(items.map((item) => [item.id, item]));
+    for (const definition of MARKET_DEFINITIONS) {
+      if (resolved.has(definition.id)) continue;
+      const old = previous.items.find((item) => item.id === definition.id);
+      if (!old) continue;
+      resolved.set(definition.id, {
+        ...old,
+        source: 'آخرین مقدار موفق',
+        stale: true,
+        change: 0,
+        change_percent: Number(old.change_percent) || 0,
+        direction: 'flat',
+        divergence_percent: null,
+        divergence: null,
+      });
+      filledFromPrevious.push(definition.id);
+    }
+    items = MARKET_DEFINITIONS.map((definition) => resolved.get(definition.id)).filter(Boolean);
+  }
   const warnings = computeDivergence(items, attempts);
   const usedLabels = [...new Set(items.map((item) => item.source).filter(Boolean))];
   const errors = attempts.filter((attempt) => !attempt.ok).map((attempt) => `${attempt.label}: ${attempt.error}`);
@@ -471,9 +531,10 @@ export async function fetchMarkets({ previous = null, timeoutMs = 20000 } = {}) 
   }
 
   return {
-    ok: true,
-    stale: false,
+    ok: filledFromPrevious.length === 0 && items.length === MARKET_DEFINITIONS.length,
+    stale: filledFromPrevious.length > 0,
     partial: items.length < MARKET_DEFINITIONS.length,
+    previous_count: filledFromPrevious.length,
     source: usedLabels.join(' + ') || MARKET_SOURCE,
     source_url: MARKET_SOURCE_URL,
     feed: attempts.find((attempt) => attempt.used)?.feed || '',

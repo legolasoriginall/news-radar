@@ -644,7 +644,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     note.classList.toggle('warn', !markets.ok);
     note.textContent = markets.ok
       ? 'نرخ طلا، سکه و ارز به تومان (انس طلا به دلار) است و همراه با هر به‌روزرسانی خبرها دوباره خوانده می‌شود · منبع: ' + (markets.source || 'TGJU')
-      : 'دریافت تازهٔ نرخ‌ها ممکن نشد؛ آخرین مقدارهای موفق نمایش داده می‌شود. ' + (markets.error || '');
+      : 'برخی نرخ‌ها تازه نیستند؛ برای آن موارد آخرین مقدار موفق نمایش داده می‌شود. ' + (markets.error || '');
   }
 
   function renderMarketAlerts(markets) {
