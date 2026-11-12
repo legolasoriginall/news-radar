@@ -603,20 +603,43 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     }
   }
 
-  // حالت شبیه‌سازی: ?demo=backup — فقط نام منبع را عوض می‌کند تا شکل تابلو در حالت پشتیبان دیده شود
+  // حالت‌های شبیه‌سازی: ?demo=backup (منبع پشتیبان) و ?demo=offline (قطع کامل منابع)
+  // فقط نمایش را عوض می‌کند؛ دادهٔ واقعی data.json دست‌نخورده می‌ماند
   function withSimulatedBackup(markets) {
-    if (!/[?&]demo=backup/.test(window.location.search)) return markets;
+    var search = String(window.location.search || '');
+    var offline = /[?&]demo=offline/.test(search);
+    var backup = /[?&]demo=backup/.test(search);
+    if (!offline && !backup) return markets;
     var items = (markets.items || []).map(function (item) {
+      if (offline) {
+        return Object.assign({}, item, {
+          source: 'آخرین مقدار موفق',
+          stale: true,
+          change: 0,
+          direction: 'flat'
+        });
+      }
       return Object.assign({}, item, {
         source: item.id === 'ounce' ? 'CoinGecko' : 'نرخ‌آرا',
         stale: false
       });
     });
+    if (offline) {
+      return Object.assign({}, markets, {
+        items: items,
+        source: 'آخرین مقدار موفق',
+        ok: false,
+        stale: true,
+        previous_count: items.length,
+        error: 'شبیه‌سازی: هیچ منبعی پاسخ نداد (دادهٔ نمایشی).',
+        simulated: 'offline'
+      });
+    }
     return Object.assign({}, markets, {
       items: items,
       source: 'نرخ‌آرا + CoinGecko',
       ok: true,
-      simulated: true
+      simulated: 'backup'
     });
   }
 
@@ -670,9 +693,12 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     var box = $('market-alerts');
     if (!box) return;
     var warnings = markets.warnings || [];
-    var html = markets.simulated
-      ? '<div class="alert info"><span class="tag">شبیه‌سازی</span><span>این نمایش آزمایشی است: نام منبع پشتیبان روی کارت‌ها گذاشته شده و نرخ‌ها همان دادهٔ واقعی تابلوست. آدرس را بدون <span dir="ltr">?demo=backup</span> باز کنید تا حالت عادی برگردد.</span></div>'
-      : '';
+    var html = '';
+    if (markets.simulated === 'offline') {
+      html = '<div class="alert info"><span class="tag">شبیه‌سازی</span><span>نمایش آزمایشی حالت «قطع کامل منابع»: هر کارت برچسب «آخرین مقدار موفق» و «قدیمی» دارد و هشدار تازه‌نبودن نرخ‌ها هم دیده می‌شود؛ دادهٔ واقعی تابلو تغییر نکرده است. آدرس را بدون <span dir="ltr">?demo=offline</span> باز کنید.</span></div>';
+    } else if (markets.simulated) {
+      html = '<div class="alert info"><span class="tag">شبیه‌سازی</span><span>این نمایش آزمایشی است: نام منبع پشتیبان روی کارت‌ها گذاشته شده و نرخ‌ها همان دادهٔ واقعی تابلوست. آدرس را بدون <span dir="ltr">?demo=backup</span> باز کنید تا حالت عادی برگردد.</span></div>';
+    }
     if (warnings.length) {
       var threshold = Number(markets.divergence_threshold_percent) || 3;
       var text = warnings.map(function (warning) {
