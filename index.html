@@ -782,6 +782,10 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     if (title) title.textContent = 'روند قیمت · ' + faDigits(String(Number(state.trendDays) || 30)) + ' روز اخیر';
   }
 
+  function axisAmount(value) {
+    return compactAmount(value) || fmt(Math.round(value));
+  }
+
   function renderMarketTrend() {
     var box = $('market-trend');
     if (!box) return;
@@ -825,8 +829,8 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
         '</svg>' +
         '<div class="trend-axis">' +
           '<span>' + esc(shortDay(points[0].at)) + '</span>' +
-          '<span>کمینه ' + fmt(Math.round(min)) + '</span>' +
-          '<span>بیشینه ' + fmt(Math.round(max)) + '</span>' +
+          '<span title="' + fmt(Math.round(min)) + ' ' + esc(series.unit) + '">کمینه ' + axisAmount(min) + '</span>' +
+          '<span title="' + fmt(Math.round(max)) + ' ' + esc(series.unit) + '">بیشینه ' + axisAmount(max) + '</span>' +
           '<span>' + esc(shortDay(points[points.length - 1].at)) + '</span>' +
         '</div>' +
         '</article>';
