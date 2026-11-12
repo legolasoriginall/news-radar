@@ -96,6 +96,8 @@ a:hover { text-decoration: underline; }
 .market-card.tone-up .m-value { color: var(--green); }
 .market-card.tone-down .m-value { color: var(--red); }
 .market-note { font-size: 11.8px; color: var(--muted); margin-top: 10px; }
+.market-card .m-warn { font-size: 10.5px; font-weight: 700; background: #fef3c7; color: #92400e; border-radius: 999px; padding: 0 7px; margin-inline-start: auto; }
+#market-alerts:empty { display: none; }
 
 .trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 1fr)); gap: 12px; margin-top: 14px; }
 .trend-card { border: 1px solid var(--line); border-radius: 13px; padding: 11px 14px 8px; background: #fcfdfe; }
@@ -280,6 +282,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
         <span class="hint" id="market-hint"></span>
       </div>
       <div class="market-grid" id="market-grid"></div>
+      <div class="alerts" id="market-alerts"></div>
       <div class="trend-grid" id="market-trend"></div>
       <div class="market-note" id="market-note"></div>
     </div>
@@ -591,6 +594,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     var note = $('market-note');
     if (!items.length) {
       grid.innerHTML = '';
+      $('market-alerts').innerHTML = '';
       $('market-trend').innerHTML = '';
       $('market-hint').textContent = 'در دسترس نیست';
       note.classList.add('warn');
@@ -604,21 +608,43 @@ footer ul { margin: 0; padding-inline-start: 18px; }
       var dir = item.direction === 'up' ? 'up' : item.direction === 'down' ? 'down' : 'flat';
       var arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '■';
       var change = Number(item.change) || 0;
+      var threshold = Number(markets.divergence_threshold_percent) || 3;
+      var divergence = Number(item.divergence_percent);
+      var warnBadge = isFinite(divergence) && divergence > threshold
+        ? '<span class="m-warn" title="اختلاف نرخ بین منابع">اختلاف منابع ' + pctText(divergence, 1) + '</span>'
+        : '';
       return '<article class="market-card tone-' + dir + '">' +
         '<div class="m-label">' + esc(item.label) + '</div>' +
         '<div class="m-value">' + fmt(item.value) + '<small>' + esc(item.unit) + '</small></div>' +
         '<div class="m-foot">' +
           '<span class="m-delta ' + dir + '">' + arrow + ' ' + fmt(Math.abs(change)) + '</span>' +
           '<span class="m-pct ' + dir + '">' + (change > 0 ? '+' : change < 0 ? '−' : '') + pctText(Math.abs(Number(item.change_percent) || 0), 2) + '</span>' +
+          warnBadge +
         '</div>' +
         '<div class="m-time">' + (item.updated_at ? clockText(item.updated_at) + ' · ' + timeAgo(item.updated_at) : 'زمان نامشخص') + (item.stale ? ' · قدیمی' : '') + '</div>' +
         '</article>';
     }).join('');
+    renderMarketAlerts(markets);
     renderMarketTrend();
     note.classList.toggle('warn', !markets.ok);
     note.textContent = markets.ok
       ? 'نرخ طلا، سکه و ارز به تومان (انس طلا به دلار) است و همراه با هر به‌روزرسانی خبرها دوباره خوانده می‌شود · منبع: ' + (markets.source || 'TGJU')
       : 'دریافت تازهٔ نرخ‌ها ممکن نشد؛ آخرین مقدارهای موفق نمایش داده می‌شود. ' + (markets.error || '');
+  }
+
+  function renderMarketAlerts(markets) {
+    var box = $('market-alerts');
+    if (!box) return;
+    var warnings = markets.warnings || [];
+    if (!warnings.length) { box.innerHTML = ''; return; }
+    var threshold = Number(markets.divergence_threshold_percent) || 3;
+    var text = warnings.map(function (warning) {
+      return esc(warning.label) + ': ' + esc(warning.high.label) + ' ' + fmt(Math.round(warning.high.value)) +
+        ' ' + esc(warning.unit || '') + ' در برابر ' + esc(warning.low.label) + ' ' + fmt(Math.round(warning.low.value)) +
+        ' (اختلاف ' + pctText(warning.percent, 1) + ')';
+    }).join('؛ ');
+    box.innerHTML = '<div class="alert medium"><span class="tag">دادهٔ مشکوک</span><span>' + text +
+      ' — اختلاف بیش از آستانهٔ ' + pctText(threshold, 0) + ' است؛ نرخ این موارد را با احتیاط استفاده کنید.</span></div>';
   }
 
   var TREND_SERIES = [

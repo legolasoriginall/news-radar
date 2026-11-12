@@ -82,6 +82,9 @@ export const MARKET_DEFINITIONS = [
 
 const STALE_HOURS = 48;
 
+// اگر نرخ دو منبع بیش از این درصد اختلاف داشته باشد، داده مشکوک علامت می‌خورد
+export const DIVERGENCE_THRESHOLD_PERCENT = 3;
+
 const toNumber = (value) => {
   const normalized = String(value ?? '').replace(/,/g, '').replace(/\s/g, '').trim();
   if (!normalized) return null;
@@ -315,6 +318,45 @@ export async function buildMarketHistory({ previousHistory = null, markets } = {
   return appendHistoryPoint(history, markets);
 }
 
+/**
+ * نرخ نهایی هر آیتم را با مقدار همان آیتم در منابع دیگر مقایسه می‌کند.
+ * روی هر آیتم divergence_percent می‌گذارد و فهرست هشدارها را برمی‌گرداند.
+ */
+export function computeDivergence(items, attempts, threshold = DIVERGENCE_THRESHOLD_PERCENT) {
+  const okAttempts = (attempts || []).filter((attempt) => attempt.ok);
+  const warnings = [];
+  for (const item of items || []) {
+    item.divergence_percent = null;
+    item.divergence = null;
+    if (okAttempts.length < 2) continue;
+    const rows = okAttempts
+      .map((attempt) => {
+        const match = attempt.items.find((entry) => entry.id === item.id);
+        return match ? { label: attempt.label, value: match.value } : null;
+      })
+      .filter((row) => row && row.value > 0);
+    if (rows.length < 2) continue;
+    rows.sort((a, b) => a.value - b.value);
+    const low = rows[0];
+    const high = rows[rows.length - 1];
+    const percent = Number((((high.value - low.value) / low.value) * 100).toFixed(1));
+    item.divergence_percent = percent;
+    item.divergence = { percent, low: { ...low }, high: { ...high } };
+    if (percent > threshold) {
+      warnings.push({
+        id: item.id,
+        label: item.label,
+        unit: item.unit,
+        percent,
+        threshold,
+        low: { ...low, value: Math.round(low.value * 100) / 100 },
+        high: { ...high, value: Math.round(high.value * 100) / 100 },
+      });
+    }
+  }
+  return warnings;
+}
+
 export const MARKET_PROVIDERS = [
   { id: 'tgju', label: 'TGJU', load: loadTgju },
   { id: 'nerkhara', label: 'نرخ‌آرا', load: loadNerkhara },
@@ -363,9 +405,11 @@ export async function fetchMarkets({ previous = null, timeoutMs = 20000 } = {}) 
   for (const provider of MARKET_PROVIDERS) {
     const attempt = await tryProvider(provider, timeoutMs);
     attempts.push(attempt);
-    // پشتیبان‌ها فقط وقتی صدا زده می‌شوند که منبع اصلی ناقص باشد
-    if (attempt.ok && attempt.items.length >= MARKET_DEFINITIONS.length) break;
-    if (attempt.ok) break;
+    const covered = new Set(attempts.filter((row) => row.ok).flatMap((row) => row.items.map((item) => item.id)));
+    const complete = MARKET_DEFINITIONS.every((definition) => covered.has(definition.id));
+    // دست‌کم دو منبع خوانده می‌شود تا نرخ‌ها با هم مقایسه شوند؛
+    // منابع بعدی فقط وقتی لازم‌اند که نرخ‌ها کامل نشده باشند
+    if (complete && attempts.filter((row) => row.ok).length >= 2) break;
   }
 
   const byId = new Map();
@@ -394,6 +438,7 @@ export async function fetchMarkets({ previous = null, timeoutMs = 20000 } = {}) 
   }
 
   const items = MARKET_DEFINITIONS.map((definition) => byId.get(definition.id)).filter(Boolean);
+  const warnings = computeDivergence(items, attempts);
   const usedLabels = [...new Set(items.map((item) => item.source).filter(Boolean))];
   const errors = attempts.filter((attempt) => !attempt.ok).map((attempt) => `${attempt.label}: ${attempt.error}`);
 
@@ -418,6 +463,8 @@ export async function fetchMarkets({ previous = null, timeoutMs = 20000 } = {}) 
       fetched_at: fetchedAt,
       error: errors.join(' · '),
       items: [],
+      warnings: [],
+      divergence_threshold_percent: DIVERGENCE_THRESHOLD_PERCENT,
       providers: attempts.map(({ id, label, ok, error }) => ({ id, label, ok, error })),
       summary_text: '',
     };
@@ -433,6 +480,8 @@ export async function fetchMarkets({ previous = null, timeoutMs = 20000 } = {}) 
     fetched_at: fetchedAt,
     error: errors.join(' · '),
     items,
+    warnings,
+    divergence_threshold_percent: DIVERGENCE_THRESHOLD_PERCENT,
     providers: attempts.map(({ id, label, ok, error, feed, used }) => ({ id, label, ok, error, feed, used })),
     summary_text: summaryLine(items),
   };
