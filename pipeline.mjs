@@ -56,7 +56,8 @@ async function fetchWithTimeout(url, timeoutMs = 25000) {
     redirect: 'follow',
     signal: AbortSignal.timeout(timeoutMs),
     headers: {
-      'User-Agent': 'Mozilla/5.0 (compatible; NewsRadar/2.0; +https://github.com/legolasoriginall/news-radar)',
+      // برخی منابع (مثل CBC) با User-Agent برنامه‌ای خطای HTTP/2 می‌دهند.
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36',
       Accept: 'application/rss+xml, application/atom+xml, application/xml, text/xml;q=0.9, */*;q=0.8',
       'Accept-Language': 'fa,en;q=0.8',
     },
@@ -309,6 +310,7 @@ export async function runPipeline({ quiet = false } = {}) {
     stale: true,
     source: MARKET_SOURCE,
     items: [],
+    history: previousData?.markets?.history || [],
     error: String(error?.message || error),
     summary_text: '',
   }));

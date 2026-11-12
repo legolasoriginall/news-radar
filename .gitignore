@@ -4,3 +4,4 @@ update.log
 *.log
 .DS_Store
 .env
+scheduler/token.txt
