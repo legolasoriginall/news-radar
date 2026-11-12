@@ -363,6 +363,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
 
   var PAGE = 60;
   var REFRESH_MINUTES = 5;
+  var TREND_DAYS = [7, 30, 60];
   var state = {
     data: null,
     page: PAGE,
@@ -833,6 +834,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
       var button = event.target.closest ? event.target.closest('[data-range]') : null;
       if (!button) return;
       state.trendDays = Number(button.getAttribute('data-range')) || 30;
+      storeSet('newsradar:trendDays', state.trendDays);
       renderTrendRange();
       renderMarketTrend();
     });
@@ -855,6 +857,8 @@ footer ul { margin: 0; padding-inline-start: 18px; }
   /* ---------------- boot ---------------- */
 
   state.auto = storeGet('newsradar:auto', true);
+  var savedTrendDays = Number(storeGet('newsradar:trendDays', 30));
+  state.trendDays = TREND_DAYS.indexOf(savedTrendDays) !== -1 ? savedTrendDays : 30;
   $('auto-btn').setAttribute('aria-pressed', String(state.auto));
   $('auto-btn').textContent = state.auto ? 'توقف به‌روزرسانی خودکار' : 'فعال‌سازی به‌روزرسانی خودکار';
 
