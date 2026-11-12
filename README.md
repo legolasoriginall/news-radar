@@ -18,6 +18,7 @@
 ```bash
 npm start          # سرور داشبورد روی پورت ۳۰۰۰ + به‌روزرسانی هر ۵ دقیقه
 npm run update     # یک بار تولید داده (data.json و news.xlsx)
+npm test           # تست زنجیرهٔ منابع نرخ (بدون نیاز به شبکه)
 PORT=8080 npm start
 ```
 

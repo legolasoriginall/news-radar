@@ -157,9 +157,9 @@ function buildItem(definition, { value, change, changePercent, updatedAt }) {
 }
 
 /* ── منبع اصلی: TGJU ─────────────────────────────────────────── */
-export async function loadTgju({ timeoutMs = 20000 } = {}) {
+export async function loadTgju({ timeoutMs = 20000, feeds = MARKET_FEEDS } = {}) {
   const errors = [];
-  for (const url of MARKET_FEEDS) {
+  for (const url of feeds) {
     try {
       const payload = await fetchJson(url, timeoutMs);
       const current = payload && typeof payload === 'object' ? payload.current : null;
@@ -189,8 +189,8 @@ export async function loadTgju({ timeoutMs = 20000 } = {}) {
 }
 
 /* ── منبع پشتیبان: نرخ‌آرا (مستقل از TGJU) ───────────────────── */
-export async function loadNerkhara({ timeoutMs = 20000 } = {}) {
-  const payload = await fetchJson(NERKHARA_FEED, timeoutMs);
+export async function loadNerkhara({ timeoutMs = 20000, feed = NERKHARA_FEED } = {}) {
+  const payload = await fetchJson(feed, timeoutMs);
   const list = Array.isArray(payload?.items) ? payload.items : [];
   if (!list.length) throw new Error('فهرست نرخ‌ها خالی بود');
   const byId = new Map(list.map((entry) => [String(entry?.id || ''), entry]));
@@ -210,12 +210,12 @@ export async function loadNerkhara({ timeoutMs = 20000 } = {}) {
     if (item) items.push(item);
   }
   if (!items.length) throw new Error('نرخی برای موارد موردنظر یافت نشد');
-  return { items, feed: NERKHARA_FEED };
+  return { items, feed };
 }
 
 /* ── مرحلهٔ سوم: ایران‌مارکت (فایل ثابت گیت‌هاب، قیمت‌ها به تومان) ── */
-export async function loadIranMarket({ timeoutMs = 25000 } = {}) {
-  const payload = await fetchJson(IRANMARKET_FEED, timeoutMs);
+export async function loadIranMarket({ timeoutMs = 25000, feed = IRANMARKET_FEED } = {}) {
+  const payload = await fetchJson(feed, timeoutMs);
   const categories = payload?.data?.categories || payload?.categories || {};
   const rows = [];
   for (const list of Object.values(categories)) {
@@ -239,12 +239,12 @@ export async function loadIranMarket({ timeoutMs = 25000 } = {}) {
     if (item) items.push(item);
   }
   if (!items.length) throw new Error('نرخی برای موارد موردنظر یافت نشد');
-  return { items, feed: IRANMARKET_FEED };
+  return { items, feed };
 }
 
 /* ── پشتیبان انس جهانی ───────────────────────────────────────── */
-export async function loadGlobalOunce({ timeoutMs = 15000 } = {}) {
-  const payload = await fetchJson(COINGECKO_FEED, timeoutMs);
+export async function loadGlobalOunce({ timeoutMs = 15000, feed = COINGECKO_FEED } = {}) {
+  const payload = await fetchJson(feed, timeoutMs);
   const price = toNumber(payload?.['tether-gold']?.usd);
   if (price === null) throw new Error('نرخ انس در پاسخ نبود');
   const definition = MARKET_DEFINITIONS.find((item) => item.id === 'ounce');
@@ -255,7 +255,7 @@ export async function loadGlobalOunce({ timeoutMs = 15000 } = {}) {
     updatedAt: new Date().toISOString(),
   });
   if (!item) throw new Error('نرخ انس نامعتبر بود');
-  return { items: [item], feed: COINGECKO_FEED };
+  return { items: [item], feed };
 }
 
 /* ── تاریخچهٔ قیمت برای نمودار روند ───────────────────────────── */
@@ -436,11 +436,16 @@ async function tryProvider(provider, timeoutMs) {
  * (مثل انس جهانی) از منبع بعدی تکمیل می‌کند. اگر هیچ منبعی پاسخ ندهد،
  * آخرین مقدار موفق (previous) با پرچم ok=false برگردانده می‌شود.
  */
-export async function fetchMarkets({ previous = null, timeoutMs = 20000 } = {}) {
+export async function fetchMarkets({
+  previous = null,
+  timeoutMs = 20000,
+  providers = MARKET_PROVIDERS,
+  globalProviders = GLOBAL_PROVIDERS,
+} = {}) {
   const fetchedAt = new Date().toISOString();
   const attempts = [];
 
-  for (const provider of MARKET_PROVIDERS) {
+  for (const provider of providers) {
     const attempt = await tryProvider(provider, timeoutMs);
     attempts.push(attempt);
     const covered = new Set(attempts.filter((row) => row.ok).flatMap((row) => row.items.map((item) => item.id)));
@@ -463,7 +468,7 @@ export async function fetchMarkets({ previous = null, timeoutMs = 20000 } = {}) 
   // تکمیل موارد باقی‌مانده از منابع جهانی (انس طلا)
   const missing = MARKET_DEFINITIONS.filter((definition) => !byId.has(definition.id));
   if (missing.length) {
-    for (const provider of GLOBAL_PROVIDERS) {
+    for (const provider of globalProviders) {
       const attempt = await tryProvider(provider, Math.min(timeoutMs, 15000));
       attempts.push(attempt);
       if (!attempt.ok) continue;
