@@ -93,6 +93,7 @@ a:hover { text-decoration: underline; }
 .market-card .m-delta.down, .market-card .m-pct.down { background: #fef2f2; color: #b91c1c; }
 .market-card .m-delta.flat, .market-card .m-pct.flat { background: #f1f5f9; color: #64748b; }
 .market-card .m-time { font-size: 11px; color: #98a2b3; }
+.market-card .m-time b { color: #475467; font-weight: 700; margin-inline-end: 2px; }
 .market-card.tone-up .m-value { color: var(--green); }
 .market-card.tone-down .m-value { color: var(--red); }
 .market-note { font-size: 11.8px; color: var(--muted); margin-top: 10px; }
@@ -636,7 +637,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
           '<span class="m-pct ' + dir + '">' + (change > 0 ? '+' : change < 0 ? '−' : '') + pctText(Math.abs(Number(item.change_percent) || 0), 2) + '</span>' +
           warnBadge +
         '</div>' +
-        '<div class="m-time">' + (item.updated_at ? clockText(item.updated_at) + ' · ' + timeAgo(item.updated_at) : 'زمان نامشخص') + (item.stale ? ' · قدیمی' : '') + '</div>' +
+        '<div class="m-time"><b>' + esc(item.source || markets.source || '—') + '</b> · ' + (item.updated_at ? clockText(item.updated_at) + ' · ' + timeAgo(item.updated_at) : 'زمان نامشخص') + (item.stale ? ' · قدیمی' : '') + '</div>' +
         '</article>';
     }).join('');
     renderMarketAlerts(markets);
