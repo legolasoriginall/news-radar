@@ -603,8 +603,25 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     }
   }
 
+  // حالت شبیه‌سازی: ?demo=backup — فقط نام منبع را عوض می‌کند تا شکل تابلو در حالت پشتیبان دیده شود
+  function withSimulatedBackup(markets) {
+    if (!/[?&]demo=backup/.test(window.location.search)) return markets;
+    var items = (markets.items || []).map(function (item) {
+      return Object.assign({}, item, {
+        source: item.id === 'ounce' ? 'CoinGecko' : 'نرخ‌آرا',
+        stale: false
+      });
+    });
+    return Object.assign({}, markets, {
+      items: items,
+      source: 'نرخ‌آرا + CoinGecko',
+      ok: true,
+      simulated: true
+    });
+  }
+
   function renderMarkets() {
-    var markets = state.data.markets || {};
+    var markets = withSimulatedBackup(state.data.markets || {});
     var items = markets.items || [];
     var grid = $('market-grid');
     var note = $('market-note');
@@ -653,15 +670,20 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     var box = $('market-alerts');
     if (!box) return;
     var warnings = markets.warnings || [];
-    if (!warnings.length) { box.innerHTML = ''; return; }
-    var threshold = Number(markets.divergence_threshold_percent) || 3;
-    var text = warnings.map(function (warning) {
-      return esc(warning.label) + ': ' + esc(warning.high.label) + ' ' + fmt(Math.round(warning.high.value)) +
-        ' ' + esc(warning.unit || '') + ' در برابر ' + esc(warning.low.label) + ' ' + fmt(Math.round(warning.low.value)) +
-        ' (اختلاف ' + pctText(warning.percent, 1) + ')';
-    }).join('؛ ');
-    box.innerHTML = '<div class="alert medium"><span class="tag">دادهٔ مشکوک</span><span>' + text +
-      ' — اختلاف بیش از آستانهٔ ' + pctText(threshold, 0) + ' است؛ نرخ این موارد را با احتیاط استفاده کنید.</span></div>';
+    var html = markets.simulated
+      ? '<div class="alert info"><span class="tag">شبیه‌سازی</span><span>این نمایش آزمایشی است: نام منبع پشتیبان روی کارت‌ها گذاشته شده و نرخ‌ها همان دادهٔ واقعی تابلوست. آدرس را بدون <span dir="ltr">?demo=backup</span> باز کنید تا حالت عادی برگردد.</span></div>'
+      : '';
+    if (warnings.length) {
+      var threshold = Number(markets.divergence_threshold_percent) || 3;
+      var text = warnings.map(function (warning) {
+        return esc(warning.label) + ': ' + esc(warning.high.label) + ' ' + fmt(Math.round(warning.high.value)) +
+          ' ' + esc(warning.unit || '') + ' در برابر ' + esc(warning.low.label) + ' ' + fmt(Math.round(warning.low.value)) +
+          ' (اختلاف ' + pctText(warning.percent, 1) + ')';
+      }).join('؛ ');
+      html += '<div class="alert medium"><span class="tag">دادهٔ مشکوک</span><span>' + text +
+        ' — اختلاف بیش از آستانهٔ ' + pctText(threshold, 0) + ' است؛ نرخ این موارد را با احتیاط استفاده کنید.</span></div>';
+    }
+    box.innerHTML = html;
   }
 
   var TREND_SERIES = [
