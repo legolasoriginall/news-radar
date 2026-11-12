@@ -101,6 +101,22 @@ a:hover { text-decoration: underline; }
 .kpi.tone-teal .value { color: var(--teal); }
 .kpi.tone-red .value { color: var(--red); }
 
+.market-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(184px, 1fr)); gap: 10px; }
+.market-card { border: 1px solid var(--line); border-radius: 13px; padding: 11px 13px; background: #fcfdfe; display: grid; gap: 2px; }
+.market-card .m-label { font-size: 12.5px; color: var(--muted); }
+.market-card .m-value { font-size: 21px; font-weight: 800; letter-spacing: -.4px; font-variant-numeric: tabular-nums; }
+.market-card .m-value small { font-size: 11.5px; font-weight: 600; color: var(--muted); margin-inline-start: 5px; }
+.market-card .m-foot { display: flex; align-items: center; gap: 7px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.market-card .m-delta, .market-card .m-pct { font-weight: 700; border-radius: 999px; padding: 0 7px; }
+.market-card .m-delta.up, .market-card .m-pct.up { background: #ecfdf5; color: #047857; }
+.market-card .m-delta.down, .market-card .m-pct.down { background: #fef2f2; color: #b91c1c; }
+.market-card .m-delta.flat, .market-card .m-pct.flat { background: #f1f5f9; color: #64748b; }
+.market-card .m-time { font-size: 11px; color: #98a2b3; }
+.market-card.tone-up .m-value { color: var(--green); }
+.market-card.tone-down .m-value { color: var(--red); }
+.market-note { font-size: 11.8px; color: var(--muted); margin-top: 10px; }
+.market-note.warn { color: #92400e; }
+
 section { margin-top: 22px; }
 .panel { background: var(--panel); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); border: 1px solid rgba(16,24,40,.03); }
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -288,6 +304,17 @@ footer ul { margin: 0; padding-inline-start: 18px; }
   </div>
 
   <div class="error-box" id="error-box"></div>
+
+  <section id="market">
+    <div class="panel">
+      <div class="panel-head">
+        <h2><span class="ico">⚖</span> قیمت طلا، سکه و دلار</h2>
+        <span class="hint" id="market-hint"></span>
+      </div>
+      <div class="market-grid" id="market-grid"></div>
+      <div class="market-note" id="market-note"></div>
+    </div>
+  </section>
 
   <section>
     <div class="panel">
@@ -579,6 +606,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     renderClockOnly();
     renderHeroChips();
     renderKpis();
+    renderMarkets();
     renderStories();
     renderFilters();
     renderFeed();
@@ -638,6 +666,41 @@ footer ul { margin: 0; padding-inline-start: 18px; }
         '</div>';
     }).join('') +
       '<div class="kpi"><div class="label">خبرهای ۲۴ ساعت اخیر</div><div class="value" data-ready="1">' + fmt(s.fresh_24h) + '</div><div class="sub">از ' + fmt(s.total) + ' خبر</div><div class="bar"><span style="width:' + Math.max(2, s.fresh_24h_percent) + '%"></span></div></div>';
+  }
+
+  function renderMarkets() {
+    var markets = state.data.markets || {};
+    var items = markets.items || [];
+    var grid = $('market-grid');
+    var note = $('market-note');
+    if (!items.length) {
+      grid.innerHTML = '';
+      $('market-hint').textContent = 'در دسترس نیست';
+      note.classList.add('warn');
+      note.textContent = markets.error
+        ? 'دریافت نرخ‌های بازار ممکن نشد: ' + markets.error
+        : 'نرخ‌های بازار در به‌روزرسانی بعدی اضافه می‌شود.';
+      return;
+    }
+    $('market-hint').textContent = 'منبع: ' + (markets.source || 'TGJU');
+    grid.innerHTML = items.map(function (item) {
+      var dir = item.direction === 'up' ? 'up' : item.direction === 'down' ? 'down' : 'flat';
+      var arrow = dir === 'up' ? '▲' : dir === 'down' ? '▼' : '■';
+      var change = Number(item.change) || 0;
+      return '<article class="market-card tone-' + dir + '">' +
+        '<div class="m-label">' + esc(item.label) + '</div>' +
+        '<div class="m-value">' + fmt(item.value) + '<small>' + esc(item.unit) + '</small></div>' +
+        '<div class="m-foot">' +
+          '<span class="m-delta ' + dir + '">' + arrow + ' ' + fmt(Math.abs(change)) + '</span>' +
+          '<span class="m-pct ' + dir + '">' + (change > 0 ? '+' : change < 0 ? '−' : '') + pctText(Math.abs(Number(item.change_percent) || 0), 2) + '</span>' +
+        '</div>' +
+        '<div class="m-time">' + (item.updated_at ? clockText(item.updated_at) + ' · ' + timeAgo(item.updated_at) : 'زمان نامشخص') + (item.stale ? ' · قدیمی' : '') + '</div>' +
+        '</article>';
+    }).join('');
+    note.classList.toggle('warn', !markets.ok);
+    note.textContent = markets.ok
+      ? 'نرخ طلا، سکه و ارز به تومان (انس طلا به دلار) است و همراه با هر به‌روزرسانی خبرها دوباره خوانده می‌شود · منبع: ' + (markets.source || 'TGJU')
+      : 'دریافت تازهٔ نرخ‌ها ممکن نشد؛ آخرین مقدارهای موفق نمایش داده می‌شود. ' + (markets.error || '');
   }
 
   function renderStories() {

@@ -16,6 +16,7 @@ import {
   TOPICS,
 } from './src/analyze.mjs';
 import { translateMany, saveCache } from './src/translate.mjs';
+import { fetchMarkets, MARKET_SOURCE } from './src/markets.mjs';
 import { buildXlsx } from './src/xlsx.mjs';
 
 const ROOT = path.resolve('.');
@@ -300,6 +301,17 @@ export async function runPipeline({ quiet = false } = {}) {
   const startedAt = Date.now();
   const generatedAt = nowIso();
   const log = (...args) => { if (!quiet) console.log(...args); };
+
+  // قیمت طلا و دلار هم‌زمان با خبرها خوانده می‌شود؛ اگر نشد، مقدار موفق قبلی حفظ می‌شود
+  const previousData = await readJson(DATA_FILE, null);
+  const marketsPromise = fetchMarkets({ previous: previousData?.markets || null }).catch((error) => ({
+    ok: false,
+    stale: true,
+    source: MARKET_SOURCE,
+    items: [],
+    error: String(error?.message || error),
+    summary_text: '',
+  }));
 
   log('› دریافت خوراک منابع…');
   const results = await fetchAllSources();
@@ -615,12 +627,20 @@ export async function runPipeline({ quiet = false } = {}) {
     generated_at: generatedAt,
   };
 
+  const markets = await marketsPromise;
+  log(
+    markets.items.length
+      ? `› بازار: ${markets.items.length} نرخ (${markets.ok ? 'تازه' : 'آخرین مقدار موفق'})`
+      : '› بازار: نرخی دریافت نشد'
+  );
+
   const data = {
     generated_at: generatedAt,
     next_update_at: new Date(Date.now() + UPDATE_INTERVAL_MINUTES * 60000).toISOString(),
     update_interval_minutes: UPDATE_INTERVAL_MINUTES,
     window_hours: null,
     window_label: 'همهٔ خبرها (بدون محدودیت زمانی)',
+    markets,
     stats,
     summary_lines: [],
     analysis: null,
@@ -651,6 +671,9 @@ export async function runPipeline({ quiet = false } = {}) {
   const analysis = buildAnalysis(data);
   data.analysis = analysis;
   data.summary_lines = [
+    ...(markets.summary_text
+      ? [markets.summary_text, `نرخ‌های طلا، سکه و ارز از ${MARKET_SOURCE} خوانده می‌شود و در هر به‌روزرسانی تازه می‌شود.`]
+      : []),
     `در مجموع ${faNumber(stats.total)} خبر از ${faNumber(sourcesWithNews)} منبع فعال رصد شد؛ ${faNumber(stats.fa)} خبر فارسی (${faNumber(stats.fa_percent, 1)}٪) و ${faNumber(stats.en)} خبر انگلیسی (${faNumber(stats.en_percent, 1)}٪).`,
     `پرجوش‌ترین حوزه‌های خبری: ${topics.slice(0, 3).map((t) => `${t.name} (${faNumber(t.count)} خبر، ${faNumber(t.percent, 1)}٪)`).join('، ')}.`,
     `سهم رسانه‌های خارج از ایران ${faNumber(stats.foreign_percent, 1)}٪ (${faNumber(stats.foreign)} خبر از ${faNumber(stats.foreign_sources)} رسانه) و سهم رسانه‌های ایرانی ${faNumber(stats.iran_percent, 1)}٪ (${faNumber(stats.iran)} خبر از ${faNumber(stats.iran_sources)} رسانه) است.`,
@@ -695,6 +718,23 @@ export async function runPipeline({ quiet = false } = {}) {
       name: 'موضوعات',
       rows: [['موضوع', 'تعداد خبر', 'درصد از کل', 'احساس', 'روند یک‌ساعته', 'کلیدواژه‌ها'], ...topics.map((t) => [t.name, t.count, t.percent, t.sentiment, t.trend_percent ?? '—', t.top_keywords.join('، ')])],
       widths: [22, 12, 12, 10, 14, 55],
+    },
+    {
+      name: 'بازار',
+      rows: [
+        ['کالا/ارز', 'قیمت', 'واحد', 'تغییر', 'تغییر٪', 'جهت', 'آخرین به‌روزرسانی', 'منبع'],
+        ...markets.items.map((item) => [
+          item.label,
+          item.value,
+          item.unit,
+          item.change,
+          item.change_percent,
+          item.direction === 'up' ? 'افزایش' : item.direction === 'down' ? 'کاهش' : 'بدون تغییر',
+          item.updated_at || '',
+          MARKET_SOURCE,
+        ]),
+      ],
+      widths: [26, 16, 10, 14, 10, 12, 24, 12],
     },
     {
       name: 'منابع',
