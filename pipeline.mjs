@@ -731,7 +731,7 @@ export async function runPipeline({ quiet = false } = {}) {
           item.change_percent,
           item.direction === 'up' ? 'افزایش' : item.direction === 'down' ? 'کاهش' : 'بدون تغییر',
           item.updated_at || '',
-          MARKET_SOURCE,
+          item.source || markets.source || MARKET_SOURCE,
         ]),
       ],
       widths: [26, 16, 10, 14, 10, 12, 24, 12],
