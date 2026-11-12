@@ -87,6 +87,7 @@ a:hover { text-decoration: underline; }
 .market-card .m-label { font-size: 12.5px; color: var(--muted); }
 .market-card .m-value { font-size: 21px; font-weight: 800; letter-spacing: -.4px; font-variant-numeric: tabular-nums; }
 .market-card .m-value small { font-size: 11.5px; font-weight: 600; color: var(--muted); margin-inline-start: 5px; }
+.market-card .m-compact { font-size: 11px; color: #667085; margin-top: -1px; font-variant-numeric: tabular-nums; }
 .market-card .m-foot { display: flex; align-items: center; gap: 7px; font-size: 12px; font-variant-numeric: tabular-nums; }
 .market-card .m-delta, .market-card .m-pct { font-weight: 700; border-radius: 999px; padding: 0 7px; }
 .market-card .m-delta.up, .market-card .m-pct.up { background: #ecfdf5; color: #047857; }
@@ -646,6 +647,21 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     });
   }
 
+  // نمایش خوانا: ۲۵٬۰۳۸٬۸۰۰ تومان → ۲۵ میلیون تومان
+  function compactAmount(value) {
+    var amount = Number(value);
+    if (!isFinite(amount) || Math.abs(amount) < 1000) return '';
+    var abs = Math.abs(amount);
+    var scaled = amount;
+    var suffix = '';
+    if (abs >= 1e9) { scaled = amount / 1e9; suffix = 'میلیارد'; }
+    else if (abs >= 1e6) { scaled = amount / 1e6; suffix = 'میلیون'; }
+    else { scaled = amount / 1e3; suffix = 'هزار'; }
+    var rounded = Math.round(scaled * 10) / 10;
+    var text = fmt(rounded, rounded % 1 === 0 ? 0 : 1);
+    return text + ' ' + suffix;
+  }
+
   function renderMarkets() {
     var markets = withSimulatedBackup(state.data.markets || {});
     var items = markets.items || [];
@@ -675,6 +691,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       return '<article class="market-card tone-' + dir + '">' +
         '<div class="m-label">' + esc(item.label) + '</div>' +
         '<div class="m-value">' + fmt(item.value) + '<small>' + esc(item.unit) + '</small></div>' +
+        (compactAmount(item.value) ? '<div class="m-compact">≈ ' + compactAmount(item.value) + ' ' + esc(item.unit) + '</div>' : '') +
         '<div class="m-foot">' +
           '<span class="m-delta ' + dir + '">' + arrow + ' ' + fmt(Math.abs(change)) + '</span>' +
           '<span class="m-pct ' + dir + '">' + (change > 0 ? '+' : change < 0 ? '−' : '') + pctText(Math.abs(Number(item.change_percent) || 0), 2) + '</span>' +
