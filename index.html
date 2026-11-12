@@ -99,7 +99,12 @@ a:hover { text-decoration: underline; }
 .market-card .m-warn { font-size: 10.5px; font-weight: 700; background: #fef3c7; color: #92400e; border-radius: 999px; padding: 0 7px; margin-inline-start: auto; }
 #market-alerts:empty { display: none; }
 
-.trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 1fr)); gap: 12px; margin-top: 14px; }
+.trend-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
+.trend-bar-title { font-size: 13px; font-weight: 700; color: #344054; }
+.trend-range { display: inline-flex; gap: 4px; background: #f1f5f9; border-radius: 999px; padding: 3px; }
+.range-btn { border: 0; background: transparent; border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 12px; color: #475467; cursor: pointer; }
+.range-btn.active { background: #fff; color: var(--navy); font-weight: 700; box-shadow: 0 1px 2px rgba(16,24,40,.08); }
+.trend-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(258px, 1fr)); gap: 12px; margin-top: 10px; }
 .trend-card { border: 1px solid var(--line); border-radius: 13px; padding: 11px 14px 8px; background: #fcfdfe; }
 .trend-head { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; font-size: 12.5px; color: #344054; }
 .trend-value { font-size: 18px; font-weight: 800; letter-spacing: -.3px; margin-top: 2px; font-variant-numeric: tabular-nums; }
@@ -283,6 +288,14 @@ footer ul { margin: 0; padding-inline-start: 18px; }
       </div>
       <div class="market-grid" id="market-grid"></div>
       <div class="alerts" id="market-alerts"></div>
+      <div class="trend-bar">
+        <span class="trend-bar-title" id="trend-title">روند قیمت</span>
+        <div class="trend-range" id="trend-range" role="group" aria-label="بازهٔ زمانی نمودار">
+          <button class="range-btn" data-range="7" type="button">۷ روز</button>
+          <button class="range-btn" data-range="30" type="button">۳۰ روز</button>
+          <button class="range-btn" data-range="60" type="button">۶۰ روز</button>
+        </div>
+      </div>
       <div class="trend-grid" id="market-trend"></div>
       <div class="market-note" id="market-note"></div>
     </div>
@@ -353,6 +366,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
   var state = {
     data: null,
     page: PAGE,
+    trendDays: 30,
     auto: true,
     generatedAt: '',
     nextUpdate: 0,
@@ -625,6 +639,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
         '</article>';
     }).join('');
     renderMarketAlerts(markets);
+    renderTrendRange();
     renderMarketTrend();
     note.classList.toggle('warn', !markets.ok);
     note.textContent = markets.ok
@@ -656,12 +671,14 @@ footer ul { margin: 0; padding-inline-start: 18px; }
 
   function trendPoints(seriesId) {
     var history = (state.data && state.data.markets && state.data.markets.history) || [];
+    var days = Number(state.trendDays) || 30;
+    var cutoff = Date.now() - days * 86400000;
     var points = [];
     for (var i = 0; i < history.length; i++) {
       var entry = history[i] || {};
       var value = Number(entry.prices ? entry.prices[seriesId] : NaN);
       var ts = entry.at ? new Date(entry.at).getTime() : NaN;
-      if (!isFinite(value) || !isFinite(ts)) continue;
+      if (!isFinite(value) || !isFinite(ts) || ts < cutoff) continue;
       points.push({ at: ts, value: value });
     }
     points.sort(function (a, b) { return a.at - b.at; });
@@ -683,6 +700,18 @@ footer ul { margin: 0; padding-inline-start: 18px; }
     } catch (e) { return ''; }
   }
 
+  function renderTrendRange() {
+    var buttons = document.querySelectorAll('#trend-range [data-range]');
+    for (var i = 0; i < buttons.length; i++) {
+      var value = Number(buttons[i].getAttribute('data-range'));
+      var active = value === Number(state.trendDays);
+      buttons[i].classList.toggle('active', active);
+      buttons[i].setAttribute('aria-pressed', String(active));
+    }
+    var title = $('trend-title');
+    if (title) title.textContent = 'روند قیمت · ' + faDigits(String(Number(state.trendDays) || 30)) + ' روز اخیر';
+  }
+
   function renderMarketTrend() {
     var box = $('market-trend');
     if (!box) return;
@@ -691,7 +720,7 @@ footer ul { margin: 0; padding-inline-start: 18px; }
       if (points.length < 2) {
         return '<article class="trend-card">' +
           '<div class="trend-head"><span>' + esc(series.label) + '</span></div>' +
-          '<div class="trend-empty">برای رسم نمودار هنوز نمونهٔ کافی ثبت نشده است؛ پس از به‌روزرسانی‌های بعدی ساخته می‌شود.</div>' +
+          '<div class="trend-empty">در بازهٔ انتخابی نمونهٔ کافی برای رسم نمودار نیست؛ بازهٔ بزرگ‌تر را امتحان کنید.</div>' +
           '</article>';
       }
       var values = points.map(function (point) { return point.value; });
@@ -797,6 +826,17 @@ footer ul { margin: 0; padding-inline-start: 18px; }
   }
 
   /* ---------------- events ---------------- */
+
+  var trendRange = $('trend-range');
+  if (trendRange) {
+    trendRange.addEventListener('click', function (event) {
+      var button = event.target.closest ? event.target.closest('[data-range]') : null;
+      if (!button) return;
+      state.trendDays = Number(button.getAttribute('data-range')) || 30;
+      renderTrendRange();
+      renderMarketTrend();
+    });
+  }
 
   $('more').addEventListener('click', function () {
     state.page += PAGE * 2;
