@@ -18,6 +18,7 @@ import {
 import { translateMany, saveCache } from './src/translate.mjs';
 import { fetchMarkets, buildMarketHistory, MARKET_SOURCE } from './src/markets.mjs';
 import { buildXlsx } from './src/xlsx.mjs';
+import { fetchTelegramPosts, TELEGRAM_CHANNEL, TELEGRAM_CHANNEL_URL } from './src/telegram.mjs';
 
 const ROOT = path.resolve('.');
 const DATA_FILE = path.join(ROOT, 'data.json');
@@ -313,6 +314,16 @@ export async function runPipeline({ quiet = false } = {}) {
     history: previousData?.markets?.history || [],
     error: String(error?.message || error),
     summary_text: '',
+  }));
+
+  // کانال تلگرام ایران اینترنشنال به‌صورت موازی خوانده می‌شود تا در داشبورد و data.json باشد
+  const telegramPromise = fetchTelegramPosts({ limit: 20 }).catch((error) => ({
+    channel: TELEGRAM_CHANNEL,
+    channel_url: TELEGRAM_CHANNEL_URL,
+    title: 'ایران اینترنشنال',
+    fetched_at: new Date().toISOString(),
+    posts: previousData?.telegram?.posts || [],
+    error: String(error?.message || error),
   }));
 
   log('› دریافت خوراک منابع…');
@@ -639,6 +650,13 @@ export async function runPipeline({ quiet = false } = {}) {
       : '› بازار: نرخی دریافت نشد'
   );
 
+  const telegram = await telegramPromise;
+  log(
+    telegram.posts.length
+      ? `› تلگرام: ${telegram.posts.length} پست (${telegram.error ? 'آخرین مقدار موفق' : 'تازه'})`
+      : '› تلگرام: پستی دریافت نشد'
+  );
+
   const data = {
     generated_at: generatedAt,
     next_update_at: new Date(Date.now() + UPDATE_INTERVAL_MINUTES * 60000).toISOString(),
@@ -646,6 +664,7 @@ export async function runPipeline({ quiet = false } = {}) {
     window_hours: null,
     window_label: 'همهٔ خبرها (بدون محدودیت زمانی)',
     markets,
+    telegram,
     stats,
     summary_lines: [],
     analysis: null,

@@ -4,11 +4,16 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { runPipeline } from './pipeline.mjs';
 import { fetchMarkets } from './src/markets.mjs';
+import { fetchTelegramPosts } from './src/telegram.mjs';
 import { UPDATE_INTERVAL_MINUTES } from './src/sources.mjs';
 
 // نرخ‌های بازار جدا از خبرها و هر چند ثانیه یک‌بار خوانده می‌شوند تا تابلوی قیمت «لحظه‌ای» باشد.
 const LIVE_MARKETS_TTL_MS = Number(process.env.MARKETS_TTL_SECONDS || 20) * 1000;
 const liveMarkets = { at: 0, payload: null, inflight: null };
+
+// پست‌های کانال تلگرام ایران اینترنشنال هر چند ثانیه خوانده می‌شوند تا همان لحظهٔ انتشار دیده شوند.
+const LIVE_TELEGRAM_TTL_MS = Number(process.env.TELEGRAM_TTL_SECONDS || 15) * 1000;
+const liveTelegram = { at: 0, payload: null, inflight: null };
 
 const ROOT = path.resolve('.');
 const PORT = Number(process.env.PORT || 3000);
@@ -151,6 +156,34 @@ async function getLiveMarkets() {
   return liveMarkets.inflight;
 }
 
+async function getLiveTelegram() {
+  if (liveTelegram.payload && Date.now() - liveTelegram.at < LIVE_TELEGRAM_TTL_MS) return liveTelegram.payload;
+  if (liveTelegram.inflight) return liveTelegram.inflight;
+  liveTelegram.inflight = (async () => {
+    try {
+      const payload = await fetchTelegramPosts({ limit: 20 });
+      if (payload.posts.length) {
+        liveTelegram.payload = payload;
+        liveTelegram.at = Date.now();
+      }
+      return payload;
+    } catch (error) {
+      const data = await readData();
+      return {
+        channel: liveTelegram.payload?.channel || '',
+        channel_url: liveTelegram.payload?.channel_url || 'https://t.me/IranintlTV',
+        title: liveTelegram.payload?.title || 'ایران اینترنشنال',
+        posts: liveTelegram.payload?.posts || data?.telegram?.posts || [],
+        fetched_at: new Date().toISOString(),
+        error: String(error?.message || error),
+      };
+    } finally {
+      liveTelegram.inflight = null;
+    }
+  })();
+  return liveTelegram.inflight;
+}
+
 async function serveStatic(req, res, pathname) {
   let relative = decodeURIComponent(pathname);
   if (relative === '/' || relative === '') relative = '/index.html';
@@ -199,6 +232,13 @@ const server = createServer(async (req, res) => {
 
   if (pathname === '/api/markets') {
     const payload = await getLiveMarkets();
+    res.setHeader('Cache-Control', 'no-store');
+    sendJson(res, 200, payload);
+    return;
+  }
+
+  if (pathname === '/api/telegram') {
+    const payload = await getLiveTelegram();
     res.setHeader('Cache-Control', 'no-store');
     sendJson(res, 200, payload);
     return;
