@@ -125,6 +125,17 @@ a:hover { text-decoration: underline; }
 .live-video { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; object-fit: contain; }
 .live-video[hidden], .live-start[hidden] { display: none; }
 .live-note a { color: #0d9488; }
+.sat-controls { display: flex; flex-wrap: wrap; gap: 8px; }
+.sat-controls input, .sat-controls select { flex: 1 1 160px; min-width: 0; padding: 8px 11px; border: 1px solid #dbe3ec; border-radius: 10px; background: #fff; font-family: inherit; font-size: 13px; color: #1e293b; }
+.sat-controls input:focus, .sat-controls select:focus { outline: 2px solid rgba(13, 148, 136, 0.35); border-color: #0d9488; }
+.sat-list { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 6px; max-height: 430px; overflow: auto; }
+.sat-item { display: flex; align-items: center; gap: 10px; padding: 7px 10px; border: 1px solid #e6ecf3; border-radius: 10px; background: #fff; cursor: pointer; text-align: right; font-family: inherit; font-size: 13px; color: #1e293b; width: 100%; }
+.sat-item:hover { border-color: #0d9488; background: #f6fdfb; }
+.sat-item img { width: 32px; height: 32px; object-fit: contain; border-radius: 6px; background: #f1f5f9; flex: 0 0 auto; }
+.sat-item .sat-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.sat-item .sat-meta { color: #94a3b8; font-size: 11px; flex: 0 0 auto; }
+.sat-player { margin-top: 12px; }
+.sat-empty { color: #64748b; font-size: 12.5px; padding: 10px 2px; }
 .live-start { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: radial-gradient(circle at 50% 40%, #1e293b, #0b1220); color: #e2e8f0; border: 0; cursor: pointer; font-family: inherit; font-size: 14px; }
 .live-start small { color: #94a3b8; font-size: 11.5px; }
 .live-play { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #dc2626; color: #fff; font-size: 20px; box-shadow: 0 0 0 8px rgba(220, 38, 38, 0.18); }
@@ -356,6 +367,27 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
         </button>
       </div>
       <div class="market-note live-note">پخش‌ها از مسیرهای CDN عمومی (نه دامنهٔ خود شبکه‌ها و نه یوتیوب) می‌آیند و اگر یکی پاسخ نداد، خودکار مسیر بعدی امتحان می‌شود · <a href="https://www.manoto.com/live" target="_blank" rel="noopener noreferrer">منوتو ↗</a> · <a href="https://www.bbc.com/persian/tv" target="_blank" rel="noopener noreferrer">بی‌بی‌سی فارسی ↗</a></div>
+    </div>
+  </section>
+
+  <section id="sat-tv">
+    <div class="panel">
+      <div class="panel-head">
+        <h2><span class="ico">🛰</span> همهٔ شبکه‌های ماهواره‌ای</h2>
+        <span class="hint" id="sat-hint">برای شروع یک کشور را انتخاب کنید</span>
+      </div>
+      <div class="sat-controls">
+        <input id="sat-search" type="search" placeholder="جستجوی نام شبکه…" aria-label="جستجوی نام شبکه" autocomplete="off">
+        <select id="sat-country" aria-label="کشور">
+          <option value="">همهٔ کشورها</option>
+        </select>
+      </div>
+      <div class="live-wrap sat-player" id="sat-player" hidden>
+        <video id="sat-video" class="live-video" controls playsinline hidden></video>
+        <div class="sat-empty" id="sat-player-note" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#e2e8f0;text-align:center;padding:12px"></div>
+      </div>
+      <ul class="sat-list" id="sat-list"></ul>
+      <div class="market-note">فهرست از بایگانی عمومی <span dir="ltr">iptv-org</span> خوانده می‌شود؛ هر شبکه با یک کلیک در همین صفحه پخش می‌شود. بعضی شبکه‌ها در ایران فیلترند یا فقط داخل کشور خودشان پخش می‌شوند.</div>
     </div>
   </section>
 
@@ -1539,6 +1571,247 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     start.addEventListener('click', playLive);
     loadLiveChannels();
     setInterval(loadLiveChannels, 10 * 60 * 1000);
+  })();
+
+  /* ---------------- همهٔ شبکه‌های ماهواره‌ای ---------------- */
+
+  var SAT_COUNTRIES_URL = 'https://iptv-org.github.io/api/countries.json';
+  var SAT_ALL_URL = 'https://iptv-org.github.io/iptv/index.m3u';
+  var SAT_COUNTRY_NAMES = {
+    IR: 'ایران', AF: 'افغانستان', TJ: 'تاجیکستان', US: 'آمریکا', GB: 'بریتانیا', DE: 'آلمان',
+    FR: 'فرانسه', TR: 'ترکیه', AE: 'امارات', SA: 'عربستان', IQ: 'عراق', AZ: 'آذربایجان',
+    AM: 'ارمنستان', CA: 'کانادا', AU: 'استرالیا', SE: 'سوئد', NL: 'هلند', BE: 'بلژیک',
+    CH: 'سوئیس', AT: 'اتریش', IT: 'ایتالیا', ES: 'اسپانیا', PT: 'پرتغال', RU: 'روسیه',
+    UA: 'اوکراین', IN: 'هند', PK: 'پاکستان', CN: 'چین', JP: 'ژاپن', KR: 'کره جنوبی',
+    BR: 'برزیل', MX: 'مکزیک', AR: 'آرژانتین', EG: 'مصر ', QA: 'قطر', KW: 'کویت', BH: 'بحرین',
+    OM: 'عمان', JO: 'اردن', LB: 'لبنان', SY: 'سوریه', IL: 'اسرائیل', GR: 'یونان', DK: 'دانمارک',
+    NO: 'نروژ', FI: 'فنلاند', PL: 'لهستان', RO: 'رومانی', CZ: 'چک', HU: 'مجارستان',
+    MY: 'مالزی', ID: 'اندونزی', TH: 'تایلند', SG: 'سنگاپور', ZA: 'آفریقای جنوبی', NZ: 'نیوزیلند',
+    IE: 'ایرلند', UZ: 'ازبکستان', TM: 'ترکمنستان', KG: 'قرقیزستان', KZ: 'قزاقستان', CY: 'قبرس'
+  };
+
+  var satState = { countryNames: {}, countryList: [], cache: {}, list: [], query: '', token: 0, hls: null };
+
+  function satCountryUrl(code) {
+    return 'https://iptv-org.github.io/iptv/countries/' + String(code).toLowerCase() + '.m3u';
+  }
+
+  function satCountryName(code) {
+    var key = String(code || '').toUpperCase();
+    if (!key) return 'نامشخص';
+    return SAT_COUNTRY_NAMES[key] || satState.countryNames[key] || key;
+  }
+
+  function parseM3uText(text) {
+    var entries = [];
+    var pending = null;
+    var lines = String(text || '').split(/\r?\n/);
+    for (var i = 0; i < lines.length; i++) {
+      var line = lines[i].trim();
+      if (!line) continue;
+      if (line.indexOf('#EXTINF') === 0) {
+        var idMatch = line.match(/tvg-id="([^"]*)"/i);
+        var logoMatch = line.match(/tvg-logo="([^"]*)"/i);
+        var groupMatch = line.match(/group-title="([^"]*)"/i);
+        pending = {
+          id: idMatch ? idMatch[1] : '',
+          logo: logoMatch ? logoMatch[1] : '',
+          group: groupMatch ? groupMatch[1] : '',
+          name: line.slice(line.lastIndexOf(',') + 1).trim(),
+          url: ''
+        };
+        continue;
+      }
+      if (line.charAt(0) === '#') continue;
+      if (!pending) continue;
+      pending.url = line;
+      pending.country = (pending.id.split('@')[0].split('.').pop() || '').toUpperCase();
+      if (/^https?:\/\//i.test(pending.url) && /\.m3u8(\?|$)/i.test(pending.url)) entries.push(pending);
+      pending = null;
+    }
+    return entries;
+  }
+
+  async function loadSatCountries() {
+    try {
+      var response = await fetch(SAT_COUNTRIES_URL, { cache: 'force-cache' });
+      if (!response.ok) return;
+      var list = await response.json();
+      if (!Array.isArray(list)) return;
+      var options = ['<option value="">همهٔ کشورها</option>'];
+      var items = list
+        .filter(function (country) { return country && country.code; })
+        .map(function (country) {
+          var code = String(country.code).toUpperCase();
+          satState.countryNames[code] = country.name || code;
+          return { code: code, flag: country.flag || '' };
+        });
+      items.sort(function (a, b) {
+        return satCountryName(a.code).localeCompare(satCountryName(b.code), 'fa');
+      });
+      items.forEach(function (country) {
+        options.push('<option value="' + country.code + '">' + (country.flag ? country.flag + ' ' : '') + esc(satCountryName(country.code)) + '</option>');
+      });
+      var select = $('sat-country');
+      if (select) {
+        select.innerHTML = options.join('');
+        select.value = 'IR';
+      }
+    } catch (e) { /* فهرست کشورها در دسترس نیست */ }
+  }
+
+  async function loadSatList(code) {
+    var key = code || 'all';
+    var token = ++satState.token;
+    if (satState.cache[key]) {
+      satState.list = satState.cache[key];
+      renderSat();
+      return;
+    }
+    var hint = $('sat-hint');
+    var box = $('sat-list');
+    if (hint) hint.textContent = 'در حال خواندن فهرست…';
+    if (box) box.innerHTML = '';
+    try {
+      var response = await fetch(code ? satCountryUrl(code) : SAT_ALL_URL, { cache: 'force-cache' });
+      if (!response.ok) throw new Error('HTTP ' + response.status);
+      var text = await response.text();
+      if (token !== satState.token) return;
+      var list = parseM3uText(text);
+      satState.cache[key] = list;
+      satState.list = list;
+      renderSat();
+    } catch (e) {
+      if (token !== satState.token) return;
+      satState.list = [];
+      if (hint) hint.textContent = 'فهرست خوانده نشد — کشور دیگری را امتحان کنید';
+      if (box) box.innerHTML = '<li class="sat-empty">فهرست این کشور در دسترس نیست.</li>';
+    }
+  }
+
+  function renderSat() {
+    var box = $('sat-list');
+    var hint = $('sat-hint');
+    if (!box) return;
+    var query = satState.query.trim().toLowerCase();
+    var list = satState.list;
+    if (query) {
+      list = list.filter(function (entry) {
+        return String(entry.name || '').toLowerCase().indexOf(query) >= 0 ||
+          String(entry.group || '').toLowerCase().indexOf(query) >= 0;
+      });
+    }
+    if (hint) {
+      hint.textContent = list.length
+        ? fmt(list.length) + ' شبکه' + (query ? ' برای «' + satState.query.trim() + '»' : '')
+        : 'شبکه‌ای پیدا نشد';
+    }
+    if (!list.length) {
+      box.innerHTML = '<li class="sat-empty">شبکه‌ای با این مشخصات در این فهرست نیست.</li>';
+      return;
+    }
+    satState.shown = list.slice(0, 300);
+    box.innerHTML = satState.shown.map(function (entry, index) {
+      var logo = entry.logo
+        ? '<img src="' + esc(entry.logo) + '" alt="" loading="lazy" onerror="this.style.opacity=0">'
+        : '<img alt="" src="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23e2e8f0%27/%3E%3C/svg%3E">';
+      var meta = [entry.group, satCountryName(entry.country)].filter(Boolean).join(' · ');
+      return '<li><button type="button" class="sat-item" data-index="' + index + '">' +
+        logo + '<span class="sat-name">' + esc(entry.name) + '</span>' +
+        '<span class="sat-meta">' + esc(meta) + '</span></button></li>';
+    }).join('');
+  }
+
+  function stopSatPlayback() {
+    var video = $('sat-video');
+    if (satState.hls) { try { satState.hls.destroy(); } catch (e) { /* ignore */ } satState.hls = null; }
+    if (video) {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      video.hidden = true;
+    }
+  }
+
+  // یک شبکه ممکن است چند نشانی داشته باشد؛ اگر یکی بسته بود، بقیه امتحان می‌شوند
+  function satAlternates(entry) {
+    var urls = [entry.url];
+    (satState.shown || []).forEach(function (candidate) {
+      if (candidate.id && candidate.id === entry.id && urls.indexOf(candidate.url) < 0) urls.push(candidate.url);
+    });
+    return urls;
+  }
+
+  async function playSat(entry, urls, index) {
+    var wrap = $('sat-player');
+    var video = $('sat-video');
+    var note = $('sat-player-note');
+    if (!wrap || !video || !note || !entry) return;
+    if (index >= urls.length) {
+      note.textContent = 'مسیرهای این شبکه باز نشد؛ شبکهٔ دیگری را امتحان کنید';
+      video.hidden = true;
+      return;
+    }
+    if (!index) {
+      stopSatPlayback();
+      wrap.hidden = false;
+      wrap.scrollIntoView({ block: 'nearest' });
+    }
+    note.textContent = 'در حال اتصال به ' + entry.name + '…';
+    try {
+      var Hls = await loadHlsScript();
+      if (!Hls || !Hls.isSupported()) throw new Error('unsupported');
+      if (satState.hls) { try { satState.hls.destroy(); } catch (e) { /* ignore */ } satState.hls = null; }
+      var hls = new Hls({ enableWorker: true });
+      satState.hls = hls;
+      hls.on(Hls.Events.MANIFEST_PARSED, function () {
+        video.hidden = false;
+        note.textContent = '';
+        var played = video.play();
+        if (played && played.catch) played.catch(function () { /* controls remain */ });
+      });
+      hls.on(Hls.Events.ERROR, function (event, data) {
+        if (!data || !data.fatal) return;
+        try { hls.destroy(); } catch (e) { /* ignore */ }
+        if (satState.hls === hls) satState.hls = null;
+        video.hidden = true;
+        playSat(entry, urls, index + 1);
+      });
+      hls.loadSource(urls[index]);
+      hls.attachMedia(video);
+    } catch (e) {
+      playSat(entry, urls, index + 1);
+    }
+  }
+
+  (function setupSatTv() {
+    var input = $('sat-search');
+    var select = $('sat-country');
+    var list = $('sat-list');
+    if (!input || !select || !list) return;
+    input.addEventListener('input', function () {
+      satState.query = input.value || '';
+      renderSat();
+    });
+    select.addEventListener('change', function () {
+      satState.query = '';
+      input.value = '';
+      stopSatPlayback();
+      var wrap = $('sat-player');
+      if (wrap) wrap.hidden = true;
+      loadSatList(select.value || '');
+    });
+    list.addEventListener('click', function (event) {
+      var button = event.target.closest ? event.target.closest('[data-index]') : null;
+      if (!button) return;
+      var entry = (satState.shown || [])[Number(button.getAttribute('data-index'))];
+      if (!entry) return;
+      playSat(entry, satAlternates(entry), 0);
+    });
+    loadSatCountries().then(function () {
+      select.value = 'IR';
+      loadSatList('IR');
+    });
   })();
 
   (async function boot() {
