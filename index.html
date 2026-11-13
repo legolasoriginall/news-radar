@@ -112,7 +112,9 @@ a:hover { text-decoration: underline; }
 .trend-value { font-size: 18px; font-weight: 800; letter-spacing: -.3px; margin-top: 2px; font-variant-numeric: tabular-nums; }
 .trend-value small { font-size: 11.5px; font-weight: 600; color: var(--muted); margin-inline-start: 5px; }
 .trend-svg { width: 100%; height: 94px; display: block; margin-top: 6px; }
-.trend-axis { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+/* محور زمان مثل خود نمودار از چپ (قدیمی‌تر) به راست (تازه‌تر) خوانده می‌شود */
+.trend-axis { display: flex; flex-direction: row; direction: ltr; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
+.trend-axis > span { direction: rtl; unicode-bidi: isolate; }
 .trend-empty { font-size: 12px; color: var(--muted); padding: 18px 0 14px; }
 .market-note.warn { color: #92400e; }
 .live-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 4px 10px; border-radius: 999px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-variant-numeric: tabular-nums; }
