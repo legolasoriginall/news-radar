@@ -3,7 +3,12 @@ import { createServer } from 'node:http';
 import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { runPipeline } from './pipeline.mjs';
+import { fetchMarkets } from './src/markets.mjs';
 import { UPDATE_INTERVAL_MINUTES } from './src/sources.mjs';
+
+// نرخ‌های بازار جدا از خبرها و هر چند ثانیه یک‌بار خوانده می‌شوند تا تابلوی قیمت «لحظه‌ای» باشد.
+const LIVE_MARKETS_TTL_MS = Number(process.env.MARKETS_TTL_SECONDS || 20) * 1000;
+const liveMarkets = { at: 0, payload: null, inflight: null };
 
 const ROOT = path.resolve('.');
 const PORT = Number(process.env.PORT || 3000);
@@ -105,6 +110,47 @@ function sendJson(res, status, payload) {
   res.end(body);
 }
 
+async function getLiveMarkets() {
+  if (liveMarkets.payload && Date.now() - liveMarkets.at < LIVE_MARKETS_TTL_MS) return liveMarkets.payload;
+  if (liveMarkets.inflight) return liveMarkets.inflight;
+  liveMarkets.inflight = (async () => {
+    try {
+      const data = await readData();
+      const result = await fetchMarkets({ previous: data?.markets || null });
+      const payload = {
+        ok: Boolean(result.ok),
+        stale: Boolean(result.stale),
+        source: result.source || '',
+        items: result.items || [],
+        warnings: result.warnings || [],
+        providers: result.providers || [],
+        divergence_threshold_percent: result.divergence_threshold_percent,
+        error: result.error || '',
+        fetched_at: new Date().toISOString(),
+        ttl_seconds: Math.round(LIVE_MARKETS_TTL_MS / 1000),
+      };
+      if (payload.items.length) {
+        liveMarkets.payload = payload;
+        liveMarkets.at = Date.now();
+      }
+      return payload;
+    } catch (error) {
+      return {
+        ok: false,
+        stale: true,
+        source: '',
+        items: liveMarkets.payload?.items || [],
+        warnings: [],
+        error: String(error?.message || error),
+        fetched_at: new Date().toISOString(),
+      };
+    } finally {
+      liveMarkets.inflight = null;
+    }
+  })();
+  return liveMarkets.inflight;
+}
+
 async function serveStatic(req, res, pathname) {
   let relative = decodeURIComponent(pathname);
   if (relative === '/' || relative === '') relative = '/index.html';
@@ -148,6 +194,13 @@ const server = createServer(async (req, res) => {
       total: data?.stats?.total || 0,
       countdown_seconds: state.next_run_at ? Math.max(0, Math.round((new Date(state.next_run_at).getTime() - Date.now()) / 1000)) : null,
     });
+    return;
+  }
+
+  if (pathname === '/api/markets') {
+    const payload = await getLiveMarkets();
+    res.setHeader('Cache-Control', 'no-store');
+    sendJson(res, 200, payload);
     return;
   }
 

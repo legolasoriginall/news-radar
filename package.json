@@ -12,6 +12,6 @@
     "dev": "node server.mjs",
     "update": "node pipeline.mjs",
     "once": "node pipeline.mjs --once",
-    "test": "node --test test/"
+    "test": "node --test"
   }
 }

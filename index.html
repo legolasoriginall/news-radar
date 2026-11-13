@@ -115,6 +115,9 @@ a:hover { text-decoration: underline; }
 .trend-axis { display: flex; justify-content: space-between; gap: 6px; font-size: 10.5px; color: var(--muted); margin-top: 2px; }
 .trend-empty { font-size: 12px; color: var(--muted); padding: 18px 0 14px; }
 .market-note.warn { color: #92400e; }
+.live-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 4px 10px; border-radius: 999px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-variant-numeric: tabular-nums; }
+.live-pill.wait { background: #f8fafc; color: var(--muted); border-color: #e2e8f0; }
+.live-pill.off { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
 
 section { margin-top: 22px; }
 .panel { background: var(--panel); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); border: 1px solid rgba(16,24,40,.03); }
@@ -287,6 +290,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       <div class="panel-head">
         <h2><span class="ico">⚖</span> قیمت طلا، سکه و دلار</h2>
         <span class="hint" id="market-hint"></span>
+        <span class="live-pill wait" id="market-live">اتصال به نرخ زنده…</span>
       </div>
       <div class="market-grid" id="market-grid"></div>
       <div class="alerts" id="market-alerts"></div>
@@ -703,7 +707,9 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     renderMarketTrend();
     note.classList.toggle('warn', !markets.ok);
     note.textContent = markets.ok
-      ? 'نرخ طلا، سکه و ارز به تومان (انس طلا به دلار) است و همراه با هر به‌روزرسانی خبرها دوباره خوانده می‌شود · منبع: ' + (markets.source || 'TGJU')
+      ? 'نرخ طلا، سکه و ارز به تومان (انس طلا به دلار) است و همراه با هر به‌روزرسانی خبرها دوباره خوانده می‌شود' +
+        (live.mode === 'server' && live.at ? ' · نرخ‌ها به‌صورت زنده هر ۲۰ ثانیه تازه می‌شوند' : '') +
+        ' · منبع: ' + (markets.source || 'TGJU')
       : 'برخی نرخ‌ها تازه نیستند؛ برای آن موارد آخرین مقدار موفق نمایش داده می‌شود. ' + (markets.error || '');
   }
 
@@ -728,6 +734,82 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
         ' — اختلاف بیش از آستانهٔ ' + pctText(threshold, 0) + ' است؛ نرخ این موارد را با احتیاط استفاده کنید.</span></div>';
     }
     box.innerHTML = html;
+  }
+
+  /* ---------------- نرخ‌های زنده (هر ۲۰ ثانیه) ---------------- */
+
+  var live = { mode: 'idle', at: 0, failures: 0, timer: 0, lastPoint: 0 };
+
+  function renderLiveBadge() {
+    var el = $('market-live');
+    if (!el) return;
+    if (live.mode === 'server' && live.at) {
+      var seconds = Math.max(0, Math.round((Date.now() - live.at) / 1000));
+      el.className = 'live-pill';
+      el.innerHTML = '<span class="live-dot"></span> زنده · ' + faDigits(String(seconds)) + ' ثانیه پیش';
+    } else if (live.failures > 0) {
+      el.className = 'live-pill off';
+      el.textContent = 'میزبان ایستا · نرخ‌ها با هر به‌روزرسانی داده تازه می‌شوند';
+    } else {
+      el.className = 'live-pill wait';
+      el.textContent = 'اتصال به نرخ زنده…';
+    }
+  }
+
+  function mergeLiveMarkets(payload) {
+    if (!state.data || !payload || !Array.isArray(payload.items) || !payload.items.length) return;
+    var markets = state.data.markets || {};
+    markets.items = payload.items;
+    markets.ok = payload.ok !== false;
+    markets.stale = Boolean(payload.stale);
+    markets.source = payload.source || markets.source;
+    markets.warnings = payload.warnings || [];
+    markets.live_at = payload.fetched_at || new Date().toISOString();
+    if (payload.divergence_threshold_percent) markets.divergence_threshold_percent = payload.divergence_threshold_percent;
+    var now = Date.now();
+    if (now - live.lastPoint > 240000) {
+      var prices = {};
+      for (var i = 0; i < payload.items.length; i++) {
+        var sample = Number(payload.items[i].value);
+        if (isFinite(sample)) prices[payload.items[i].id] = sample;
+      }
+      markets.history = (markets.history || []).concat([{ at: markets.live_at, prices: prices }]).slice(-720);
+      live.lastPoint = now;
+    }
+    state.data.markets = markets;
+    renderMarkets();
+  }
+
+  function scheduleLivePoll(delay) {
+    clearTimeout(live.timer);
+    live.timer = setTimeout(pollLiveMarkets, delay);
+  }
+
+  async function pollLiveMarkets() {
+    var delay = 20000;
+    try {
+      var res = await fetch('api/markets?_=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var payload = await res.json();
+      if (!payload || !Array.isArray(payload.items) || !payload.items.length) throw new Error('empty');
+      live.mode = 'server';
+      live.failures = 0;
+      live.at = Date.now();
+      mergeLiveMarkets(payload);
+      renderLiveBadge();
+    } catch (error) {
+      live.failures += 1;
+      if (live.failures > 2) live.mode = 'static';
+      renderLiveBadge();
+      delay = 60000;
+    }
+    scheduleLivePoll(delay);
+  }
+
+  function startLiveMarkets() {
+    renderLiveBadge();
+    pollLiveMarkets();
+    setInterval(renderLiveBadge, 1000);
   }
 
   var TREND_SERIES = [
@@ -937,6 +1019,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     await fetchStatus();
     await loadData(true);
     connectEvents();
+    startLiveMarkets();
     setInterval(renderClockOnly, 1000);
     setInterval(poll, 300000);
     setInterval(function () { if (state.auto) fetchStatus(); }, 60000);
