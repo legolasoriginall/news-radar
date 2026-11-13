@@ -1309,19 +1309,48 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     }
   ];
 
-  var liveState = { channel: 'iranintl', hls: null, script: null };
+  var liveState = { channel: 'iranintl', hls: null, script: null, retry: 0, watchdog: 0 };
+  var liveChannels = LIVE_CHANNELS;
 
   function liveChannelById(id) {
-    for (var i = 0; i < LIVE_CHANNELS.length; i++) {
-      if (LIVE_CHANNELS[i].id === id) return LIVE_CHANNELS[i];
+    for (var i = 0; i < liveChannels.length; i++) {
+      if (liveChannels[i].id === id) return liveChannels[i];
     }
-    return LIVE_CHANNELS[0];
+    return liveChannels[0];
+  }
+
+  function liveSourceKey(id) { return 'newsradar:liveSource:' + id; }
+
+  // آخرین مسیری که برای هر کانال جواب داده، اول امتحان می‌شود
+  function preferredSources(channel) {
+    var saved = storeGet(liveSourceKey(channel.id), '');
+    if (!saved || channel.sources.indexOf(saved) === -1) return channel.sources;
+    return [saved].concat(channel.sources.filter(function (url) { return url !== saved; }));
+  }
+
+  // فهرست مسیرها از سرور تازه می‌شود؛ در میزبان ایستا همان فهرست پیش‌فرض می‌ماند
+  async function loadLiveChannels() {
+    try {
+      var response = await fetch('/api/live', { cache: 'no-store' });
+      if (!response.ok) return;
+      var payload = await response.json();
+      if (!payload || !Array.isArray(payload.channels)) return;
+      var usable = payload.channels.filter(function (channel) {
+        return channel && channel.id && channel.name && Array.isArray(channel.sources) && channel.sources.length;
+      });
+      if (!usable.length) return;
+      liveChannels = usable;
+      if (!liveChannels.some(function (channel) { return channel.id === liveState.channel; })) {
+        liveState.channel = liveChannels[0].id;
+      }
+      renderLiveTabs();
+    } catch (e) { /* بدون شبکه یا میزبان ایستا: فهرست پیش‌فرض */ }
   }
 
   function renderLiveTabs() {
     var box = $('live-tabs');
     if (!box) return;
-    box.innerHTML = LIVE_CHANNELS.map(function (channel) {
+    box.innerHTML = liveChannels.map(function (channel) {
       var active = channel.id === liveState.channel;
       return '<button type="button" role="tab" aria-selected="' + active + '" class="tg-filter' + (active ? ' active' : '') + '" data-live="' + channel.id + '">' + esc(channel.name) + '</button>';
     }).join('');
@@ -1342,10 +1371,40 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     return liveState.script;
   }
 
+  function stopLiveWatchdog() {
+    if (liveState.watchdog) { clearInterval(liveState.watchdog); liveState.watchdog = 0; }
+  }
+
+  // اگر تصویر وسط پخش بخوابد (مسیر بسته شود)، مسیر بعدی خودکار امتحان می‌شود
+  function startLiveWatchdog(channel, sources, index) {
+    stopLiveWatchdog();
+    var video = $('live-video');
+    if (!video) return;
+    var lastTime = -1;
+    var changedAt = Date.now();
+    liveState.watchdog = setInterval(function () {
+      if (!video || video.hidden) return;
+      if (video.currentTime !== lastTime) {
+        lastTime = video.currentTime;
+        changedAt = Date.now();
+      }
+      if (video.paused || Date.now() - changedAt < 20000) return;
+      stopLiveWatchdog();
+      var rest = sources.slice(index + 1);
+      if (rest.length) {
+        startLiveSource({ id: channel.id, name: channel.name, sources: rest }, 0);
+      } else {
+        showLiveError();
+      }
+    }, 5000);
+  }
+
   function stopLivePlayback() {
     var video = $('live-video');
     var wrap = $('live-wrap');
     var start = $('live-start');
+    stopLiveWatchdog();
+    if (liveState.retry) { clearTimeout(liveState.retry); liveState.retry = 0; }
     if (liveState.hls) { try { liveState.hls.destroy(); } catch (e) { /* ignore */ } liveState.hls = null; }
     if (video) {
       video.pause();
@@ -1368,14 +1427,21 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     var start = $('live-start');
     var label = $('live-start-label');
     var hint = $('live-hint');
-    if (label) label.textContent = 'پخش نشد — دوباره تلاش کنید';
+    if (label) label.textContent = 'پخش نشد — تلاش دوبارهٔ خودکار…';
     if (start) start.hidden = false;
     var channel = liveChannelById(liveState.channel);
     if (hint) {
       hint.textContent = channel.watch
-        ? 'پخش درون‌صفحه باز نشد؛ در سایت رسمی تماشا کنید'
-        : 'پخش درون‌صفحه باز نشد';
+        ? 'همهٔ مسیرها بسته بودند؛ در ۲۰ ثانیه دوباره امتحان می‌شود'
+        : 'همهٔ مسیرها بسته بودند؛ در ۲۰ ثانیه دوباره امتحان می‌شود';
     }
+    if (liveState.retry) clearTimeout(liveState.retry);
+    liveState.retry = setTimeout(function () {
+      liveState.retry = 0;
+      var panel = document.querySelector('#live-tv .panel');
+      if (panel && panel.classList.contains('collapsed')) return;
+      playLive();
+    }, 20000);
   }
 
   async function probeLiveSource(src) {
@@ -1424,6 +1490,16 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
         hls.loadSource(src);
         hls.attachMedia(video);
       }
+      startLiveWatchdog(channel, channel.sources, index);
+      var markPlayed = function () {
+        video.removeEventListener('playing', markPlayed);
+        storeSet(liveSourceKey(channel.id), src);
+        var hint = $('live-hint');
+        if (hint) hint.textContent = 'پخش زنده · ' + channel.name;
+        var label = $('live-start-label');
+        if (label) label.textContent = 'پخش زنده را شروع کنید';
+      };
+      video.addEventListener('playing', markPlayed);
       var played = video.play();
       if (played && played.catch) played.catch(function () { /* autoplay blocked; controls remain */ });
     } catch (e) {
@@ -1438,7 +1514,11 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     if (!wrap || !start) return;
     stopLivePlayback();
     start.hidden = true;
-    startLiveSource(channel, 0);
+    startLiveSource({
+      id: channel.id,
+      name: channel.name,
+      sources: preferredSources(channel)
+    }, 0);
   }
 
   (function setupLiveTv() {
@@ -1457,6 +1537,8 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       stopLivePlayback();
     });
     start.addEventListener('click', playLive);
+    loadLiveChannels();
+    setInterval(loadLiveChannels, 10 * 60 * 1000);
   })();
 
   (async function boot() {

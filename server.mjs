@@ -5,6 +5,7 @@ import path from 'node:path';
 import { runPipeline } from './pipeline.mjs';
 import { fetchMarkets } from './src/markets.mjs';
 import { fetchTelegramFeeds } from './src/telegram.mjs';
+import { resolveLiveChannels, LIVE_CHANNELS } from './src/live.mjs';
 import { UPDATE_INTERVAL_MINUTES } from './src/sources.mjs';
 
 // نرخ‌های بازار جدا از خبرها و هر چند ثانیه یک‌بار خوانده می‌شوند تا تابلوی قیمت «لحظه‌ای» باشد.
@@ -14,6 +15,10 @@ const liveMarkets = { at: 0, payload: null, inflight: null };
 // پست‌های کانال تلگرام ایران اینترنشنال هر چند ثانیه خوانده می‌شوند تا همان لحظهٔ انتشار دیده شوند.
 const LIVE_TELEGRAM_TTL_MS = Number(process.env.TELEGRAM_TTL_SECONDS || 15) * 1000;
 const liveTelegram = { at: 0, payload: null, inflight: null };
+
+// مسیرهای پخش زنده از فهرست‌های عمومی جمع می‌شوند و هر چند دقیقه یک‌بار تازه می‌شوند.
+const LIVE_CHANNELS_TTL_MS = Number(process.env.LIVE_CHANNELS_TTL_SECONDS || 600) * 1000;
+const liveChannelCache = { at: 0, payload: null, inflight: null };
 
 const ROOT = path.resolve('.');
 const PORT = Number(process.env.PORT || 3000);
@@ -184,6 +189,37 @@ async function getLiveTelegram() {
   return liveTelegram.inflight;
 }
 
+async function getLiveChannels() {
+  if (liveChannelCache.payload && Date.now() - liveChannelCache.at < LIVE_CHANNELS_TTL_MS) {
+    return liveChannelCache.payload;
+  }
+  if (liveChannelCache.inflight) return liveChannelCache.inflight;
+  liveChannelCache.inflight = (async () => {
+    try {
+      const payload = await resolveLiveChannels();
+      liveChannelCache.payload = payload;
+      liveChannelCache.at = Date.now();
+      return payload;
+    } catch (error) {
+      return {
+        channels: (liveChannelCache.payload?.channels || []).length
+          ? liveChannelCache.payload.channels
+          : LIVE_CHANNELS.map((channel) => ({
+              id: channel.id,
+              name: channel.name,
+              watch: channel.watch || '',
+              sources: channel.fallbacks || [],
+            })),
+        fetched_at: new Date().toISOString(),
+        error: String(error?.message || error),
+      };
+    } finally {
+      liveChannelCache.inflight = null;
+    }
+  })();
+  return liveChannelCache.inflight;
+}
+
 async function serveStatic(req, res, pathname) {
   let relative = decodeURIComponent(pathname);
   if (relative === '/' || relative === '') relative = '/index.html';
@@ -241,6 +277,12 @@ const server = createServer(async (req, res) => {
     const payload = await getLiveTelegram();
     res.setHeader('Cache-Control', 'no-store');
     sendJson(res, 200, payload);
+    return;
+  }
+
+  if (pathname === '/api/live') {
+    const payload = await getLiveChannels();
+    sendJson(res, 200, { ok: !payload.error, ...payload });
     return;
   }
 
