@@ -463,7 +463,11 @@ async function checkAlerts({ probeStreams = true, notify = true } = {}) {
   try {
     const data = await readData();
     const channels = probeStreams ? await probeAllChannels() : [];
-    const issues = collectIssues({ data, channels });
+    const issues = collectIssues({
+      data,
+      channels,
+      silentHours: Number(process.env.ALERT_SILENT_HOURS || 24),
+    });
     const result = applyIssues({ state: alertState.data, issues });
     alertState.data = result.state;
     alertState.last_check_at = new Date().toISOString();

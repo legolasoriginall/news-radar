@@ -3,7 +3,10 @@
 // وقتی مشکل برطرف شد یک پیام «بازگشت به حالت عادی» ثبت می‌شود.
 
 export const ALERT_COOLDOWN_MS = 30 * 60 * 1000;
+// سکوت خبری را دیرتر تکرار می‌کند تا فهرست منابع، تلگرام را پر نکند.
+export const SILENCE_COOLDOWN_MS = 6 * 60 * 60 * 1000;
 export const ALERT_LIMIT = 100;
+export const SILENT_HOURS = 24;
 
 export function telegramConfig(env = process.env) {
   const token = String(env.ALERT_TELEGRAM_BOT_TOKEN || '').trim();
@@ -18,17 +21,51 @@ export function maskChatId(chatId) {
   return `${value.slice(0, 2)}•••${value.slice(-2)}`;
 }
 
+/** تازه‌ترین زمان انتشار هر منبع را از خبرها حساب می‌کند. */
+export function latestBySource(articles = []) {
+  const map = new Map();
+  for (const article of Array.isArray(articles) ? articles : []) {
+    const id = article?.source_id;
+    const timestamp = Date.parse(article?.published || '');
+    if (!id || !Number.isFinite(timestamp)) continue;
+    if (!map.has(id) || timestamp > map.get(id)) map.set(id, timestamp);
+  }
+  return map;
+}
+
+function faNumber(value) {
+  return Number(value || 0).toLocaleString('fa-IR');
+}
+
 /** از دادهٔ سایت و نتیجهٔ بررسی پخش، فهرست مشکلات فعلی را می‌سازد. */
-export function collectIssues({ data, channels = [] } = {}) {
+export function collectIssues({ data, channels = [], now = Date.now(), silentHours = SILENT_HOURS } = {}) {
   const issues = [];
+  const latest = latestBySource(data?.articles);
   for (const source of Array.isArray(data?.source_health) ? data.source_health : []) {
-    if (source.ok) continue;
     const name = source.name || source.id || 'منبع ناشناخته';
+    if (!source.ok) {
+      issues.push({
+        id: `source:${source.id || name}`,
+        kind: 'source',
+        target: name,
+        message: `منبع «${name}» خطا داد: ${source.error || source.status || 'بی‌پاسخ'}`,
+      });
+      continue;
+    }
+    // منبع سالم است؛ اگر منبعی که قبلاً خبر می‌داد حالا مدت‌ها خاموش مانده، سکوت خبری است.
+    // منابعی که هیچ خبری با تاریخ معتبر ندارند (معمولاً ردشده در فیلترها) هشدار نمی‌دهند تا هشدار تکراری نسازند.
+    const lastTs = latest.get(source.id);
+    if (!lastTs) continue;
+    const ageHours = (now - lastTs) / 3600000;
+    if (ageHours <= silentHours) continue;
+    const ageText = ageHours >= 48
+      ? `حدود ${faNumber(Math.floor(ageHours / 24))} روز`
+      : `حدود ${faNumber(Math.floor(ageHours))} ساعت`;
     issues.push({
-      id: `source:${source.id || name}`,
-      kind: 'source',
+      id: `silence:${source.id || name}`,
+      kind: 'silence',
       target: name,
-      message: `منبع «${name}» خطا داد: ${source.error || source.status || 'بی‌پاسخ'}`,
+      message: `منبع «${name}» ${ageText} است خبر تازه‌ای نداده.`,
     });
   }
   for (const channel of channels) {
@@ -48,7 +85,17 @@ export function collectIssues({ data, channels = [] } = {}) {
  * هشدارهای تازه را می‌سازد و وضعیت را برمی‌گرداند.
  * state: { alerts: [], open: { [id]: { target, kind, since, last_sent_at } } }
  */
-export function applyIssues({ state = {}, issues = [], now = Date.now(), cooldownMs = ALERT_COOLDOWN_MS, limit = ALERT_LIMIT } = {}) {
+export function applyIssues({
+  state = {},
+  issues = [],
+  now = Date.now(),
+  cooldownMs = { source: ALERT_COOLDOWN_MS, stream: ALERT_COOLDOWN_MS, silence: SILENCE_COOLDOWN_MS },
+  limit = ALERT_LIMIT,
+} = {}) {
+  const cooldownFor = (kind) => {
+    if (typeof cooldownMs === 'number') return cooldownMs;
+    return Number(cooldownMs?.[kind] ?? ALERT_COOLDOWN_MS);
+  };
   const open = {};
   for (const [id, value] of Object.entries(state.open || {})) open[id] = { ...value };
   let alerts = Array.isArray(state.alerts) ? state.alerts.slice() : [];
@@ -58,7 +105,7 @@ export function applyIssues({ state = {}, issues = [], now = Date.now(), cooldow
 
   for (const issue of issues) {
     const previous = open[issue.id];
-    const due = previous ? now - new Date(previous.last_sent_at || 0).getTime() >= cooldownMs : true;
+    const due = previous ? now - new Date(previous.last_sent_at || 0).getTime() >= cooldownFor(issue.kind) : true;
     if (!previous) {
       open[issue.id] = { target: issue.target, kind: issue.kind, since: at, last_sent_at: at };
     } else if (due) {
@@ -109,7 +156,9 @@ export function formatAlert(alert, { siteUrl = '' } = {}) {
     ? `✅ بازگشت به حالت عادی${alert.kind === 'stream' ? ' (پخش زنده)' : ''}`
     : alert.kind === 'stream'
       ? '📺 پخش زنده قطع شده'
-      : '⚠️ منبع خبری خراب';
+      : alert.kind === 'silence'
+        ? '😴 سکوت خبری'
+        : '⚠️ منبع خبری خراب';
   const lines = [head, alert.message || '', when ? `زمان: ${when}` : '', siteUrl ? siteUrl : ''];
   return lines.filter(Boolean).join('\n');
 }

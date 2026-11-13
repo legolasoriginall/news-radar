@@ -99,7 +99,7 @@
         <button class="ghost" id="alerts-test">تست تلگرام</button>
       </div>
       <ul class="alerts" id="alerts-list"></ul>
-      <p class="muted">منبع خبری خراب یا پخش قطع‌شده همان لحظه اینجا ثبت می‌شود؛ برای تلگرام <code>ALERT_TELEGRAM_BOT_TOKEN</code> و <code>ALERT_TELEGRAM_CHAT_ID</code> را در <code>.env</code> بگذار.</p>
+      <p class="muted">منبع خراب، منبعی که ۲۴ ساعت خبر تازه نداده، یا پخش قطع‌شده همان لحظه اینجا ثبت می‌شود؛ برای تلگرام <code>ALERT_TELEGRAM_BOT_TOKEN</code> و <code>ALERT_TELEGRAM_CHAT_ID</code> را در <code>.env</code> بگذار.</p>
     </div>
     <div class="card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">منبع خبری و کانال تازه</h2>
@@ -373,7 +373,13 @@
       var item = document.createElement('li');
       var tag = document.createElement('span');
       tag.className = 'tag ' + (alert.recovery ? 'ok' : 'err');
-      tag.textContent = alert.recovery ? 'برطرف شد' : alert.kind === 'stream' ? 'پخش' : 'منبع';
+      tag.textContent = alert.recovery
+        ? 'برطرف شد'
+        : alert.kind === 'stream'
+          ? 'پخش'
+          : alert.kind === 'silence'
+            ? 'سکوت'
+            : 'منبع';
       var text = document.createElement('span');
       text.textContent = alert.message;
       var when = document.createElement('div');

@@ -9,19 +9,24 @@ import {
   sendTelegram,
   telegramConfig,
   maskChatId,
+  latestBySource,
   ALERT_COOLDOWN_MS,
 } from '../src/alerts.mjs';
+
+const NOW = Date.parse('2026-11-13T06:00:00Z');
 
 const data = {
   source_health: [
     { id: 'a', name: 'منبع سالم', ok: true, status: 'ok' },
     { id: 'b', name: 'منبع خراب', ok: false, status: 'timeout', error: 'ETIMEDOUT' },
   ],
+  articles: [{ source_id: 'a', published: '2026-11-13T05:00:00Z' }],
 };
 
 test('فقط منبع خراب و پخش بی‌پاسخ مشکل حساب می‌شوند', () => {
   const issues = collectIssues({
     data,
+    now: NOW,
     channels: [{ id: 'voa', name: 'صدای آمریکا', healthy: '' }, { id: 'iranintl', name: 'ایران اینترنشنال', healthy: 'https://x.m3u8' }],
   });
   assert.deepEqual(issues.map((issue) => issue.id), ['source:b', 'stream:voa']);
@@ -31,7 +36,7 @@ test('فقط منبع خراب و پخش بی‌پاسخ مشکل حساب می�
 
 test('هر مشکل یک هشدار می‌دهد و تکرارش تا پایان cooldown ساکت می‌ماند', () => {
   const now = Date.UTC(2026, 10, 13, 10, 0, 0);
-  const issues = collectIssues({ data, channels: [{ id: 'voa', name: 'صدای آمریکا' }] });
+  const issues = collectIssues({ data, now, channels: [{ id: 'voa', name: 'صدای آمریکا' }] });
   const first = applyIssues({ state: {}, issues, now });
   assert.equal(first.created.length, 2);
   assert.equal(unreadCount(first.state), 2);
@@ -46,12 +51,19 @@ test('هر مشکل یک هشدار می‌دهد و تکرارش تا پایا�
 
 test('بعد از بازگشت، هشدار «برطرف شد» ساخته می‌شود', () => {
   const now = Date.UTC(2026, 10, 13, 10, 0, 0);
-  const first = applyIssues({ state: {}, issues: collectIssues({ data, channels: [] }), now });
+  const first = applyIssues({ state: {}, issues: collectIssues({ data, now, channels: [] }), now });
   assert.equal(first.created.length, 1);
 
   const healthy = applyIssues({
     state: first.state,
-    issues: collectIssues({ data: { source_health: [{ id: 'b', name: 'منبع خراب', ok: true }] }, channels: [] }),
+    issues: collectIssues({
+      data: {
+        source_health: [{ id: 'b', name: 'منبع خراب', ok: true }],
+        articles: [{ source_id: 'b', published: '2026-11-13T05:30:00Z' }],
+      },
+      now: now + 60 * 1000,
+      channels: [],
+    }),
     now: now + 60 * 1000,
   });
   assert.equal(healthy.created.length, 1);
@@ -62,11 +74,79 @@ test('بعد از بازگشت، هشدار «برطرف شد» ساخته می�
 
 test('فهرست هشدارها محدود می‌ماند و خواندن همه علامت‌گذاری می‌شود', () => {
   const now = Date.UTC(2026, 10, 13, 10, 0, 0);
-  const result = applyIssues({ state: {}, issues: collectIssues({ data }), now, limit: 1 });
+  const result = applyIssues({ state: {}, issues: collectIssues({ data, now }), now, limit: 1 });
   assert.equal(result.state.alerts.length, 1);
   assert.equal(unreadCount(result.state), 1);
   const read = markAllRead(result.state, now + 1000);
   assert.equal(unreadCount(read), 0);
+});
+
+test('تازه‌ترین زمان هر منبع از خبرها حساب می‌شود', () => {
+  const map = latestBySource([
+    { source_id: 'a', published: '2026-11-13T05:00:00Z' },
+    { source_id: 'a', published: '2026-11-12T05:00:00Z' },
+    { source_id: 'b', published: 'bad-date' },
+    { published: '2026-11-13T05:00:00Z' },
+  ]);
+  assert.equal(map.get('a'), Date.parse('2026-11-13T05:00:00Z'));
+  assert.equal(map.has('b'), false);
+});
+
+const silentData = {
+  source_health: [
+    { id: 'fresh', name: 'منبع تازه', ok: true },
+    { id: 'old', name: 'منبع خاموش', ok: true },
+    { id: 'empty', name: 'منبع بی‌خبر', ok: true },
+    { id: 'broken', name: 'منبع خراب', ok: false, error: 'ETIMEDOUT' },
+  ],
+  articles: [
+    { source_id: 'fresh', published: '2026-11-13T05:00:00Z' },
+    { source_id: 'old', published: '2026-11-11T05:00:00Z' },
+  ],
+};
+
+test('منبع سالمی که مدت‌ها خبر نداده «سکوت خبری» می‌شود', () => {
+  const now = Date.parse('2026-11-13T06:00:00Z');
+  const issues = collectIssues({ data: silentData, now });
+  const silence = issues.filter((issue) => issue.kind === 'silence');
+  assert.deepEqual(silence.map((issue) => issue.target), ['منبع خاموش']);
+  assert.match(silence[0].message, /۲ روز|ساعت/);
+  assert.equal(issues.some((issue) => issue.id === 'silence:fresh'), false);
+  // منبعی که هیچ خبر دارای تاریخ ندارد (اغلب ردشده در فیلترها) هشدار سکوت نمی‌دهد
+  assert.equal(issues.some((issue) => issue.id === 'silence:empty'), false);
+  assert.equal(issues.some((issue) => issue.kind === 'source' && issue.target === 'منبع خراب'), true);
+});
+
+test('حد ساعت سکوت قابل تنظیم است', () => {
+  const now = Date.parse('2026-11-13T06:00:00Z');
+  const issues = collectIssues({ data: silentData, now, silentHours: 72 });
+  assert.equal(issues.some((issue) => issue.kind === 'silence'), false, 'منبع ۴۸ ساعت خاموش با حد ۷۲ ساعت ساکت است');
+});
+
+test('سکوت خبری هشدار می‌دهد و با خبر تازه «برطرف شد» می‌گیرد', () => {
+  const now = Date.parse('2026-11-13T06:00:00Z');
+  const first = applyIssues({ state: {}, issues: collectIssues({ data: silentData, now }), now });
+  const silenceAlert = first.created.find((alert) => alert.kind === 'silence');
+  assert.ok(silenceAlert);
+  assert.match(formatAlert(silenceAlert), /سکوت خبری/);
+
+  const recovered = applyIssues({
+    state: first.state,
+    issues: collectIssues({
+      data: {
+        source_health: silentData.source_health,
+        articles: [
+          { source_id: 'fresh', published: '2026-11-13T05:00:00Z' },
+          { source_id: 'old', published: '2026-11-13T05:30:00Z' },
+          { source_id: 'empty', published: '2026-11-13T05:10:00Z' },
+        ],
+      },
+      now: now + 60 * 1000,
+    }),
+    now: now + 60 * 1000,
+  });
+  const recoveries = recovered.created.filter((alert) => alert.kind === 'silence' && alert.recovery);
+  assert.equal(recoveries.length, 1);
 });
 
 test('متن هشدار فارسی و قابل استفاده در تلگرام است', () => {
