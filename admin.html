@@ -20,7 +20,14 @@
   button { border: 0; border-radius: 10px; padding: 9px 16px; background: var(--teal); color: #fff; cursor: pointer; font-weight: 600; }
   button.ghost { background: #eef2f7; color: #334155; font-weight: 500; }
   button:disabled { opacity: .55; cursor: default; }
-  .row { display: flex; gap: 8px; align-items: center; }
+  .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  .field { flex: 1 1 180px; min-width: 0; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; }
+  select.field { background: #fff; }
+  .custom-list { list-style: none; margin: 10px 0 0; padding: 0; }
+  .custom-list li { border-top: 1px solid var(--line); padding: 7px 0; font-size: 13px; display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
+  .custom-list li > span { min-width: 0; overflow-wrap: anywhere; line-height: 1.7; }
+  .custom-list .del { white-space: nowrap; flex: 0 0 auto; }
+  .custom-list .del { background: #fee2e2; color: #991b1b; font-weight: 500; font-size: 12px; padding: 4px 10px; }
   #chat { display: none; }
   #log { display: grid; gap: 10px; max-height: 58vh; overflow-y: auto; padding: 4px 2px 12px; }
   .msg { padding: 10px 13px; border-radius: 12px; line-height: 1.85; font-size: 13.5px; white-space: pre-wrap; }
@@ -94,6 +101,32 @@
       <ul class="alerts" id="alerts-list"></ul>
       <p class="muted">منبع خبری خراب یا پخش قطع‌شده همان لحظه اینجا ثبت می‌شود؛ برای تلگرام <code>ALERT_TELEGRAM_BOT_TOKEN</code> و <code>ALERT_TELEGRAM_CHAT_ID</code> را در <code>.env</code> بگذار.</p>
     </div>
+    <div class="card" style="margin-bottom:14px">
+      <h2 style="font-size:15px;margin:0 0 4px">منبع خبری و کانال تازه</h2>
+      <p class="muted" id="custom-info"></p>
+
+      <div class="row" style="margin-top:10px">
+        <input class="field" id="src-name" placeholder="نام منبع (مثلاً روزنامهٔ شرق)">
+        <input class="field" id="src-url" placeholder="آدرس فید RSS/Atom" dir="ltr">
+      </div>
+      <div class="row" style="margin-top:8px">
+        <select class="field" id="src-lang"><option value="fa">فارسی</option><option value="en">انگلیسی</option></select>
+        <select class="field" id="src-origin"><option value="foreign">خارجی</option><option value="iran">ایران</option></select>
+        <button id="src-add">افزودن منبع</button>
+        <span class="muted" id="src-msg"></span>
+      </div>
+
+      <div class="row" style="margin-top:12px">
+        <input class="field" id="tg-handle" placeholder="@channel یا https://t.me/..." dir="ltr">
+        <input class="field" id="tg-name" placeholder="نام کانال (اختیاری)">
+        <button id="tg-add">افزودن کانال</button>
+        <span class="muted" id="tg-msg"></span>
+      </div>
+
+      <ul class="custom-list" id="custom-list"></ul>
+      <p class="muted">افزودنی‌ها در <code>.custom-sources.json</code> (خارج از گیت) ذخیره می‌شوند و از به‌روزرسانی بعدی خودکار در سایت دیده می‌شوند.</p>
+    </div>
+
     <div class="card">
       <h2 style="font-size:15px;margin:0 0 4px">تغییر رمز مدیر</h2>
       <p class="muted" id="pwd-info"></p>
@@ -150,6 +183,7 @@
     el('no-key').hidden = Boolean(session.model_available);
     loadAlerts();
     if (!state.alertTimer) state.alertTimer = setInterval(loadAlerts, 30000);
+    loadCustom();
     if (session.mode === 'cloud') {
       el('session-info').textContent = 'مدل ابری: ' + session.model + ' · نشست تا ۱۲ ساعت';
     } else if (session.mode === 'local') {
@@ -212,6 +246,93 @@
       msg.textContent = error.message || 'تغییر رمز ممکن نشد';
     } finally {
       el('pwd-btn').disabled = false;
+    }
+  });
+
+  async function loadCustom() {
+    try {
+      var payload = await api('/admin/api/custom');
+      var list = el('custom-list');
+      list.textContent = '';
+      var count = (payload.sources || []).length + (payload.channels || []).length;
+      el('custom-info').textContent = count
+        ? count + ' مورد اختصاصی از این پنل اضافه شده (' + payload.totals.sources + ' منبع و ' + payload.totals.channels + ' کانال فعال)'
+        : 'هنوز چیزی اضافه نشده؛ کل فهرست ' + payload.totals.sources + ' منبع و ' + payload.totals.channels + ' کانال است.';
+      (payload.sources || []).forEach(function (source) { addCustomRow('source', source, source.name + ' — ' + source.url); });
+      (payload.channels || []).forEach(function (channel) { addCustomRow('channel', channel, channel.name + ' — @' + channel.handle); });
+      if (!count) {
+        var empty = document.createElement('li');
+        empty.className = 'muted';
+        empty.textContent = 'فهرستی برای پاک کردن نیست.';
+        list.appendChild(empty);
+      }
+    } catch (error) {
+      el('custom-info').textContent = error.message || 'خواندن فهرست ممکن نشد';
+    }
+  }
+
+  function addCustomRow(kind, item, label) {
+    var row = document.createElement('li');
+    var text = document.createElement('span');
+    text.textContent = (kind === 'source' ? 'منبع: ' : 'کانال: ') + label;
+    var button = document.createElement('button');
+    button.className = 'del';
+    button.textContent = 'حذف';
+    button.addEventListener('click', async function () {
+      button.disabled = true;
+      try {
+        await api('/admin/api/custom/remove', { method: 'POST', body: JSON.stringify({ kind: kind, id: item.id }) });
+        loadCustom();
+      } catch (error) {
+        el('custom-info').textContent = error.message || 'حذف ممکن نشد';
+        button.disabled = false;
+      }
+    });
+    row.appendChild(text);
+    row.appendChild(button);
+    el('custom-list').appendChild(row);
+  }
+
+  el('src-add').addEventListener('click', async function () {
+    el('src-msg').textContent = 'در حال بررسی فید…';
+    el('src-add').disabled = true;
+    try {
+      var result = await api('/admin/api/custom/source', {
+        method: 'POST',
+        body: JSON.stringify({
+          name: el('src-name').value,
+          url: el('src-url').value,
+          lang: el('src-lang').value,
+          origin: el('src-origin').value
+        })
+      });
+      el('src-msg').textContent = 'افزوده شد؛ ' + result.items + ' آیتم در فید. ' + (result.note || '');
+      el('src-name').value = '';
+      el('src-url').value = '';
+      loadCustom();
+    } catch (error) {
+      el('src-msg').textContent = error.message || 'افزودن ممکن نشد';
+    } finally {
+      el('src-add').disabled = false;
+    }
+  });
+
+  el('tg-add').addEventListener('click', async function () {
+    el('tg-msg').textContent = 'در حال خواندن کانال…';
+    el('tg-add').disabled = true;
+    try {
+      var result = await api('/admin/api/custom/channel', {
+        method: 'POST',
+        body: JSON.stringify({ handle: el('tg-handle').value, name: el('tg-name').value })
+      });
+      el('tg-msg').textContent = 'افزوده شد: ' + (result.title || result.channel.name) + ' · ' + result.posts + ' پست خوانده شد';
+      el('tg-handle').value = '';
+      el('tg-name').value = '';
+      loadCustom();
+    } catch (error) {
+      el('tg-msg').textContent = error.message || 'افزودن ممکن نشد';
+    } finally {
+      el('tg-add').disabled = false;
     }
   });
 

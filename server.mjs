@@ -5,7 +5,8 @@ import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { runPipeline } from './pipeline.mjs';
 import { fetchMarkets } from './src/markets.mjs';
-import { fetchTelegramFeeds } from './src/telegram.mjs';
+import { fetchTelegramFeeds, fetchTelegramFeed, addTelegramChannel, removeTelegramChannel, TELEGRAM_CHANNELS } from './src/telegram.mjs';
+import { parseSourceInput, parseChannelInput, looksLikeFeed, feedItemCount } from './src/custom.mjs';
 import { resolveLiveChannels, probeStream, LIVE_CHANNELS } from './src/live.mjs';
 import {
   collectIssues,
@@ -42,7 +43,7 @@ try {
 } catch {
   /* بدون .env هم سرور بالا می‌آید */
 }
-import { UPDATE_INTERVAL_MINUTES } from './src/sources.mjs';
+import { SOURCES, addSource, removeSource, UPDATE_INTERVAL_MINUTES } from './src/sources.mjs';
 
 // نرخ‌های بازار جدا از خبرها و هر چند ثانیه یک‌بار خوانده می‌شوند تا تابلوی قیمت «لحظه‌ای» باشد.
 const LIVE_MARKETS_TTL_MS = Number(process.env.MARKETS_TTL_SECONDS || 20) * 1000;
@@ -496,8 +497,29 @@ async function checkAlerts({ probeStreams = true, notify = true } = {}) {
   }
 }
 
+// منابع و کانال‌های اختصاصی که مدیر از پنل اضافه کرده است.
+const CUSTOM_FILE = path.join(path.resolve('.'), '.custom-sources.json');
+const customState = { sources: [], channels: [] };
+
+async function loadCustomConfig() {
+  try {
+    const saved = JSON.parse(await readFile(CUSTOM_FILE, 'utf8'));
+    customState.sources = Array.isArray(saved?.sources) ? saved.sources : [];
+    customState.channels = Array.isArray(saved?.channels) ? saved.channels : [];
+    for (const source of customState.sources) addSource({ ...source, custom: true });
+    for (const channel of customState.channels) addTelegramChannel({ ...channel, custom: true });
+  } catch {
+    /* هنوز چیزی اضافه نشده */
+  }
+}
+
+async function saveCustomConfig() {
+  await writeFile(CUSTOM_FILE, JSON.stringify(customState, null, 2), { mode: 0o600 });
+}
+
 await loadAuthRecord();
 await loadAlertState();
+await loadCustomConfig();
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -589,6 +611,134 @@ const server = createServer(async (req, res) => {
       text: `🔔 پیام آزمایشی رصد خبر\nزمان: ${new Date().toLocaleString('fa-IR')}\nاتصال بات تلگرام درست است.`,
     });
     sendJson(res, result.ok ? 200 : 502, result);
+    return;
+  }
+
+  if (pathname === '/admin/api/custom' && req.method === 'GET') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    sendJson(res, 200, {
+      sources: customState.sources,
+      channels: customState.channels,
+      totals: { sources: SOURCES.length, channels: TELEGRAM_CHANNELS.length },
+    });
+    return;
+  }
+
+  if (pathname === '/admin/api/custom/source' && req.method === 'POST') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    const body = await readJsonBody(req).catch(() => ({}));
+    const parsed = parseSourceInput(body);
+    if (!parsed.ok) {
+      sendJson(res, 400, { error: parsed.error });
+      return;
+    }
+    const duplicate = SOURCES.find((source) => source.url === parsed.source.url);
+    if (duplicate) {
+      sendJson(res, 409, { error: `این آدرس از قبل در فهرست هست: ${duplicate.name}` });
+      return;
+    }
+    let xml = '';
+    try {
+      const response = await fetch(parsed.source.url, {
+        headers: {
+          'User-Agent': 'Mozilla/5.0 (compatible; NewsRadar/1.0)',
+          Accept: 'application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8',
+        },
+        signal: AbortSignal.timeout(12000),
+      });
+      if (!response.ok) {
+        sendJson(res, 400, { error: `آدرس فید پاسخ نداد (HTTP ${response.status})` });
+        return;
+      }
+      xml = await response.text();
+    } catch (error) {
+      sendJson(res, 400, { error: `دسترسی به فید ممکن نشد: ${String(error?.message || error)}` });
+      return;
+    }
+    if (!looksLikeFeed(xml)) {
+      sendJson(res, 400, { error: 'این آدرس خوراک RSS یا Atom نیست' });
+      return;
+    }
+    const items = feedItemCount(xml);
+    if (!items) {
+      sendJson(res, 400, { error: 'فید خالی است؛ خبری برای خواندن ندارد' });
+      return;
+    }
+    const source = addSource({ ...parsed.source, custom: true });
+    customState.sources = [...customState.sources.filter((item) => item.id !== source.id), source];
+    await saveCustomConfig();
+    sendJson(res, 200, { ok: true, source, items, note: 'از به‌روزرسانی بعدی خودکار در سایت دیده می‌شود' });
+    return;
+  }
+
+  if (pathname === '/admin/api/custom/channel' && req.method === 'POST') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    const body = await readJsonBody(req).catch(() => ({}));
+    const parsed = parseChannelInput(body);
+    if (!parsed.ok) {
+      sendJson(res, 400, { error: parsed.error });
+      return;
+    }
+    const duplicate = TELEGRAM_CHANNELS.find(
+      (channel) => String(channel.handle).toLowerCase() === parsed.channel.handle.toLowerCase()
+    );
+    if (duplicate) {
+      sendJson(res, 409, { error: `این کانال از قبل در فهرست هست: ${duplicate.name}` });
+      return;
+    }
+    let feed;
+    try {
+      feed = await fetchTelegramFeed(parsed.channel, { limit: 5 });
+    } catch (error) {
+      sendJson(res, 400, {
+        error: `خواندن کانال ممکن نشد: ${String(error?.message || error)} — پیش‌نمایش عمومی کانال باید باز باشد`,
+      });
+      return;
+    }
+    const channel = addTelegramChannel({ ...parsed.channel, custom: true });
+    customState.channels = [...customState.channels.filter((item) => item.id !== channel.id), channel];
+    await saveCustomConfig();
+    sendJson(res, 200, {
+      ok: true,
+      channel,
+      title: feed.title || channel.name,
+      posts: feed.posts.length,
+      note: 'از به‌روزرسانی بعدی خودکار در بخش تلگرام دیده می‌شود',
+    });
+    return;
+  }
+
+  if (pathname === '/admin/api/custom/remove' && req.method === 'POST') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    const body = await readJsonBody(req).catch(() => ({}));
+    const kind = String(body.kind || '');
+    const id = String(body.id || '');
+    let removed = false;
+    if (kind === 'source') {
+      removed = removeSource(id);
+      if (removed) customState.sources = customState.sources.filter((item) => item.id !== id);
+    } else if (kind === 'channel') {
+      removed = removeTelegramChannel(id);
+      if (removed) customState.channels = customState.channels.filter((item) => item.id !== id);
+    }
+    if (!removed) {
+      sendJson(res, 404, { error: 'این مورد پیدا نشد یا از فهرست پیش‌فرض است' });
+      return;
+    }
+    await saveCustomConfig();
+    sendJson(res, 200, { ok: true });
     return;
   }
 

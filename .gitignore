@@ -8,3 +8,4 @@ scheduler/token.txt
 
 .admin-auth.json
 .alerts.json
+.custom-sources.json

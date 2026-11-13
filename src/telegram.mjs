@@ -15,6 +15,28 @@ export const TELEGRAM_CHANNELS = [
   { id: 'manoto_tv', handle: 'manototv', name: 'منوتو', label: 'منوتو (تلگرام)', weight: 0.7 },
 ];
 
+/** کانال تازه (از پنل مدیر) را به فهرست اضافه می‌کند؛ تکراری‌ها به‌روز می‌شوند. */
+export function addTelegramChannel(channel) {
+  if (!channel || !channel.handle) return null;
+  const index = TELEGRAM_CHANNELS.findIndex(
+    (item) => item.id === channel.id || item.handle.toLowerCase() === String(channel.handle).toLowerCase()
+  );
+  if (index >= 0) {
+    TELEGRAM_CHANNELS[index] = { ...TELEGRAM_CHANNELS[index], ...channel, id: TELEGRAM_CHANNELS[index].id };
+    return TELEGRAM_CHANNELS[index];
+  }
+  TELEGRAM_CHANNELS.push(channel);
+  return channel;
+}
+
+/** کانال اختصاصی (افزوده‌شده از پنل) را برمی‌دارد. */
+export function removeTelegramChannel(id) {
+  const index = TELEGRAM_CHANNELS.findIndex((item) => item.id === id);
+  if (index === -1 || !TELEGRAM_CHANNELS[index].custom) return false;
+  TELEGRAM_CHANNELS.splice(index, 1);
+  return true;
+}
+
 // سازگاری با نسخهٔ قبلی که فقط کانال ایران اینترنشنال را می‌شناخت
 export const TELEGRAM_CHANNEL = TELEGRAM_CHANNELS[0].handle;
 export const TELEGRAM_CHANNEL_URL = `https://t.me/${TELEGRAM_CHANNEL}`;

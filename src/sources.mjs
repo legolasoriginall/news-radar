@@ -68,4 +68,24 @@ export const SOURCES = [
   { id: 'googlenews_en', name: 'Google News World', url: 'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en', lang: 'en', weight: 0.62, aggregator: true, origin: 'foreign' },
 ];
 
+/** منبع تازه (از پنل مدیر) را به فهرست اضافه می‌کند؛ تکراری‌ها به‌روز می‌شوند. */
+export function addSource(source) {
+  if (!source || !source.id) return null;
+  const index = SOURCES.findIndex((item) => item.id === source.id || item.url === source.url);
+  if (index >= 0) {
+    SOURCES[index] = { ...SOURCES[index], ...source, id: SOURCES[index].id };
+    return SOURCES[index];
+  }
+  SOURCES.push(source);
+  return source;
+}
+
+/** منبع را از فهرست برمی‌دارد (فقط منابع اختصاصی از پنل حذف می‌شوند). */
+export function removeSource(id) {
+  const index = SOURCES.findIndex((item) => item.id === id);
+  if (index === -1 || !SOURCES[index].custom) return false;
+  SOURCES.splice(index, 1);
+  return true;
+}
+
 export const UPDATE_INTERVAL_MINUTES = Number(process.env.UPDATE_INTERVAL_MINUTES || 5);
