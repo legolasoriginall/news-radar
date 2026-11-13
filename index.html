@@ -196,6 +196,8 @@ section { margin-top: 22px; }
 .badge.important { background: #eef2ff; border-color: #c7d2fe; color: #3730a3; }
 .badge.new { background: #ecfdf5; border-color: #a7f3d0; color: #047857; }
 .badge.tr { background: #f0f9ff; border-color: #bae6fd; color: #075985; }
+.badge.tg { background: #e0f2fe; border-color: #7dd3fc; color: #075985; text-decoration: none; white-space: nowrap; }
+.badge.tg:hover { background: #bae6fd; }
 .src-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .src-chips span { background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font-size: 11px; color: #475467; }
 
@@ -1051,6 +1053,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       return '<article class="story">' +
         '<div class="story-meta">' +
           '<span class="badge">' + fmt(story.source_count) + ' منبع</span>' +
+          (story.telegram ? '<a class="badge tg" href="' + safeUrl(story.telegram.post_url) + '" target="_blank" rel="noopener noreferrer nofollow" title="پیوند پست در تلگرام: ' + esc(story.telegram.channel_name) + '">تلگرام ↗</a>' : '') +
           '<span>' + esc(timeAgo(story.published)) + '</span>' +
         '</div>' +
         '<h3><a href="' + safeUrl(story.url) + '" target="_blank" rel="noopener noreferrer nofollow">' + esc(story.title) + '</a></h3>' +
@@ -1086,6 +1089,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
           '<span>' + (article.lang === 'fa' ? 'فارسی' : 'انگلیسی') + '</span>' +
           (isTranslation ? '<span class="badge tr">ترجمه</span>' : (article.lang === 'en' ? '<span class="badge">در انتظار ترجمه</span>' : '')) +
           (article.is_new ? '<span class="badge new">تازه</span>' : '') +
+          (article.telegram ? '<a class="badge tg" href="' + safeUrl(article.telegram.post_url) + '" target="_blank" rel="noopener noreferrer nofollow" title="پیوند پست در تلگرام: ' + esc(article.telegram.channel_name || '') + '">تلگرام ↗</a>' : '') +
           ((article.source_count || 1) > 1 ? '<span class="badge coverage">' + fmt(article.source_count) + ' منبع</span>' : '') +
         '</div>' +
         '<h3 class="news-title"><a href="' + safeUrl(article.link) + '" target="_blank" rel="noopener noreferrer nofollow">' + esc(titleText) + '</a></h3>' +

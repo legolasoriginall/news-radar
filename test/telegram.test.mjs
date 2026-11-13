@@ -143,6 +143,32 @@ test('پست تلگرام با متن بلند به قصهٔ همان رویدا
   assert.equal(clusters[0].members.length, 2);
 });
 
+test('کارت قصه پیوند مستقیم پست تلگرام را نگه می‌دارد', async () => {
+  const { buildStories } = await import('../src/analyze.mjs');
+  const member = {
+    uid: 'tg-story',
+    source_id: 'iranintl_tv',
+    source_name: 'ایران اینترنشنال (تلگرام)',
+    lang: 'fa',
+    title: 'خبر تلگرامی',
+    title_fa: '',
+    link: 'https://www.iranintl.com/1',
+    published: '2026-11-13T01:00:00.000Z',
+    topics: [{ name: 'بین‌الملل', score: 1 }],
+    sentiment: 0,
+    importance: 50,
+    telegram: { post_url: 'https://t.me/IranintlTV/1', channel_name: 'ایران اینترنشنال' },
+  };
+  const stories = buildStories([{ lang: 'fa', representative: member, members: [member] }], 1);
+  assert.equal(stories.length, 1);
+  assert.equal(stories[0].telegram.post_url, 'https://t.me/IranintlTV/1');
+  assert.equal(stories[0].telegram.channel_name, 'ایران اینترنشنال');
+
+  const plain = { ...member, uid: 'plain', telegram: null };
+  const plainStories = buildStories([{ lang: 'fa', representative: plain, members: [plain] }], 1);
+  assert.equal(plainStories[0].telegram, null);
+});
+
 test('تبدیل HTML، موجودیت‌ها و عنوان کانال', () => {
   assert.equal(telegramHtmlToText('a &lt;b&gt; c &#171;د&#187;'), 'a <b> c «د»');
   assert.equal(firstUrl('متن https://iranintl.com/202611132161.'), 'https://iranintl.com/202611132161');

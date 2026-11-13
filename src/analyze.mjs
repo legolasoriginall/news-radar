@@ -329,6 +329,15 @@ export function buildStories(clusters, totalArticles) {
         lang: primary.lang,
         primary_source: primary.source_name,
         primary_source_id: primary.source_id,
+        // اگر یکی از اعضای قصه پست تلگرام باشد، پیوند مستقیم همان پست روی کارت می‌آید
+        telegram: (() => {
+          const tgMember = members.find((member) => member.telegram && member.telegram.post_url);
+          if (!tgMember) return null;
+          return {
+            post_url: tgMember.telegram.post_url,
+            channel_name: tgMember.telegram.channel_name || tgMember.source_name || '',
+          };
+        })(),
         members_count: members.length,
         source_count: sources.length,
         sources: sources.slice(0, 8),
