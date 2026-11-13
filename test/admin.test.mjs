@@ -12,6 +12,7 @@ import {
   runTool,
   runAssistant,
   intentOf,
+  queryOf,
   describeToolResult,
   detectOllama,
 } from '../src/admin.mjs';
@@ -89,6 +90,53 @@ test('حالت بدون مدل، جملهٔ مدیر را به دستور درس
   assert.equal(intentOf('سلامت پخش شبکه‌ها را بررسی کن'), 'stream_health');
   assert.equal(intentOf('یک به‌روزرسانی انجام بده'), 'refresh_site');
   assert.equal(intentOf('سلام'), '');
+  assert.equal(intentOf('گزارش منابع را بده'), 'source_report');
+  assert.equal(intentOf('موضوع‌های داغ چیست؟'), 'topic_report');
+  assert.equal(intentOf('خبرهای دربارهٔ اقتصاد'), 'news_search');
+  assert.equal(queryOf('خبرهای دربارهٔ اقتصاد را نشان بده'), 'اقتصاد');
+});
+
+const sampleData = {
+  generated_at: '2026-11-13T06:00:00Z',
+  source_health: [
+    { id: 'a', name: 'منبع سالم', ok: true, status: 'ok' },
+    { id: 'b', name: 'منبع خراب', ok: false, status: 'error', error: 'timeout' },
+  ],
+  topics: [{ name: 'بین‌الملل', count: 674, percent: 48.1, trend: 'up' }],
+  articles: [
+    { title: 'Iran talks', title_fa: 'گفت‌وگو با ایران', source_name: 'Reuters', published: '2026-11-13T05:00:00Z' },
+    { title: 'Other news', source_name: 'AP', published: '2026-11-13T04:00:00Z' },
+  ],
+};
+
+test('ابزار گزارش منابع فقط منابع خراب را برمی‌گرداند', async () => {
+  const result = await runTool('source_report', {}, { getData: async () => sampleData });
+  assert.equal(result.total, 2);
+  assert.deepEqual(result.broken.map((item) => item.name), ['منبع خراب']);
+  assert.match(describeToolResult('source_report', result), /منبع خراب: timeout/);
+  const healthy = await runTool('source_report', {}, { getData: async () => ({ source_health: [{ name: 'x', ok: true }] }) });
+  assert.match(describeToolResult('source_report', healthy), /سالم/);
+});
+
+test('ابزار جستجوی خبر فارسی و انگلیسی را می‌فهمد', async () => {
+  const fa = await runTool('news_search', { query: 'ایران' }, { getData: async () => sampleData });
+  assert.equal(fa.ok, true);
+  assert.equal(fa.items.length, 1);
+  assert.equal(fa.items[0].title, 'گفت‌وگو با ایران');
+  const en = await runTool('news_search', { query: 'AP' }, { getData: async () => sampleData });
+  assert.equal(en.items.length, 1);
+  const empty = await runTool('news_search', { query: 'هیچ‌چیز' }, { getData: async () => sampleData });
+  assert.match(describeToolResult('news_search', empty), /پیدا نشد/);
+  const missing = await runTool('news_search', { query: '' }, { getData: async () => sampleData });
+  assert.equal(missing.ok, false);
+});
+
+test('ابزار موضوع‌های داغ خلاصهٔ فارسی می‌دهد', async () => {
+  const result = await runTool('topic_report', {}, { getData: async () => sampleData });
+  assert.equal(result.topics.length, 1);
+  const text = describeToolResult('topic_report', result);
+  assert.match(text, /بین‌الملل/);
+  assert.match(text, /صعودی/);
 });
 
 test('خلاصهٔ فارسی نتیجهٔ ابزار ساخته می‌شود', () => {

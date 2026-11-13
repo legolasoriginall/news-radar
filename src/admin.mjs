@@ -166,6 +166,38 @@ export const ADMIN_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'source_report',
+      description: 'گزارش منابع خبری: کدام منبع خطا داده یا هیچ خبری برنگردانده است.',
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'news_search',
+      description: 'جستجوي عبارت در خبرهاي فعلي سایت و برگرداندن تازه‌ترین نتایج.',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'عبارت جستجو (مثلاً ایران یا ترامپ).' },
+          limit: { type: 'number', description: 'تعداد نتیجه؛ حداکثر ۱۰.' },
+        },
+        required: ['query'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'topic_report',
+      description: 'موضوع‌های داغ سایت به‌همراه تعداد خبر و روند هر موضوع.',
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'refresh_site',
       description: 'یک به‌روزرسانی کامل خبرها را اجرا می‌کند (چند ثانیه طول می‌کشد).',
       parameters: { type: 'object', properties: {}, additionalProperties: false },
@@ -186,10 +218,31 @@ const MAX_TOOL_ROUNDS = 4;
 export function intentOf(text) {
   const value = String(text || '');
   if (/به[\s\u200c-]*روز|بروز[\s\u200c-]*رسانی|آپدیت|update|refresh/i.test(value)) return 'refresh_site';
+  if (/درباره|جستجو|دنبال|بگرد|پیدا\s*کن|search/i.test(value)) return 'news_search';
+  if (/موضوع|تاپیک|ترند|سرفصل|topic/i.test(value)) return 'topic_report';
+  if (/منابع|منبع|سورس|بازنگری|source/i.test(value)) return 'source_report';
+  if (/خطا|خراب|مشکل|error/i.test(value)) return 'source_report';
   if (/پخش|شبکه|استریم|سلامت|stream|live/i.test(value)) return 'stream_health';
   if (/وضعیت|آمار|چند خبر|چند قصه|تازه|status/i.test(value)) return 'site_status';
-  if (/خطا|خراب|مشکل|error/i.test(value)) return 'site_status';
   return '';
+}
+
+const STOP_WORDS = new Set([
+  'خبر', 'خبرها', 'خبرهای', 'اخبار', 'جستجو', 'جستجوی', 'کن', 'کنید', 'بده', 'نشان', 'بگرد',
+  'پیدا', 'لیست', 'موضوع', 'امروز', 'را', 'از', 'در', 'و', 'چه', 'چیست', 'درباره', 'دربارهٔ',
+  'همه', 'یک', 'چند', 'برای', 'من', 'بررسی',
+]);
+
+/** عبارت جستجو را از جملهٔ مدیر جدا می‌کند. */
+export function queryOf(text) {
+  const value = String(text || '').replace(/[«»"'“”؟?]/g, ' ').replace(/\s+/g, ' ').trim();
+  const match = value.match(/درباره[یٔ\u200c]?\s+(.+)$/) || value.match(/جستجو[یٔ\u200c]?\s+(.+)$/);
+  return String(match ? match[1] : value)
+    .split(' ')
+    .map((word) => word.replace(/[،.:؛!]/g, ''))
+    .filter((word) => word && !STOP_WORDS.has(word))
+    .join(' ')
+    .slice(0, 60);
 }
 
 function faNumber(value) {
@@ -219,6 +272,32 @@ export function describeToolResult(name, result) {
     );
     return rows.length ? ['سلامت پخش زنده:', ...rows].join('\n') : 'شبکه‌ای برای بررسی پیدا نشد.';
   }
+  if (name === 'source_report') {
+    const broken = result.broken || [];
+    if (!broken.length) return `همهٔ ${faNumber(result.total)} منبع سالم گزارش داده‌اند.`;
+    return [
+      `${faNumber(broken.length)} منبع از ${faNumber(result.total)} مشکل دارد:`,
+      ...broken.slice(0, 8).map((item) => `• ${item.name}: ${item.error || item.status || 'بی‌پاسخ'}`),
+    ].join('\n');
+  }
+  if (name === 'news_search') {
+    const items = result.items || [];
+    if (!items.length) return `برای «${result.query}» خبری پیدا نشد.`;
+    return [
+      `«${result.query}» — ${faNumber(items.length)} نتیجه:`,
+      ...items.map((item) => `• ${item.title} — ${item.source || 'منبع نامشخص'}`),
+    ].join('\n');
+  }
+  if (name === 'topic_report') {
+    const topics = result.topics || [];
+    if (!topics.length) return 'موضوعی ثبت نشده است.';
+    return [
+      'موضوع‌های داغ:',
+      ...topics.slice(0, 8).map((topic) =>
+        `• ${topic.name}: ${faNumber(topic.count)} خبر (${Number(topic.percent || 0).toLocaleString('fa-IR')}٪) — روند ${topic.trend === 'up' ? 'صعودی' : topic.trend === 'down' ? 'نزولی' : 'ثابت'}`
+      ),
+    ].join('\n');
+  }
   if (name === 'refresh_site') {
     return result.ok ? 'به‌روزرسانی انجام شد.' : `به‌روزرسانی انجام نشد: ${result.error || result.message || ''}`;
   }
@@ -234,7 +313,50 @@ function safeJson(value) {
 }
 
 /** ابزارها را اجرا می‌کند؛ وابستگی‌ها تزریق می‌شوند تا تست‌پذیر باشند. */
-export async function runTool(name, args = {}, { getStatus, refresh, probe = probeStream, channels = LIVE_CHANNELS } = {}) {
+export async function runTool(name, args = {}, { getStatus, getData, refresh, probe = probeStream, channels = LIVE_CHANNELS } = {}) {
+  if (name === 'source_report') {
+    if (typeof getData !== 'function') return { ok: false, error: 'داده در دسترس نیست' };
+    const data = await getData();
+    const health = Array.isArray(data?.source_health) ? data.source_health : [];
+    const broken = health
+      .filter((source) => !source.ok)
+      .map((source) => ({ name: source.name || source.id, status: source.status || 'error', error: source.error || '' }));
+    return { ok: true, total: health.length, broken, checked_at: data?.generated_at || null };
+  }
+  if (name === 'news_search') {
+    if (typeof getData !== 'function') return { ok: false, error: 'داده در دسترس نیست' };
+    const query = String(args.query || '').trim();
+    if (!query) return { ok: false, error: 'عبارت جستجو لازم است' };
+    const limit = Math.min(Math.max(Number(args.limit) || 5, 1), 10);
+    const data = await getData();
+    const needle = query.toLowerCase();
+    const items = (Array.isArray(data?.articles) ? data.articles : [])
+      .filter((article) =>
+        [article.title, article.title_fa, article.summary, article.summary_fa, article.source_name]
+          .filter(Boolean)
+          .some((text) => String(text).toLowerCase().includes(needle))
+      )
+      .sort((a, b) => String(b.published || '').localeCompare(String(a.published || '')))
+      .slice(0, limit)
+      .map((article) => ({
+        title: article.title_fa || article.title,
+        source: article.source_name,
+        link: article.link,
+        published: article.published || null,
+      }));
+    return { ok: true, query, items };
+  }
+  if (name === 'topic_report') {
+    if (typeof getData !== 'function') return { ok: false, error: 'داده در دسترس نیست' };
+    const data = await getData();
+    const topics = (Array.isArray(data?.topics) ? data.topics : []).map((topic) => ({
+      name: topic.name,
+      count: topic.count || 0,
+      percent: topic.percent || 0,
+      trend: topic.trend || '',
+    }));
+    return { ok: true, topics };
+  }
   if (name === 'site_status') {
     if (typeof getStatus !== 'function') return { ok: false, error: 'وضعیت در دسترس نیست' };
     return { ok: true, ...(await getStatus()) };

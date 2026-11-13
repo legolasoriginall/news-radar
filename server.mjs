@@ -20,6 +20,7 @@ import {
   llmConfig,
   detectOllama,
   intentOf,
+  queryOf,
   describeToolResult,
   runTool,
   runAssistant,
@@ -397,6 +398,7 @@ function adminToolContext() {
         next_run_at: state.next_run_at || null,
       };
     },
+    getData: async () => readData(),
     refresh: async () => refresh(),
   };
 }
@@ -513,16 +515,22 @@ const server = createServer(async (req, res) => {
       const lastUser = [...(Array.isArray(body.messages) ? body.messages : [])].reverse().find((m) => m.role === 'user');
       if (!info.available) {
         // بدون هیچ مدلی: پیام مدیر به یکی از دستورهای آماده تبدیل می‌شود
-        const intent = intentOf(lastUser?.content);
-        if (!intent) {
+        const text = lastUser?.content;
+        const intent = intentOf(text);
+        const args = intent === 'news_search' ? { query: queryOf(text), limit: 5 } : {};
+        if (!intent || (intent === 'news_search' && !args.query)) {
           sendJson(res, 200, {
-            reply: 'بدون مدل کار می‌کنم. این دستورها را می‌فهمم: «وضعیت سایت»، «سلامت پخش»، «به‌روزرسانی خبرها».',
+            reply: [
+              'بدون مدل کار می‌کنم. این دستورها را می‌شناسم:',
+              '«وضعیت سایت» · «سلامت پخش» · «گزارش منابع» · «موضوع‌های داغ»',
+              '«خبرهای دربارهٔ اقتصاد» (یا هر واژهٔ دیگر) · «به‌روزرسانی خبرها»',
+            ].join('\n'),
             used: [],
             keyless: true,
           });
           return;
         }
-        const result = await runTool(intent, {}, adminToolContext());
+        const result = await runTool(intent, args, adminToolContext());
         sendJson(res, 200, { reply: describeToolResult(intent, result), used: [intent], keyless: true });
         return;
       }
