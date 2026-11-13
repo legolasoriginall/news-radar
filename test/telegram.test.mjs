@@ -1,7 +1,14 @@
 // تست خواندن پست‌های کانال تلگرام از HTML پیش‌نمایش (بدون شبکه)
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { parseTelegramHtml, telegramHtmlToText, firstUrl, telegramChannelTitle } from '../src/telegram.mjs';
+import {
+  parseTelegramHtml,
+  telegramHtmlToText,
+  firstUrl,
+  telegramChannelTitle,
+  normalizeTelegramLink,
+  telegramPostTitle,
+} from '../src/telegram.mjs';
 
 function message({ id, text, time, media = '', views = '12K', forwarded = '' }) {
   return `
@@ -59,6 +66,47 @@ test('محدودیت تعداد و حذف تکراری‌ها کار می‌کن
 
   const doubled = parseTelegramHtml(HTML + HTML);
   assert.equal(doubled.length, 3);
+});
+
+test('پیوند ایران اینترنشنال یکسان می‌شود و عنوان پست کوتاه می‌ماند', () => {
+  assert.equal(normalizeTelegramLink('https://iranintl.com/202611132161'), 'https://www.iranintl.com/202611132161');
+  assert.equal(normalizeTelegramLink('http://www.iranintl.com/202611132161'), 'https://www.iranintl.com/202611132161');
+  assert.equal(normalizeTelegramLink('https://t.me/IranintlTV/1'), 'https://t.me/IranintlTV/1');
+  assert.equal(normalizeTelegramLink(''), '');
+
+  assert.equal(telegramPostTitle({ text: '\n\nخط اول خبر\nخط دوم' }), 'خط اول خبر');
+  assert.equal(telegramPostTitle({ text: '' }), 'پست تلگرام ایران اینترنشنال');
+  const title = telegramPostTitle({ text: 'ا'.repeat(400) });
+  assert.ok(title.length <= 180);
+  assert.ok(title.endsWith('…'));
+});
+
+test('پست تلگرام با متن بلند به قصهٔ همان رویداد در خبرها وصل می‌شود', async () => {
+  const { clusterArticles } = await import('../src/analyze.mjs');
+  const post = {
+    uid: 'tg-1',
+    source_id: 'iranintl_tv',
+    source_name: 'ایران اینترنشنال (تلگرام)',
+    lang: 'fa',
+    title: 'ترامپ گفت جنگ ایران می‌تواند پایان یابد',
+    title_fa: '',
+    cluster_title: 'ترامپ گفت جنگ ایران می‌تواند پایان یابد',
+    link: 'https://t.me/IranintlTV/1',
+    published: '2026-11-13T01:00:00.000Z',
+  };
+  const site = {
+    uid: 'site-1',
+    source_id: 'khabaronline',
+    source_name: 'خبرآنلاین',
+    lang: 'fa',
+    title: 'ترامپ: جنگ ایران پایان می‌یابد',
+    title_fa: '',
+    link: 'https://www.khabaronline.ir/1',
+    published: '2026-11-13T01:05:00.000Z',
+  };
+  const clusters = clusterArticles([post, site]);
+  assert.equal(clusters.length, 1);
+  assert.equal(clusters[0].members.length, 2);
 });
 
 test('تبدیل HTML، موجودیت‌ها و عنوان کانال', () => {

@@ -248,9 +248,14 @@ export function clusterArticles(articles) {
   const getTokens = (article) => {
     if (!tokenCache.has(article.uid)) {
       const useFa = Boolean(article.title_fa);
-      const text = useFa ? article.title_fa : article.title;
-      const lang = useFa ? 'fa' : article.lang;
-      tokenCache.set(article.uid, { lang, tokens: new Set(tokenize(text, lang).filter((t) => t.length > 2)) });
+      // برخی منابع (مثل پست‌های تلگرام) متن بلند دارند؛ عنوان خوشه‌بندی کوتاه‌تری داشته باشند
+      const text = article.cluster_title || (useFa ? article.title_fa : article.title);
+      const lang = article.cluster_title ? article.lang : useFa ? 'fa' : article.lang;
+      tokenCache.set(article.uid, {
+        lang,
+        signature: Boolean(article.cluster_title),
+        tokens: new Set(tokenize(text, lang).filter((t) => t.length > 2)),
+      });
     }
     return tokenCache.get(article.uid);
   };
@@ -268,8 +273,10 @@ export function clusterArticles(articles) {
       }
       const anchor = getTokens(cluster.representative);
       if (anchor.lang !== info.lang) continue;
-      const score = jaccard(info.tokens, anchor.tokens);
-      if (score > bestScore && score >= 0.5) {
+      // متن بلند (پست تلگرام) با عنوان کوتاه با «پوشش واژه‌ها» سنجیده می‌شود تا به قصهٔ همان رویداد وصل شود
+      const byCoverage = info.signature || anchor.signature;
+      const score = byCoverage ? overlapScore(info.tokens, anchor.tokens) : jaccard(info.tokens, anchor.tokens);
+      if (score > bestScore && score >= (byCoverage ? 0.65 : 0.5)) {
         bestScore = score;
         target = cluster;
       }
@@ -290,6 +297,13 @@ export function clusterArticles(articles) {
     }
   }
   return clusters;
+}
+
+function overlapScore(a, b) {
+  if (!a.size || !b.size) return 0;
+  let shared = 0;
+  for (const token of a) if (b.has(token)) shared += 1;
+  return shared / Math.min(a.size, b.size);
 }
 
 function jaccard(a, b) {

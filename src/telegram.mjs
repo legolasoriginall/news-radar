@@ -6,6 +6,30 @@ export const TELEGRAM_CHANNEL = 'IranintlTV';
 export const TELEGRAM_CHANNEL_URL = `https://t.me/${TELEGRAM_CHANNEL}`;
 export const TELEGRAM_PREVIEW_URL = `https://t.me/s/${TELEGRAM_CHANNEL}`;
 
+// پست‌های کانال مثل یک منبع فارسی در خوراک خبرها و خوشه‌بندی شرکت می‌کنند
+export const TELEGRAM_SOURCE = {
+  id: 'iranintl_tv',
+  name: 'ایران اینترنشنال (تلگرام)',
+  lang: 'fa',
+  weight: 0.8,
+  origin: 'foreign',
+};
+
+/** پیوند سایت ایران اینترنشنال را یکسان می‌کند تا با همان خبر در خوراک RSS یکی شود. */
+export function normalizeTelegramLink(link) {
+  const url = String(link ?? '').trim();
+  if (!url) return '';
+  return url.replace(/^https?:\/\/(?:www\.)?iranintl\.com\//i, 'https://www.iranintl.com/');
+}
+
+/** عنوان کوتاه پست از نخستین خط متن آن (برای نمایش و خوشه‌بندی). */
+export function telegramPostTitle(post) {
+  const text = String(post?.text ?? '').replace(/\r/g, '').trim();
+  const firstLine = text.split('\n').map((line) => line.trim()).find(Boolean) || '';
+  if (!firstLine) return 'پست تلگرام ایران اینترنشنال';
+  return firstLine.length > 180 ? `${firstLine.slice(0, 177).replace(/[\s،,.:؛-]+$/, '')}…` : firstLine;
+}
+
 const USER_AGENT =
   'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/126.0 Safari/537.36';
 

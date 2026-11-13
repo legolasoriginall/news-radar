@@ -18,7 +18,14 @@ import {
 import { translateMany, saveCache } from './src/translate.mjs';
 import { fetchMarkets, buildMarketHistory, MARKET_SOURCE } from './src/markets.mjs';
 import { buildXlsx } from './src/xlsx.mjs';
-import { fetchTelegramPosts, TELEGRAM_CHANNEL, TELEGRAM_CHANNEL_URL } from './src/telegram.mjs';
+import {
+  fetchTelegramPosts,
+  TELEGRAM_CHANNEL,
+  TELEGRAM_CHANNEL_URL,
+  TELEGRAM_SOURCE,
+  normalizeTelegramLink,
+  telegramPostTitle,
+} from './src/telegram.mjs';
 
 const ROOT = path.resolve('.');
 const DATA_FILE = path.join(ROOT, 'data.json');
@@ -350,6 +357,37 @@ export async function runPipeline({ quiet = false } = {}) {
     acceptedBySource.set(source.id, accepted);
   }
 
+  // پست‌های کانال تلگرام مثل یک منبع فارسی وارد خوراک خبرها و قصه‌های چندمنبعی می‌شوند
+  const telegram = await telegramPromise;
+  const telegramLinks = new Set();
+  const telegramInFeed = [];
+  for (const post of telegram.posts) {
+    const link = normalizeTelegramLink(post.link || post.url);
+    if (!link || seenLinks.has(link) || telegramLinks.has(link)) continue;
+    telegramLinks.add(link);
+    telegramInFeed.push({
+      title: telegramPostTitle(post),
+      summary: String(post.text || '').slice(0, 900),
+      link,
+      published: post.published,
+      source: TELEGRAM_SOURCE,
+      // متن تلگرام بلند است؛ برای خوشه‌بندی، عبارت کلیدواژه‌ای فشرده استفاده می‌شود
+      cluster_title: telegramPostTitle(post),
+      telegram: {
+        post_id: post.id,
+        post_url: post.url,
+        views: post.views,
+        media: post.media,
+        forwarded_from: post.forwarded_from,
+      },
+    });
+  }
+  // اول فهرست قرار می‌گیرند تا در برش MAX_ARTICLES حذف نشوند
+  collected.unshift(...telegramInFeed);
+  log(
+    `› تلگرام: ${telegram.posts.length} پست (${telegramInFeed.length} در خوراک خبرها${telegram.error ? '، آخرین مقدار موفق' : ''})`
+  );
+
   const nowTs = Date.now();
   const history = await readJson(HISTORY_FILE, { runs: [] });
   const seenStore = await readJson(SEEN_FILE, { items: {} });
@@ -451,6 +489,8 @@ export async function runPipeline({ quiet = false } = {}) {
       title: item.title,
       title_fa: titleFa,
       link: item.link,
+      telegram: item.telegram || null,
+      cluster_title: item.cluster_title || '',
       summary: String(item.summary || '').slice(0, 600),
       summary_fa: String(summaryFa || '').slice(0, 600),
       published: safePublished,
@@ -617,6 +657,7 @@ export async function runPipeline({ quiet = false } = {}) {
     sources_total: SOURCES.length,
     sources_ok: sourcesOk,
     sources_with_news: sourcesWithNews,
+    telegram_posts: telegram.posts.length,
     health_percent: pct(sourcesOk, SOURCES.length),
     stories: stories.length,
     multi_source_stories: multiSourceStories.length,
@@ -648,13 +689,6 @@ export async function runPipeline({ quiet = false } = {}) {
     markets.items.length
       ? `› بازار: ${markets.items.length} نرخ (${markets.ok ? 'تازه' : 'آخرین مقدار موفق'})`
       : '› بازار: نرخی دریافت نشد'
-  );
-
-  const telegram = await telegramPromise;
-  log(
-    telegram.posts.length
-      ? `› تلگرام: ${telegram.posts.length} پست (${telegram.error ? 'آخرین مقدار موفق' : 'تازه'})`
-      : '› تلگرام: پستی دریافت نشد'
   );
 
   const data = {
