@@ -241,7 +241,9 @@ export function extractKeywords(title, summary, lang, limit = 6) {
     .map(([word]) => word);
 }
 
-export function clusterArticles(articles) {
+export function clusterArticles(articles, options = {}) {
+  const jaccardThreshold = Number(options.jaccardThreshold ?? 0.5);
+  const coverageThreshold = Number(options.coverageThreshold ?? 0.65);
   const clusters = [];
   const tokenCache = new Map();
   // عنوان فارسی خبرهای ترجمه‌شده مبنای خوشه‌بندی قرار می‌گیرد تا خبر فارسی و انگلیسی یک رویداد به هم متصل شوند
@@ -253,11 +255,37 @@ export function clusterArticles(articles) {
       const lang = article.cluster_title ? article.lang : useFa ? 'fa' : article.lang;
       tokenCache.set(article.uid, {
         lang,
+        text: String(text),
         signature: Boolean(article.cluster_title),
         tokens: new Set(tokenize(text, lang).filter((t) => t.length > 2)),
       });
     }
     return tokenCache.get(article.uid);
+  };
+
+  // فراوانی واژه‌ها در همهٔ عنوان‌ها: واژهٔ کمیاب (نام‌ها و مکان‌ها) وزن بیشتری می‌گیرد تا
+  // خبرهای قالبی با واژه‌های تکراری (هواشناسی، ترافیک، قیمت) بی‌جا با هم یکی نشوند
+  const documentFrequency = new Map();
+  for (const article of articles) {
+    for (const token of getTokens(article).tokens) {
+      documentFrequency.set(token, (documentFrequency.get(token) || 0) + 1);
+    }
+  }
+  const totalTitles = Math.max(1, articles.length);
+  const idf = (token) => Math.log(1 + totalTitles / (documentFrequency.get(token) || 1));
+  for (const info of tokenCache.values()) {
+    info.idfSum = [...info.tokens].reduce((sum, token) => sum + idf(token), 0);
+  }
+
+  // شباهت وزن‌دار: واژه‌های عمومی تقریباً بی‌اثر و نام‌های خاص تعیین‌کننده‌اند
+  const weightedScore = (a, b, containment) => {
+    let shared = 0;
+    for (const token of a.tokens) {
+      if (b.tokens.has(token)) shared += idf(token);
+    }
+    if (!shared) return 0;
+    const denominator = containment ? Math.min(a.idfSum, b.idfSum) : a.idfSum + b.idfSum - shared;
+    return denominator > 0 ? shared / denominator : 0;
   };
 
   const sorted = [...articles].sort((a, b) => new Date(b.published) - new Date(a.published));
@@ -275,8 +303,18 @@ export function clusterArticles(articles) {
       if (anchor.lang !== info.lang) continue;
       // متن بلند (پست تلگرام) با عنوان کوتاه با «پوشش واژه‌ها» سنجیده می‌شود تا به قصهٔ همان رویداد وصل شود
       const byCoverage = info.signature || anchor.signature;
-      const score = byCoverage ? overlapScore(info.tokens, anchor.tokens) : jaccard(info.tokens, anchor.tokens);
-      if (score > bestScore && score >= (byCoverage ? 0.65 : 0.5)) {
+      const score = weightedScore(info, anchor, byCoverage);
+      // خبرهای قالبی (ترافیک، هوا، قیمت، نتایج…) با واژه‌های مشترک ولی موضوع متفاوت (شهر یا استان دیگر)
+      // یکی نمی‌شوند مگر عملاً یک عنوان باشند
+      const routine = ROUTINE_PATTERN.test(info.text) && ROUTINE_PATTERN.test(anchor.text);
+      if (routine) {
+        const placeA = placeOf(info.text);
+        const placeB = placeOf(anchor.text);
+        // خبر قالبی دربارهٔ دو مکان مختلف (تهران/بیرجند، خراسان/البرز) یکی نمی‌شود
+        if (placeA && placeB && placeA !== placeB) continue;
+      }
+      const threshold = routine ? (byCoverage ? 0.9 : 0.8) : byCoverage ? coverageThreshold : jaccardThreshold;
+      if (score > bestScore && score >= threshold) {
         bestScore = score;
         target = cluster;
       }
@@ -297,6 +335,15 @@ export function clusterArticles(articles) {
     }
   }
   return clusters;
+}
+
+// خبرهای قالبی/خدماتی: با هم‌پوشانی واژه‌های زیاد هم نباید قصهٔ چندمنبعی بسازند
+const ROUTINE_PATTERN = /(ترافیک|بارش|هواشناسی|دما|فال|ابجد|قیمت|نرخ|بورس|جدول|نتایج|پرواز|مدارس|تعطیل|ساعت کاری|مسابقه|قرعه|مراسم|شهدای گمنام)/;
+
+// مکانِ گفته‌شده در عنوان («در تهران») برای تشخیص خبرهای قالبی دربارهٔ دو شهر/کشور مختلف
+function placeOf(text) {
+  const match = String(text ?? '').match(/در\s+([^\s،؛:/\\()]{3,})/);
+  return match ? match[1] : '';
 }
 
 function overlapScore(a, b) {
