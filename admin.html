@@ -42,7 +42,9 @@
   </header>
 
   <div class="warn" id="no-key" hidden>
-    کلید مدل تنظیم نشده است. در فایل <code>.env</code> سرور مقدار <code>ZAI_API_KEY</code> را بگذار و سرور را دوباره اجرا کن.
+    مدل آماده نیست — و <strong>کلید API هم لازم نداری</strong>: یا مدل محلی رایگان نصب کن
+    (<code>ollama pull llama3.2</code> و بعد سرور را دوباره اجرا کن) یا همین حالا با دستورهای آماده کار کن:
+    «وضعیت سایت»، «سلامت پخش»، «به‌روزرسانی خبرها».
   </div>
 
   <section class="card" id="login">
@@ -124,10 +126,14 @@
       ? 'آخرین تغییر رمز: ' + formatDate(session.password_changed_at)
       : '';
     el('pwd-info').dataset.changedAt = session.password_changed_at || '';
-    el('no-key').hidden = Boolean(session.hasKey);
-    el('session-info').textContent = session.hasKey
-      ? 'مدل: ' + session.model + ' · نشست تا ۱۲ ساعت'
-      : 'کلید مدل تنظیم نشده؛ فقط ورود انجام شده.';
+    el('no-key').hidden = Boolean(session.model_available);
+    if (session.mode === 'cloud') {
+      el('session-info').textContent = 'مدل ابری: ' + session.model + ' · نشست تا ۱۲ ساعت';
+    } else if (session.mode === 'local') {
+      el('session-info').textContent = 'مدل محلی (بدون کلید): ' + session.model + ' · نشست تا ۱۲ ساعت';
+    } else {
+      el('session-info').textContent = 'حالت بدون مدل: پیام‌ها به دستورهای آماده تبدیل می‌شوند.';
+    }
   }
 
   async function boot() {

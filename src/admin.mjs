@@ -92,16 +92,47 @@ export function llmConfig(env = process.env) {
       provider: 'openai',
     };
   }
-  return { apiKey: '', baseUrl: '', model: '', provider: '' };
+  // بدون کلید: مدل محلی رایگان (Ollama) روی همان کامپیوتر، با اندپوینت سازگار با OpenAI
+  return {
+    apiKey: '',
+    baseUrl: env.OLLAMA_URL || 'http://127.0.0.1:11434/v1',
+    model: env.OLLAMA_MODEL || 'llama3.2',
+    provider: 'ollama',
+  };
+}
+
+/** آیا Ollama روی همین کامپیوتر بالاست و چه مدل‌هایی دارد. */
+export async function detectOllama({ baseUrl = 'http://127.0.0.1:11434/v1', fetcher = fetch, timeoutMs = 1500 } = {}) {
+  try {
+    const response = await fetcher(`${String(baseUrl).replace(/\/+$/, '')}/models`, {
+      signal: AbortSignal.timeout(timeoutMs),
+    });
+    if (!response.ok) return { available: false, models: [] };
+    const payload = await response.json();
+    const models = Array.isArray(payload?.data) ? payload.data.map((item) => item.id).filter(Boolean) : [];
+    return { available: true, models };
+  } catch {
+    return { available: false, models: [] };
+  }
 }
 
 /** یک دور گفت‌وگو با مدل؛ ورودی و خروجی سازگار با OpenAI Chat Completions. */
 export async function chatWithTools({ messages, tools, config = llmConfig(), fetcher = fetch, timeoutMs = 60000 }) {
-  if (!config.apiKey) throw new Error('کلید مدل تنظیم نشده است (ZAI_API_KEY)');
+  const local = config.provider === 'ollama';
+  if (!config.apiKey && !local) throw new Error('کلید مدل تنظیم نشده است');
+  if (!config.baseUrl) throw new Error('آدرس مدل تنظیم نشده است');
+  const headers = { 'Content-Type': 'application/json' };
+  if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
   const response = await fetcher(`${String(config.baseUrl).replace(/\/+$/, '')}/chat/completions`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${config.apiKey}` },
-    body: JSON.stringify({ model: config.model, messages, tools, tool_choice: 'auto', temperature: 0.2 }),
+    headers,
+    body: JSON.stringify({
+      model: config.model,
+      messages,
+      tools: local ? undefined : tools,
+      tool_choice: local ? undefined : 'auto',
+      temperature: 0.2,
+    }),
     signal: AbortSignal.timeout(timeoutMs),
   });
   if (!response.ok) throw new Error(`LLM HTTP ${response.status}`);
@@ -150,6 +181,49 @@ export const ADMIN_SYSTEM_PROMPT = [
 ].join(' ');
 
 const MAX_TOOL_ROUNDS = 4;
+
+/** تشخیص سادهٔ خواستهٔ مدیر وقتی هیچ مدلی در دسترس نیست (حالت بدون کلید). */
+export function intentOf(text) {
+  const value = String(text || '');
+  if (/به[\s\u200c-]*روز|بروز[\s\u200c-]*رسانی|آپدیت|update|refresh/i.test(value)) return 'refresh_site';
+  if (/پخش|شبکه|استریم|سلامت|stream|live/i.test(value)) return 'stream_health';
+  if (/وضعیت|آمار|چند خبر|چند قصه|تازه|status/i.test(value)) return 'site_status';
+  if (/خطا|خراب|مشکل|error/i.test(value)) return 'site_status';
+  return '';
+}
+
+function faNumber(value) {
+  return Number(value || 0).toLocaleString('fa-IR');
+}
+
+/** خلاصهٔ فارسی نتیجهٔ ابزار برای حالت بدون مدل. */
+export function describeToolResult(name, result) {
+  if (!result || result.ok === false) {
+    return `انجام نشد: ${(result && result.error) || 'خطای ناشناخته'}`;
+  }
+  if (name === 'site_status') {
+    const when = result.generated_at ? new Date(result.generated_at).toLocaleString('fa-IR') : 'نامشخص';
+    const lines = [
+      `آخرین به‌روزرسانی داده‌ها: ${when}`,
+      `خبرها: ${faNumber(result.total)} · قصه‌ها: ${faNumber(result.stories)} · چندمنبعی: ${faNumber(result.multi_source)}`,
+      `پست‌های تلگرام: ${faNumber(result.telegram_posts)} · نرخ‌های بازار: ${faNumber(result.markets)}`,
+      result.sources_total ? `منابع سالم: ${faNumber(result.sources_ok)} از ${faNumber(result.sources_total)}` : '',
+      result.fresh_24h ? `خبرهای ۲۴ ساعت گذشته: ${faNumber(result.fresh_24h)}` : '',
+    ];
+    if (result.last_error) lines.push(`آخرین خطا: ${result.last_error}`);
+    return lines.filter(Boolean).join('\n');
+  }
+  if (name === 'stream_health') {
+    const rows = (result.channels || []).map((channel) =>
+      channel.healthy ? `• ${channel.name}: سالم` : `• ${channel.name}: هیچ مسیری پاسخ نداد`
+    );
+    return rows.length ? ['سلامت پخش زنده:', ...rows].join('\n') : 'شبکه‌ای برای بررسی پیدا نشد.';
+  }
+  if (name === 'refresh_site') {
+    return result.ok ? 'به‌روزرسانی انجام شد.' : `به‌روزرسانی انجام نشد: ${result.error || result.message || ''}`;
+  }
+  return 'انجام شد.';
+}
 
 function safeJson(value) {
   try {

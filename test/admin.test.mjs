@@ -11,6 +11,9 @@ import {
   llmConfig,
   runTool,
   runAssistant,
+  intentOf,
+  describeToolResult,
+  detectOllama,
 } from '../src/admin.mjs';
 
 test('رمز مدیر فقط با مقدار دقیق پذیرفته می‌شود', () => {
@@ -63,6 +66,37 @@ test('پیکربندی مدل از محیط خوانده می‌شود و بدو
   const openai = llmConfig({ OPENAI_API_KEY: 'k' });
   assert.equal(openai.provider, 'openai');
   assert.match(openai.baseUrl, /openai\.com/);
+});
+
+test('بدون کلید، مدل محلی پیش‌فرض است و کلید لازم ندارد', () => {
+  const config = llmConfig({});
+  assert.equal(config.provider, 'ollama');
+  assert.equal(config.apiKey, '');
+  assert.match(config.baseUrl, /127\.0\.0\.1:11434/);
+});
+
+test('تشخیص Ollama ناموفق بودن را بی‌خطا گزارش می‌کند', async () => {
+  const down = await detectOllama({ fetcher: async () => { throw new Error('refused'); } });
+  assert.deepEqual(down, { available: false, models: [] });
+  const up = await detectOllama({
+    fetcher: async () => ({ ok: true, json: async () => ({ data: [{ id: 'llama3.2' }, { id: 'qwen2.5' }] }) }),
+  });
+  assert.deepEqual(up, { available: true, models: ['llama3.2', 'qwen2.5'] });
+});
+
+test('حالت بدون مدل، جملهٔ مدیر را به دستور درست تبدیل می‌کند', () => {
+  assert.equal(intentOf('وضعیت سایت چطوره؟'), 'site_status');
+  assert.equal(intentOf('سلامت پخش شبکه‌ها را بررسی کن'), 'stream_health');
+  assert.equal(intentOf('یک به‌روزرسانی انجام بده'), 'refresh_site');
+  assert.equal(intentOf('سلام'), '');
+});
+
+test('خلاصهٔ فارسی نتیجهٔ ابزار ساخته می‌شود', () => {
+  const text = describeToolResult('site_status', { ok: true, total: 1400, stories: 1335, multi_source: 37, telegram_posts: 87, markets: 8, generated_at: '2026-11-13T05:00:00Z' });
+  assert.match(text, /خبرها/);
+  assert.match(text, /۱٬۴۰۰|۱۴۰۰/);
+  const failed = describeToolResult('refresh_site', { ok: false, error: 'boom' });
+  assert.match(failed, /boom/);
 });
 
 test('ابزار وضعیت سایت داده را برمی‌گرداند', async () => {

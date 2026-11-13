@@ -18,6 +18,10 @@ import {
   verifyPassword,
   validateNewPassword,
   llmConfig,
+  detectOllama,
+  intentOf,
+  describeToolResult,
+  runTool,
   runAssistant,
 } from './src/admin.mjs';
 
@@ -352,6 +356,51 @@ async function serveStatic(req, res, pathname) {
   }
 }
 
+// وضعیت مدل: کلید ابری، یا مدل محلی رایگان (Ollama)؛ بدون هیچ‌کدام هم «حالت بدون مدل» کار می‌کند.
+let modelCache = { at: 0, info: null };
+
+async function getModelInfo() {
+  if (modelCache.info && Date.now() - modelCache.at < 30000) return modelCache.info;
+  const config = llmConfig();
+  let info;
+  if (config.apiKey) {
+    info = { provider: config.provider, model: config.model, hasKey: true, available: true, models: [] };
+  } else {
+    const probe = await detectOllama({ baseUrl: config.baseUrl });
+    info = {
+      provider: 'ollama',
+      model: probe.models[0] || config.model,
+      hasKey: false,
+      available: probe.available,
+      models: probe.models,
+    };
+  }
+  modelCache = { at: Date.now(), info };
+  return info;
+}
+
+function adminToolContext() {
+  return {
+    getStatus: async () => {
+      const data = await readData();
+      return {
+        generated_at: data?.generated_at || null,
+        total: data?.stats?.total || 0,
+        stories: data?.stats?.stories || 0,
+        multi_source: data?.stats?.multi_source_stories || 0,
+        sources_ok: data?.stats?.sources_ok || 0,
+        sources_total: data?.stats?.sources_total || 0,
+        fresh_24h: data?.stats?.fresh_24h || 0,
+        telegram_posts: data?.stats?.telegram_posts || 0,
+        markets: Array.isArray(data?.markets?.items) ? data.markets.items.length : 0,
+        last_error: state.last_error || '',
+        next_run_at: state.next_run_at || null,
+      };
+    },
+    refresh: async () => refresh(),
+  };
+}
+
 await loadAuthRecord();
 
 const server = createServer(async (req, res) => {
@@ -364,15 +413,29 @@ const server = createServer(async (req, res) => {
   }
 
   if (pathname === '/admin/api/session') {
-    const config = llmConfig();
+    const info = await getModelInfo();
     sendJson(res, 200, {
       authed: isAdmin(req),
       configured: Boolean(authState.record),
-      hasKey: Boolean(config.apiKey),
-      model: config.model || '',
-      provider: config.provider || '',
+      hasKey: info.hasKey,
+      model: info.model || '',
+      provider: info.provider || '',
+      model_available: info.available,
+      local_models: info.models || [],
+      mode: info.available ? (info.hasKey ? 'cloud' : 'local') : 'keyless',
       password_changed_at: authState.record?.updated_at || null,
     });
+    return;
+  }
+
+  if (pathname === '/admin/api/tool' && req.method === 'POST') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    const body = await readJsonBody(req).catch(() => ({}));
+    const result = await runTool(String(body.name || ''), body.args || {}, adminToolContext());
+    sendJson(res, 200, result);
     return;
   }
 
@@ -446,26 +509,29 @@ const server = createServer(async (req, res) => {
       return;
     }
     try {
+      const info = await getModelInfo();
+      const lastUser = [...(Array.isArray(body.messages) ? body.messages : [])].reverse().find((m) => m.role === 'user');
+      if (!info.available) {
+        // بدون هیچ مدلی: پیام مدیر به یکی از دستورهای آماده تبدیل می‌شود
+        const intent = intentOf(lastUser?.content);
+        if (!intent) {
+          sendJson(res, 200, {
+            reply: 'بدون مدل کار می‌کنم. این دستورها را می‌فهمم: «وضعیت سایت»، «سلامت پخش»، «به‌روزرسانی خبرها».',
+            used: [],
+            keyless: true,
+          });
+          return;
+        }
+        const result = await runTool(intent, {}, adminToolContext());
+        sendJson(res, 200, { reply: describeToolResult(intent, result), used: [intent], keyless: true });
+        return;
+      }
       const result = await runAssistant({
         messages: body.messages,
-        context: {
-          getStatus: async () => {
-            const data = await readData();
-            return {
-              generated_at: data?.generated_at || null,
-              total: data?.stats?.total || 0,
-              stories: data?.stats?.stories || 0,
-              multi_source: data?.stats?.multi_source || 0,
-              telegram_posts: data?.stats?.telegram_posts || 0,
-              markets: Array.isArray(data?.markets?.items) ? data.markets.items.length : 0,
-              last_error: state.last_error || '',
-              next_run_at: state.next_run_at || null,
-            };
-          },
-          refresh: async () => refresh(),
-        },
+        config: { ...llmConfig(), model: info.model },
+        context: adminToolContext(),
       });
-      sendJson(res, 200, result);
+      sendJson(res, 200, { ...result, keyless: false });
     } catch (error) {
       sendJson(res, 500, { error: String(error?.message || error) });
     }
