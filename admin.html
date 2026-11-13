@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<title>دستیار مدیر — رصد خبر</title>
+<style>
+  :root { --ink: #0f172a; --muted: #64748b; --line: #dbe3ec; --teal: #0d9488; }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: "Vazirmatn", "Segoe UI", Tahoma, sans-serif; background: #f1f5f9; color: var(--ink); }
+  main { max-width: 720px; margin: 0 auto; padding: 24px 16px 48px; }
+  header { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 18px; }
+  h1 { font-size: 19px; margin: 0; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
+  .muted { color: var(--muted); font-size: 12.5px; line-height: 1.7; }
+  input, textarea, button { font-family: inherit; font-size: 14px; }
+  input[type=password] { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; margin: 10px 0; }
+  input[type=password]:focus, textarea:focus { outline: 2px solid rgba(13,148,136,.35); border-color: var(--teal); }
+  button { border: 0; border-radius: 10px; padding: 9px 16px; background: var(--teal); color: #fff; cursor: pointer; font-weight: 600; }
+  button.ghost { background: #eef2f7; color: #334155; font-weight: 500; }
+  button:disabled { opacity: .55; cursor: default; }
+  .row { display: flex; gap: 8px; align-items: center; }
+  #chat { display: none; }
+  #log { display: grid; gap: 10px; max-height: 58vh; overflow-y: auto; padding: 4px 2px 12px; }
+  .msg { padding: 10px 13px; border-radius: 12px; line-height: 1.85; font-size: 13.5px; white-space: pre-wrap; }
+  .msg.user { background: #0d9488; color: #fff; justify-self: start; }
+  .msg.bot { background: #f8fafc; border: 1px solid var(--line); justify-self: end; }
+  .msg.err { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; justify-self: end; }
+  .composer { display: flex; gap: 8px; margin-top: 8px; }
+  textarea { flex: 1; resize: vertical; min-height: 46px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
+  .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+  .chips button { background: #eef2f7; color: #334155; font-weight: 500; font-size: 12.5px; padding: 6px 11px; }
+  .warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; margin-bottom: 12px; line-height: 1.75; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>دستیار مدیر رصد خبر</h1>
+    <button class="ghost" id="logout" hidden>خروج</button>
+  </header>
+
+  <div class="warn" id="no-key" hidden>
+    کلید مدل تنظیم نشده است. در فایل <code>.env</code> سرور مقدار <code>ZAI_API_KEY</code> را بگذار و سرور را دوباره اجرا کن.
+  </div>
+
+  <section class="card" id="login">
+    <p class="muted">این صفحه فقط روی سرور خودت کار می‌کند و با رمز مدیر باز می‌شود. رمز در <code>ADMIN_PASSWORD</code> تنظیم می‌شود.</p>
+    <input type="password" id="password" placeholder="رمز مدیر" autocomplete="current-password">
+    <div class="row">
+      <button id="login-btn">ورود</button>
+      <span class="muted" id="login-error"></span>
+    </div>
+  </section>
+
+  <section id="chat">
+    <div class="card">
+      <div id="log"></div>
+      <div class="composer">
+        <textarea id="message" placeholder="مثلاً: وضعیت سایت چطوره؟ کدام شبکه پخشش بسته شده؟"></textarea>
+        <button id="send">بفرست</button>
+      </div>
+      <div class="chips">
+        <button data-prompt="وضعیت فعلی سایت را بگو">وضعیت سایت</button>
+        <button data-prompt="سلامت پخش شبکه‌های زنده را بررسی کن">سلامت پخش</button>
+        <button data-prompt="یک به‌روزرسانی کامل خبرها اجرا کن و نتیجه را بگو">به‌روزرسانی خبرها</button>
+      </div>
+      <p class="muted" id="session-info"></p>
+    </div>
+  </section>
+</main>
+
+<script>
+  var state = { messages: [], busy: false };
+
+  function el(id) { return document.getElementById(id); }
+
+  function addMessage(role, text) {
+    var node = document.createElement('div');
+    node.className = 'msg ' + role;
+    node.textContent = text;
+    el('log').appendChild(node);
+    el('log').scrollTop = el('log').scrollHeight;
+  }
+
+  async function api(path, options) {
+    var response = await fetch(path, Object.assign({ headers: { 'Content-Type': 'application/json' } }, options || {}));
+    var payload = await response.json().catch(function () { return {}; });
+    if (!response.ok) throw new Error(payload.error || ('HTTP ' + response.status));
+    return payload;
+  }
+
+  function showChat(session) {
+    el('login').hidden = true;
+    el('chat').style.display = 'block';
+    el('logout').hidden = false;
+    el('no-key').hidden = Boolean(session.hasKey);
+    el('session-info').textContent = session.hasKey
+      ? 'مدل: ' + session.model + ' · نشست تا ۱۲ ساعت'
+      : 'کلید مدل تنظیم نشده؛ فقط ورود انجام شده.';
+  }
+
+  async function boot() {
+    try {
+      var session = await api('/admin/api/session');
+      if (session.authed) showChat(session);
+      else if (!session.configured) el('login-error').textContent = 'رمز مدیر روی سرور تنظیم نشده است';
+    } catch (error) {
+      el('login-error').textContent = 'اتصال به سرور ممکن نشد';
+    }
+  }
+
+  el('login-btn').addEventListener('click', async function () {
+    el('login-error').textContent = '';
+    try {
+      await api('/admin/login', { method: 'POST', body: JSON.stringify({ password: el('password').value }) });
+      var session = await api('/admin/api/session');
+      showChat(session);
+    } catch (error) {
+      el('login-error').textContent = error.message === 'unauthorized' ? 'رمز اشتباه است' : (error.message || 'ورود ناموفق');
+    }
+  });
+
+  el('password').addEventListener('keydown', function (event) {
+    if (event.key === 'Enter') el('login-btn').click();
+  });
+
+  el('logout').addEventListener('click', async function () {
+    await fetch('/admin/logout', { method: 'POST' });
+    location.reload();
+  });
+
+  async function send(text) {
+    if (state.busy || !text.trim()) return;
+    state.busy = true;
+    el('send').disabled = true;
+    addMessage('user', text.trim());
+    state.messages.push({ role: 'user', content: text.trim() });
+    el('message').value = '';
+    try {
+      var payload = await api('/admin/api/chat', { method: 'POST', body: JSON.stringify({ messages: state.messages.slice(-20) }) });
+      addMessage('bot', payload.reply || '(پاسخی نبود)');
+      state.messages.push({ role: 'assistant', content: payload.reply || '' });
+    } catch (error) {
+      addMessage('err', error.message || 'خطا در پاسخ');
+    } finally {
+      state.busy = false;
+      el('send').disabled = false;
+    }
+  }
+
+  el('send').addEventListener('click', function () { send(el('message').value); });
+  el('message').addEventListener('keydown', function (event) {
+    if (event.key === 'Enter' && !event.shiftKey) {
+      event.preventDefault();
+      send(el('message').value);
+    }
+  });
+  Array.prototype.forEach.call(document.querySelectorAll('[data-prompt]'), function (button) {
+    button.addEventListener('click', function () { send(button.getAttribute('data-prompt')); });
+  });
+
+  boot();
+</script>
+</body>
+</html>

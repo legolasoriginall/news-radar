@@ -6,6 +6,16 @@ import { runPipeline } from './pipeline.mjs';
 import { fetchMarkets } from './src/markets.mjs';
 import { fetchTelegramFeeds } from './src/telegram.mjs';
 import { resolveLiveChannels, LIVE_CHANNELS } from './src/live.mjs';
+import {
+  SESSION_COOKIE,
+  SESSION_TTL_MS,
+  createSession,
+  verifySession,
+  parseCookies,
+  passwordMatches,
+  llmConfig,
+  runAssistant,
+} from './src/admin.mjs';
 import { UPDATE_INTERVAL_MINUTES } from './src/sources.mjs';
 
 // نرخ‌های بازار جدا از خبرها و هر چند ثانیه یک‌بار خوانده می‌شوند تا تابلوی قیمت «لحظه‌ای» باشد.
@@ -19,6 +29,11 @@ const liveTelegram = { at: 0, payload: null, inflight: null };
 // مسیرهای پخش زنده از فهرست‌های عمومی جمع می‌شوند و هر چند دقیقه یک‌بار تازه می‌شوند.
 const LIVE_CHANNELS_TTL_MS = Number(process.env.LIVE_CHANNELS_TTL_SECONDS || 600) * 1000;
 const liveChannelCache = { at: 0, payload: null, inflight: null };
+
+// دستیار مدیر فقط روی سرور خود میزبان فعال است؛ رمز و کلید مدل از محیط خوانده می‌شوند.
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
+const ADMIN_SECRET = process.env.ADMIN_SECRET || ADMIN_PASSWORD || 'news-radar-admin';
+const loginAttempts = new Map();
 
 const ROOT = path.resolve('.');
 const PORT = Number(process.env.PORT || 3000);
@@ -220,6 +235,53 @@ async function getLiveChannels() {
   return liveChannelCache.inflight;
 }
 
+async function readJsonBody(req, limit = 64 * 1024) {
+  let size = 0;
+  const chunks = [];
+  for await (const chunk of req) {
+    size += chunk.length;
+    if (size > limit) throw new Error('بدنهٔ درخواست بیش از حد بزرگ است');
+    chunks.push(chunk);
+  }
+  const text = Buffer.concat(chunks).toString('utf8');
+  return text ? JSON.parse(text) : {};
+}
+
+function isAdmin(req) {
+  if (!ADMIN_PASSWORD) return false;
+  const cookies = parseCookies(req.headers.cookie);
+  return verifySession(ADMIN_SECRET, cookies[SESSION_COOKIE]);
+}
+
+function tooManyAttempts(ip) {
+  const now = Date.now();
+  const entry = loginAttempts.get(ip) || { count: 0, since: now };
+  if (now - entry.since > 5 * 60 * 1000) {
+    entry.count = 0;
+    entry.since = now;
+  }
+  entry.count += 1;
+  loginAttempts.set(ip, entry);
+  return entry.count > 10;
+}
+
+async function serveAdminPage(res) {
+  try {
+    const body = await readFile(path.join(ROOT, 'admin.html'));
+    res.writeHead(200, {
+      'Content-Type': 'text/html; charset=utf-8',
+      'Cache-Control': 'no-store',
+      'X-Frame-Options': 'DENY',
+      'X-Robots-Tag': 'noindex',
+      'Content-Length': body.length,
+    });
+    res.end(body);
+  } catch {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('صفحهٔ مدیر پیدا نشد');
+  }
+}
+
 async function serveStatic(req, res, pathname) {
   let relative = decodeURIComponent(pathname);
   if (relative === '/' || relative === '') relative = '/index.html';
@@ -249,6 +311,88 @@ async function serveStatic(req, res, pathname) {
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;
+
+  if (pathname === '/admin' || pathname === '/admin/') {
+    await serveAdminPage(res);
+    return;
+  }
+
+  if (pathname === '/admin/api/session') {
+    const config = llmConfig();
+    sendJson(res, 200, {
+      authed: isAdmin(req),
+      configured: Boolean(ADMIN_PASSWORD),
+      hasKey: Boolean(config.apiKey),
+      model: config.model || '',
+      provider: config.provider || '',
+    });
+    return;
+  }
+
+  if (pathname === '/admin/login' && req.method === 'POST') {
+    const ip = req.socket.remoteAddress || 'unknown';
+    if (tooManyAttempts(ip)) {
+      sendJson(res, 429, { error: 'تلاش‌های ناموفق زیاد؛ چند دقیقه بعد دوباره امتحان کن' });
+      return;
+    }
+    const body = await readJsonBody(req).catch(() => ({}));
+    if (!ADMIN_PASSWORD || !passwordMatches(body.password, ADMIN_PASSWORD)) {
+      sendJson(res, 401, { error: 'unauthorized' });
+      return;
+    }
+    loginAttempts.delete(ip);
+    res.setHeader(
+      'Set-Cookie',
+      `${SESSION_COOKIE}=${createSession(ADMIN_SECRET)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`
+    );
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (pathname === '/admin/logout') {
+    res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
+    sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (pathname === '/admin/api/chat' && req.method === 'POST') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    let body;
+    try {
+      body = await readJsonBody(req);
+    } catch (error) {
+      sendJson(res, 400, { error: String(error?.message || error) });
+      return;
+    }
+    try {
+      const result = await runAssistant({
+        messages: body.messages,
+        context: {
+          getStatus: async () => {
+            const data = await readData();
+            return {
+              generated_at: data?.generated_at || null,
+              total: data?.stats?.total || 0,
+              stories: data?.stats?.stories || 0,
+              multi_source: data?.stats?.multi_source || 0,
+              telegram_posts: data?.stats?.telegram_posts || 0,
+              markets: Array.isArray(data?.markets?.items) ? data.markets.items.length : 0,
+              last_error: state.last_error || '',
+              next_run_at: state.next_run_at || null,
+            };
+          },
+          refresh: async () => refresh(),
+        },
+      });
+      sendJson(res, 200, result);
+    } catch (error) {
+      sendJson(res, 500, { error: String(error?.message || error) });
+    }
+    return;
+  }
 
   if (pathname === '/api/status') {
     const data = await readData();
