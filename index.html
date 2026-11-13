@@ -140,6 +140,13 @@ section { margin-top: 22px; }
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
 .panel-head h2 { font-size: 17.5px; margin: 0; display: flex; align-items: center; gap: 8px; }
 .panel-head .hint { font-size: 12px; color: var(--muted); }
+.panel-head { align-items: center; }
+.panel.collapsed > *:not(.panel-head) { display: none; }
+.collapse-btn { display: inline-flex; align-items: center; justify-content: center; width: 27px; height: 27px; border-radius: 9px; border: 1px solid #dbe3ec; background: #f8fafc; color: #475569; cursor: pointer; font-size: 12px; line-height: 1; flex: 0 0 auto; transition: transform 0.18s ease, background 0.15s ease; }
+.collapse-btn:hover { background: #eef2f7; }
+.panel.collapsed .collapse-btn { transform: rotate(-90deg); }
+.panel.collapsed .panel-head { margin-bottom: 0; }
+.panel.collapsed .panel-head .hint { display: none; }
 .ico { width: 26px; height: 26px; border-radius: 8px; background: var(--teal-soft); color: var(--teal); display: grid; place-items: center; flex: 0 0 auto; }
 .grid-2 { display: grid; grid-template-columns: 1.35fr 1fr; gap: 18px; }
 .grid-3 { display: grid; grid-template-columns: repeat(3, minmax(0,1fr)); gap: 14px; }
@@ -481,6 +488,53 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
   }
   function storeSet(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ }
+  }
+
+  /* ---------------- بخش‌های بازشو (فِلش مانند) ---------------- */
+
+  var COLLAPSE_KEY = 'newsradar:collapsedSections';
+  var collapsedSections = storeGet(COLLAPSE_KEY, {}) || {};
+
+  function sectionKey(panel) {
+    var section = panel.closest ? panel.closest('section') : null;
+    if (section && section.id) return section.id;
+    var title = panel.querySelector('.panel-head h2');
+    return title ? title.textContent.trim() : '';
+  }
+
+  function applyCollapsed(panel, collapsed) {
+    panel.classList.toggle('collapsed', collapsed);
+    var btn = panel.querySelector('.collapse-btn');
+    var titleEl = panel.querySelector('.panel-head h2');
+    var title = titleEl ? titleEl.textContent.trim() : 'بخش';
+    if (btn) {
+      btn.setAttribute('aria-expanded', String(!collapsed));
+      btn.setAttribute('aria-label', (collapsed ? 'باز کردن ' : 'بستن ') + title);
+      btn.setAttribute('title', (collapsed ? 'باز کردن ' : 'بستن ') + title);
+    }
+  }
+
+  function setupCollapsibleSections() {
+    var panels = document.querySelectorAll('.panel');
+    for (var i = 0; i < panels.length; i++) {
+      (function (panel) {
+        var head = panel.querySelector('.panel-head');
+        if (!head || head.querySelector('.collapse-btn')) return;
+        var key = sectionKey(panel);
+        var btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = 'collapse-btn';
+        btn.textContent = '▾';
+        btn.addEventListener('click', function () {
+          var collapsed = !panel.classList.contains('collapsed');
+          applyCollapsed(panel, collapsed);
+          collapsedSections[key] = collapsed;
+          storeSet(COLLAPSE_KEY, collapsedSections);
+        });
+        head.insertBefore(btn, head.firstChild);
+        applyCollapsed(panel, Boolean(collapsedSections[key]));
+      })(panels[i]);
+    }
   }
 
   function topicMap() {
@@ -1193,6 +1247,8 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
   state.trendDays = TREND_DAYS.indexOf(savedTrendDays) !== -1 ? savedTrendDays : 30;
   $('auto-btn').setAttribute('aria-pressed', String(state.auto));
   $('auto-btn').textContent = state.auto ? 'توقف به‌روزرسانی خودکار' : 'فعال‌سازی به‌روزرسانی خودکار';
+
+  setupCollapsibleSections();
 
   (async function boot() {
     await fetchStatus();
