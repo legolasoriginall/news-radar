@@ -4,7 +4,7 @@ import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { runPipeline } from './pipeline.mjs';
 import { fetchMarkets } from './src/markets.mjs';
-import { fetchTelegramPosts } from './src/telegram.mjs';
+import { fetchTelegramFeeds } from './src/telegram.mjs';
 import { UPDATE_INTERVAL_MINUTES } from './src/sources.mjs';
 
 // نرخ‌های بازار جدا از خبرها و هر چند ثانیه یک‌بار خوانده می‌شوند تا تابلوی قیمت «لحظه‌ای» باشد.
@@ -161,7 +161,7 @@ async function getLiveTelegram() {
   if (liveTelegram.inflight) return liveTelegram.inflight;
   liveTelegram.inflight = (async () => {
     try {
-      const payload = await fetchTelegramPosts({ limit: 20 });
+      const payload = await fetchTelegramFeeds({ limit: 20 });
       if (payload.posts.length) {
         liveTelegram.payload = payload;
         liveTelegram.at = Date.now();
@@ -170,11 +170,11 @@ async function getLiveTelegram() {
     } catch (error) {
       const data = await readData();
       return {
-        channel: liveTelegram.payload?.channel || '',
-        channel_url: liveTelegram.payload?.channel_url || 'https://t.me/IranintlTV',
-        title: liveTelegram.payload?.title || 'ایران اینترنشنال',
-        posts: liveTelegram.payload?.posts || data?.telegram?.posts || [],
+        channels: liveTelegram.payload?.channels || data?.telegram?.channels || [],
+        feeds: liveTelegram.payload?.feeds || data?.telegram?.feeds || [],
+        errors: [{ channel: 'all', error: String(error?.message || error) }],
         fetched_at: new Date().toISOString(),
+        posts: liveTelegram.payload?.posts || data?.telegram?.posts || [],
         error: String(error?.message || error),
       };
     } finally {

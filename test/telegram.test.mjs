@@ -75,10 +75,44 @@ test('پیوند ایران اینترنشنال یکسان می‌شود و ع�
   assert.equal(normalizeTelegramLink(''), '');
 
   assert.equal(telegramPostTitle({ text: '\n\nخط اول خبر\nخط دوم' }), 'خط اول خبر');
-  assert.equal(telegramPostTitle({ text: '' }), 'پست تلگرام ایران اینترنشنال');
+  assert.equal(telegramPostTitle({ text: '' }), 'پست تلگرام');
   const title = telegramPostTitle({ text: 'ا'.repeat(400) });
   assert.ok(title.length <= 180);
   assert.ok(title.endsWith('…'));
+});
+
+test('چند کانال همزمان خوانده می‌شوند و خطای یک کانال بقیه را متوقف نمی‌کند', async () => {
+  const { fetchTelegramFeeds } = await import('../src/telegram.mjs');
+  const channels = [
+    { id: 'a', handle: 'chan_a', name: 'کانال الف', label: 'کانال الف (تلگرام)', weight: 0.8 },
+    { id: 'b', handle: 'chan_b', name: 'کانال ب', label: 'کانال ب (تلگرام)', weight: 0.7 },
+  ];
+  const html = '<div class="tgme_widget_message" data-post="chan_a/5">' +
+    '<div class="tgme_widget_message_text js-message_text">خبر کانال الف</div>' +
+    '<time datetime="2026-11-13T01:00:00+00:00"></time></div>';
+  const fetcher = async (url) => {
+    if (String(url).includes('chan_b')) return { ok: false, status: 500, text: async () => '' };
+    return { ok: true, status: 200, text: async () => html };
+  };
+  const result = await fetchTelegramFeeds({ channels, fetcher });
+  assert.equal(result.feeds.length, 1);
+  assert.equal(result.errors.length, 1);
+  assert.equal(result.errors[0].channel, 'chan_b');
+  assert.equal(result.posts.length, 1);
+  assert.equal(result.posts[0].channel_name, 'کانال الف');
+  assert.equal(result.posts[0].source.id, 'a');
+  assert.equal(result.posts[0].source.lang, 'fa');
+});
+
+test('فهرست کانال‌ها شناسه و نام کاربری یکتا دارد', async () => {
+  const { TELEGRAM_CHANNELS } = await import('../src/telegram.mjs');
+  assert.ok(TELEGRAM_CHANNELS.length >= 5);
+  assert.equal(new Set(TELEGRAM_CHANNELS.map((channel) => channel.id)).size, TELEGRAM_CHANNELS.length);
+  assert.equal(new Set(TELEGRAM_CHANNELS.map((channel) => channel.handle)).size, TELEGRAM_CHANNELS.length);
+  for (const channel of TELEGRAM_CHANNELS) {
+    assert.match(channel.handle, /^[A-Za-z0-9_]{4,32}$/);
+    assert.ok(channel.name && channel.label);
+  }
 });
 
 test('پست تلگرام با متن بلند به قصهٔ همان رویداد در خبرها وصل می‌شود', async () => {

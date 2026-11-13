@@ -19,9 +19,8 @@ import { translateMany, saveCache } from './src/translate.mjs';
 import { fetchMarkets, buildMarketHistory, MARKET_SOURCE } from './src/markets.mjs';
 import { buildXlsx } from './src/xlsx.mjs';
 import {
-  fetchTelegramPosts,
-  TELEGRAM_CHANNEL,
-  TELEGRAM_CHANNEL_URL,
+  fetchTelegramFeeds,
+  TELEGRAM_CHANNELS,
   TELEGRAM_SOURCE,
   normalizeTelegramLink,
   telegramPostTitle,
@@ -323,11 +322,11 @@ export async function runPipeline({ quiet = false } = {}) {
     summary_text: '',
   }));
 
-  // کانال تلگرام ایران اینترنشنال به‌صورت موازی خوانده می‌شود تا در داشبورد و data.json باشد
-  const telegramPromise = fetchTelegramPosts({ limit: 20 }).catch((error) => ({
-    channel: TELEGRAM_CHANNEL,
-    channel_url: TELEGRAM_CHANNEL_URL,
-    title: 'ایران اینترنشنال',
+  // کانال‌های تلگرام رسانه‌های فارسی‌زبان به‌صورت موازی خوانده می‌شوند تا در داشبورد و data.json باشند
+  const telegramPromise = fetchTelegramFeeds({ limit: 20 }).catch((error) => ({
+    channels: previousData?.telegram?.channels || [],
+    feeds: previousData?.telegram?.feeds || [],
+    errors: [{ channel: 'all', error: String(error?.message || error) }],
     fetched_at: new Date().toISOString(),
     posts: previousData?.telegram?.posts || [],
     error: String(error?.message || error),
@@ -370,12 +369,14 @@ export async function runPipeline({ quiet = false } = {}) {
       summary: String(post.text || '').slice(0, 900),
       link,
       published: post.published,
-      source: TELEGRAM_SOURCE,
-      // متن تلگرام بلند است؛ برای خوشه‌بندی، عبارت کلیدواژه‌ای فشرده استفاده می‌شود
+      source: post.source || TELEGRAM_SOURCE,
+      // متن تلگرام بلند است؛ برای خوشه‌بندی، خط اول پست به‌عنوان امضای واژگانی استفاده می‌شود
       cluster_title: telegramPostTitle(post),
       telegram: {
         post_id: post.id,
         post_url: post.url,
+        channel_name: post.channel_name || '',
+        channel_handle: post.channel_handle || '',
         views: post.views,
         media: post.media,
         forwarded_from: post.forwarded_from,
@@ -385,7 +386,8 @@ export async function runPipeline({ quiet = false } = {}) {
   // اول فهرست قرار می‌گیرند تا در برش MAX_ARTICLES حذف نشوند
   collected.unshift(...telegramInFeed);
   log(
-    `› تلگرام: ${telegram.posts.length} پست (${telegramInFeed.length} در خوراک خبرها${telegram.error ? '، آخرین مقدار موفق' : ''})`
+    `› تلگرام: ${telegram.posts.length} پست از ${telegram.feeds.length || TELEGRAM_CHANNELS.length} کانال ` +
+      `(${telegramInFeed.length} در خوراک خبرها${telegram.errors.length ? `، ${telegram.errors.length} کانال بی‌پاسخ` : ''})`
   );
 
   const nowTs = Date.now();
@@ -658,6 +660,7 @@ export async function runPipeline({ quiet = false } = {}) {
     sources_ok: sourcesOk,
     sources_with_news: sourcesWithNews,
     telegram_posts: telegram.posts.length,
+    telegram_channels: telegram.feeds.length || 0,
     health_percent: pct(sourcesOk, SOURCES.length),
     stories: stories.length,
     multi_source_stories: multiSourceStories.length,

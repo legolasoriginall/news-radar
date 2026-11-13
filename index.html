@@ -122,6 +122,7 @@ a:hover { text-decoration: underline; }
 .tg-item { border: 1px solid #e6eaf0; border-radius: 10px; padding: 10px 12px; background: #fcfdff; }
 .tg-item.fresh { border-color: #a7f3d0; background: #f3fdf8; }
 .tg-meta { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; font-size: 11.5px; color: var(--muted); }
+.tg-chan { font-weight: 700; color: #334155; }
 .tg-text { margin-top: 6px; font-size: 13.5px; line-height: 1.9; white-space: pre-wrap; word-break: break-word; }
 .tg-text.tg-muted { color: var(--muted); font-size: 12.5px; }
 .tg-foot { margin-top: 6px; display: flex; gap: 14px; font-size: 11.5px; }
@@ -319,7 +320,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
   <section>
     <div class="panel">
       <div class="panel-head">
-        <h2><span class="ico">✆</span> ایران اینترنشنال در تلگرام</h2>
+        <h2><span class="ico">✆</span> تلگرام رسانه‌های فارسی</h2>
         <span class="hint" id="telegram-hint"></span>
         <span class="live-pill wait" id="telegram-live">اتصال…</span>
       </div>
@@ -792,7 +793,12 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     if (!list) return;
     var feed = (state.data && state.data.telegram) || {};
     var posts = Array.isArray(feed.posts) ? feed.posts.slice().reverse() : [];
-    $('telegram-hint').textContent = posts.length ? fmt(posts.length) + ' پست اخیر' : 'در دسترس نیست';
+    var channelNames = Array.isArray(feed.channels) && feed.channels.length
+      ? feed.channels.map(function (channel) { return channel.name; })
+      : (posts.length ? [posts[0].channel_name || 'ایران اینترنشنال'] : []);
+    $('telegram-hint').textContent = posts.length
+      ? fmt(posts.length) + ' پست از ' + fmt(channelNames.length) + ' کانال'
+      : 'در دسترس نیست';
     if (!posts.length) {
       list.innerHTML = '<li class="tg-item"><div class="tg-text tg-muted">پستی برای نمایش نیست؛ خواندن کانال در به‌روزرسانی بعدی تکرار می‌شود.</div></li>';
     } else {
@@ -804,6 +810,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
         return '<li class="tg-item' + (fresh ? ' fresh' : '') + '">' +
           '<div class="tg-meta">' +
             (fresh ? '<span class="badge new">تازه</span>' : '') +
+            (post.channel_name ? '<b class="tg-chan">' + esc(post.channel_name) + '</b>' : '') +
             '<span title="' + esc(dateTime(post.published)) + '">' + esc(timeAgo(post.published)) + '</span>' +
             (post.views ? '<span>· ' + esc(post.views) + ' بازدید</span>' : '') +
             (post.forwarded_from ? '<span>· بازنشر از ' + esc(post.forwarded_from) + '</span>' : '') +
@@ -819,7 +826,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     }
     var note = $('telegram-note');
     if (note) {
-      note.textContent = 'منبع: کانال تلگرام ' + (feed.channel ? '@' + feed.channel : '@IranintlTV') +
+      note.textContent = 'منابع: کانال‌های تلگرام ' + (channelNames.length ? channelNames.join('، ') : 'رسانه‌های فارسی') +
         (telegramLive.mode === 'server' ? ' · پست‌ها زنده هر ۱۵ ثانیه خوانده می‌شوند' : '') +
         ' · متن پست‌ها همان نوشتهٔ کانال است.';
     }
