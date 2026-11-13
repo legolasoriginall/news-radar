@@ -122,6 +122,9 @@ a:hover { text-decoration: underline; }
 .live-pill.off { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
 .live-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #0b1220; border-radius: 12px; overflow: hidden; }
 .live-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
+.live-video { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; object-fit: contain; }
+.live-video[hidden], .live-start[hidden] { display: none; }
+.live-note a { color: #0d9488; }
 .live-start { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: radial-gradient(circle at 50% 40%, #1e293b, #0b1220); color: #e2e8f0; border: 0; cursor: pointer; font-family: inherit; font-size: 14px; }
 .live-start small { color: #94a3b8; font-size: 11.5px; }
 .live-play { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #dc2626; color: #fff; font-size: 20px; box-shadow: 0 0 0 8px rgba(220, 38, 38, 0.18); }
@@ -340,17 +343,19 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
   <section id="live-tv">
     <div class="panel">
       <div class="panel-head">
-        <h2><span class="ico">▶</span> شبکه زندهٔ ایران اینترنشنال</h2>
-        <span class="hint">پخش زندهٔ ۲۴ ساعته</span>
+        <h2><span class="ico">▶</span> شبکه‌های زنده</h2>
+        <span class="hint" id="live-hint">پخش زندهٔ ۲۴ ساعته</span>
       </div>
+      <div class="tg-filters" id="live-tabs" role="tablist" aria-label="انتخاب شبکهٔ زنده"></div>
       <div class="live-wrap" id="live-wrap">
+        <video id="live-video" class="live-video" controls playsinline hidden></video>
         <button class="live-start" id="live-start" type="button">
           <span class="live-play">▶</span>
-          <span>پخش زنده را شروع کنید</span>
+          <span id="live-start-label">پخش زنده را شروع کنید</span>
           <small>برای صرفه‌جویی در اینترنت، پخش‌کننده فقط با کلیک شما بارگذاری می‌شود</small>
         </button>
       </div>
-      <div class="market-note">پخش‌کنندهٔ رسمی: <span dir="ltr">ott.iranintl.com</span> · اگر تصویر باز نشد، شبکه‌های ایران اینترنشنال در ایران فیلترند و به VPN نیاز دارند · <a href="https://www.iranintl.com/live" target="_blank" rel="noopener noreferrer">پخش در سایت ایران اینترنشنال ↗</a> · <a href="https://www.youtube.com/@IranIntlTV/live" target="_blank" rel="noopener noreferrer">یوتیوب ↗</a></div>
+      <div class="market-note live-note">اگر تصویر باز نشد، این شبکه‌ها در ایران فیلترند و به VPN نیاز دارند · <a href="https://www.manoto.com/live" target="_blank" rel="noopener noreferrer">منوتو ↗</a> · <a href="https://www.bbc.com/persian/tv" target="_blank" rel="noopener noreferrer">بی‌بی‌سی فارسی ↗</a></div>
     </div>
   </section>
 
@@ -526,6 +531,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
 
   function applyCollapsed(panel, collapsed) {
     panel.classList.toggle('collapsed', collapsed);
+    if (collapsed && panel.querySelector && panel.querySelector('#live-wrap')) stopLivePlayback();
     var btn = panel.querySelector('.collapse-btn');
     var titleEl = panel.querySelector('.panel-head h2');
     var title = titleEl ? titleEl.textContent.trim() : 'بخش';
@@ -1272,20 +1278,163 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
 
   setupCollapsibleSections();
 
-  (function setupLiveTv() {
-    var start = $('live-start');
+  /* ---------------- شبکه‌های زنده ---------------- */
+
+  var LIVE_CHANNELS = [
+    {
+      id: 'iranintl',
+      name: 'ایران اینترنشنال',
+      kind: 'hls',
+      src: 'https://hlspackager.akamaized.net/live/DB/IRAN_INTERNATIONAL/HLS/IRAN_INTERNATIONAL.m3u8',
+      watch: 'https://www.iranintl.com/live'
+    },
+    {
+      id: 'voa',
+      name: 'صدای آمریکا',
+      kind: 'hls',
+      src: 'https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07/playlist.m3u8',
+      watch: ''
+    },
+    {
+      id: 'radiofarda',
+      name: 'رادیو فردا',
+      kind: 'hls',
+      src: 'https://rfe-ingest.akamaized.net/hls/live/2033042/tvmc01/playlist.m3u8',
+      watch: 'https://www.radiofarda.com/live'
+    },
+    {
+      id: 'manoto',
+      name: 'منوتو',
+      kind: 'youtube',
+      src: 'https://www.youtube.com/embed/live_stream?channel=UCnUdm0u-2FRffBnxQYHuTHA',
+      watch: 'https://www.youtube.com/@manototv/live'
+    }
+  ];
+
+  var liveState = { channel: 'iranintl', hls: null, script: null };
+
+  function liveChannelById(id) {
+    for (var i = 0; i < LIVE_CHANNELS.length; i++) {
+      if (LIVE_CHANNELS[i].id === id) return LIVE_CHANNELS[i];
+    }
+    return LIVE_CHANNELS[0];
+  }
+
+  function renderLiveTabs() {
+    var box = $('live-tabs');
+    if (!box) return;
+    box.innerHTML = LIVE_CHANNELS.map(function (channel) {
+      var active = channel.id === liveState.channel;
+      return '<button type="button" role="tab" aria-selected="' + active + '" class="tg-filter' + (active ? ' active' : '') + '" data-live="' + channel.id + '">' + esc(channel.name) + '</button>';
+    }).join('');
+    var hint = $('live-hint');
+    if (hint) hint.textContent = 'پخش زنده · ' + liveChannelById(liveState.channel).name;
+  }
+
+  function loadHlsScript() {
+    if (window.Hls) return Promise.resolve(window.Hls);
+    if (liveState.script) return liveState.script;
+    liveState.script = new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      s.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js';
+      s.onload = function () { resolve(window.Hls); };
+      s.onerror = function () { liveState.script = null; reject(new Error('hls-script')); };
+      document.head.appendChild(s);
+    });
+    return liveState.script;
+  }
+
+  function stopLivePlayback() {
+    var video = $('live-video');
     var wrap = $('live-wrap');
-    if (!start || !wrap) return;
-    start.addEventListener('click', function () {
+    var start = $('live-start');
+    if (liveState.hls) { try { liveState.hls.destroy(); } catch (e) { /* ignore */ } liveState.hls = null; }
+    if (video) {
+      video.pause();
+      video.removeAttribute('src');
+      video.load();
+      video.hidden = true;
+    }
+    if (wrap) {
+      var frame = wrap.querySelector('iframe');
+      if (frame) frame.remove();
+    }
+    if (start) {
+      start.hidden = false;
+      var label = $('live-start-label');
+      if (label) label.textContent = 'پخش زنده را شروع کنید';
+    }
+  }
+
+  function showLiveError() {
+    var start = $('live-start');
+    var label = $('live-start-label');
+    var hint = $('live-hint');
+    if (label) label.textContent = 'پخش نشد — دوباره تلاش کنید';
+    if (start) start.hidden = false;
+    var channel = liveChannelById(liveState.channel);
+    if (hint) {
+      hint.textContent = channel.watch
+        ? 'پخش درون‌صفحه باز نشد؛ در سایت رسمی تماشا کنید'
+        : 'پخش درون‌صفحه باز نشد';
+    }
+  }
+
+  async function playLive() {
+    var channel = liveChannelById(liveState.channel);
+    var wrap = $('live-wrap');
+    var start = $('live-start');
+    var video = $('live-video');
+    if (!wrap || !video || !start) return;
+    stopLivePlayback();
+    start.hidden = true;
+    if (channel.kind === 'youtube') {
       var frame = document.createElement('iframe');
-      frame.src = 'https://ott.iranintl.com/tv?lang=fa';
-      frame.title = 'پخش زندهٔ ایران اینترنشنال';
+      frame.src = channel.src + '&autoplay=1';
+      frame.title = 'پخش زندهٔ ' + channel.name;
       frame.setAttribute('allow', 'autoplay; fullscreen; encrypted-media; picture-in-picture');
       frame.setAttribute('allowfullscreen', '');
       frame.setAttribute('referrerpolicy', 'strict-origin-when-cross-origin');
-      wrap.innerHTML = '';
       wrap.appendChild(frame);
+      return;
+    }
+    video.hidden = false;
+    try {
+      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        video.src = channel.src;
+      } else {
+        var Hls = await loadHlsScript();
+        if (!Hls || !Hls.isSupported()) throw new Error('hls-unsupported');
+        liveState.hls = new Hls({ enableWorker: true });
+        liveState.hls.loadSource(channel.src);
+        liveState.hls.attachMedia(video);
+        liveState.hls.on(Hls.Events.ERROR, function (event, data) {
+          if (data && data.fatal) showLiveError();
+        });
+      }
+      var played = video.play();
+      if (played && played.catch) played.catch(function () { /* autoplay blocked; controls remain */ });
+    } catch (e) {
+      showLiveError();
+    }
+  }
+
+  (function setupLiveTv() {
+    var box = $('live-tabs');
+    var start = $('live-start');
+    if (!box || !start) return;
+    var saved = storeGet('newsradar:liveChannel', 'iranintl');
+    liveState.channel = liveChannelById(saved).id;
+    renderLiveTabs();
+    box.addEventListener('click', function (event) {
+      var button = event.target.closest ? event.target.closest('[data-live]') : null;
+      if (!button) return;
+      liveState.channel = button.getAttribute('data-live');
+      storeSet('newsradar:liveChannel', liveState.channel);
+      renderLiveTabs();
+      stopLivePlayback();
     });
+    start.addEventListener('click', playLive);
   })();
 
   (async function boot() {
