@@ -31,6 +31,13 @@
   textarea { flex: 1; resize: vertical; min-height: 46px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
   .chips button { background: #eef2f7; color: #334155; font-weight: 500; font-size: 12.5px; padding: 6px 11px; }
+  .badge { background: #dc2626; color: #fff; border-radius: 999px; font-size: 11px; padding: 1px 7px; margin-right: 6px; vertical-align: middle; }
+  .alerts { list-style: none; margin: 10px 0 0; padding: 0; max-height: 260px; overflow: auto; }
+  .alerts li { border-top: 1px solid var(--line); padding: 8px 0; font-size: 13px; line-height: 1.8; }
+  .alerts .when { color: #64748b; font-size: 11.5px; }
+  .alerts .tag { font-size: 11px; border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+  .tag.err { background: #fee2e2; color: #991b1b; }
+  .tag.ok { background: #dcfce7; color: #166534; }
   .warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; margin-bottom: 12px; line-height: 1.75; }
 </style>
 </head>
@@ -76,6 +83,17 @@
   </section>
 
   <section id="settings" hidden style="margin-top:14px">
+    <div class="card" style="margin-bottom:14px">
+      <h2 style="font-size:15px;margin:0 0 4px">هشدارها <span id="alerts-badge" class="badge" hidden></span></h2>
+      <p class="muted" id="alerts-info"></p>
+      <div class="row">
+        <button id="alerts-check">بررسی دوباره</button>
+        <button class="ghost" id="alerts-read">همه خوانده شد</button>
+        <button class="ghost" id="alerts-test">تست تلگرام</button>
+      </div>
+      <ul class="alerts" id="alerts-list"></ul>
+      <p class="muted">منبع خبری خراب یا پخش قطع‌شده همان لحظه اینجا ثبت می‌شود؛ برای تلگرام <code>ALERT_TELEGRAM_BOT_TOKEN</code> و <code>ALERT_TELEGRAM_CHAT_ID</code> را در <code>.env</code> بگذار.</p>
+    </div>
     <div class="card">
       <h2 style="font-size:15px;margin:0 0 4px">تغییر رمز مدیر</h2>
       <p class="muted" id="pwd-info"></p>
@@ -92,7 +110,7 @@
 </main>
 
 <script>
-  var state = { messages: [], busy: false };
+  var state = { messages: [], busy: false, alertTimer: null };
 
   function el(id) { return document.getElementById(id); }
 
@@ -130,6 +148,8 @@
       : '';
     el('pwd-info').dataset.changedAt = session.password_changed_at || '';
     el('no-key').hidden = Boolean(session.model_available);
+    loadAlerts();
+    if (!state.alertTimer) state.alertTimer = setInterval(loadAlerts, 30000);
     if (session.mode === 'cloud') {
       el('session-info').textContent = 'مدل ابری: ' + session.model + ' · نشست تا ۱۲ ساعت';
     } else if (session.mode === 'local') {
@@ -192,6 +212,91 @@
       msg.textContent = error.message || 'تغییر رمز ممکن نشد';
     } finally {
       el('pwd-btn').disabled = false;
+    }
+  });
+
+  async function loadAlerts() {
+    try {
+      renderAlerts(await api('/admin/api/alerts'));
+    } catch (error) {
+      /* نشست یا شبکه قطع است؛ دفعهٔ بعد */
+    }
+  }
+
+  function renderAlerts(payload) {
+    var list = el('alerts-list');
+    var badge = el('alerts-badge');
+    if (!list) return;
+    badge.hidden = !payload.unread;
+    badge.textContent = payload.unread || '';
+    var telegram = payload.telegram && payload.telegram.configured
+      ? 'تلگرام وصل است (' + payload.telegram.chat_id + ')'
+      : 'تلگرام وصل نیست؛ هشدارها فقط در همین پنل دیده می‌شوند.';
+    var status = payload.checking
+      ? 'در حال بررسی…'
+      : payload.last_check_at
+        ? 'آخرین بررسی: ' + formatDate(payload.last_check_at)
+        : 'هنوز بررسی نشده';
+    el('alerts-info').textContent = status + ' · ' + (payload.open ? payload.open + ' مشکل باز' : 'همه‌چیز سالم') + ' · ' + telegram;
+
+    list.textContent = '';
+    var alerts = (payload.alerts || []).slice(0, 20);
+    if (!alerts.length) {
+      var empty = document.createElement('li');
+      empty.className = 'muted';
+      empty.textContent = 'هشداری ثبت نشده است.';
+      list.appendChild(empty);
+      return;
+    }
+    alerts.forEach(function (alert) {
+      var item = document.createElement('li');
+      var tag = document.createElement('span');
+      tag.className = 'tag ' + (alert.recovery ? 'ok' : 'err');
+      tag.textContent = alert.recovery ? 'برطرف شد' : alert.kind === 'stream' ? 'پخش' : 'منبع';
+      var text = document.createElement('span');
+      text.textContent = alert.message;
+      var when = document.createElement('div');
+      when.className = 'when';
+      when.textContent = formatDate(alert.at) + (alert.read ? '' : ' · خوانده‌نشده');
+      item.appendChild(tag);
+      item.appendChild(text);
+      item.appendChild(when);
+      list.appendChild(item);
+    });
+  }
+
+  el('alerts-check').addEventListener('click', async function () {
+    el('alerts-check').disabled = true;
+    el('alerts-info').textContent = 'در حال بررسی منابع و پخش زنده…';
+    try {
+      var result = await api('/admin/api/alerts/check', { method: 'POST', body: JSON.stringify({ probe: true }) });
+      el('alerts-info').textContent = result.created
+        ? result.created + ' هشدار تازه ثبت شد' + (result.sent ? ' و ' + result.sent + ' پیام به تلگرام رفت' : '')
+        : 'بررسی انجام شد؛ مشکل تازه‌ای نبود';
+      setTimeout(loadAlerts, 600);
+    } catch (error) {
+      el('alerts-info').textContent = error.message || 'بررسی ممکن نشد';
+    } finally {
+      el('alerts-check').disabled = false;
+    }
+  });
+
+  el('alerts-read').addEventListener('click', async function () {
+    try {
+      await api('/admin/api/alerts/read', { method: 'POST', body: '{}' });
+      loadAlerts();
+    } catch (error) {
+      el('alerts-info').textContent = error.message || 'علامت‌گذاری ممکن نشد';
+    }
+  });
+
+  el('alerts-test').addEventListener('click', async function () {
+    el('alerts-info').textContent = 'در حال ارسال پیام آزمایشی…';
+    try {
+      await api('/admin/api/alerts/test', { method: 'POST', body: '{}' });
+      el('alerts-info').textContent = 'پیام آزمایشی به تلگرام رفت.';
+    } catch (error) {
+      el('alerts-info').textContent = error.message || 'ارسال ممکن نشد';
     }
   });
 

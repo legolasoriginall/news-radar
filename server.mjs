@@ -6,7 +6,17 @@ import path from 'node:path';
 import { runPipeline } from './pipeline.mjs';
 import { fetchMarkets } from './src/markets.mjs';
 import { fetchTelegramFeeds } from './src/telegram.mjs';
-import { resolveLiveChannels, LIVE_CHANNELS } from './src/live.mjs';
+import { resolveLiveChannels, probeStream, LIVE_CHANNELS } from './src/live.mjs';
+import {
+  collectIssues,
+  applyIssues,
+  markAllRead,
+  unreadCount,
+  formatAlert,
+  sendTelegram,
+  telegramConfig,
+  maskChatId,
+} from './src/alerts.mjs';
 import {
   SESSION_COOKIE,
   SESSION_TTL_MS,
@@ -138,6 +148,8 @@ async function refresh() {
     state.last_finished_at = new Date().toISOString();
     state.next_run_at = new Date(Date.now() + INTERVAL_MS).toISOString();
     broadcast('update', { generated_at: data.generated_at, total: data.stats.total });
+    // منابع خبری تازه بررسی شده‌اند؛ همان لحظه هشدار منبع خراب را به‌روز کن.
+    checkAlerts({ probeStreams: false }).catch(() => {});
     return { ok: true, generated_at: data.generated_at, total: data.stats.total };
   } catch (error) {
     state.last_error = String(error?.message || error);
@@ -403,7 +415,89 @@ function adminToolContext() {
   };
 }
 
+// هشدارها: منبع خراب و پخش قطع‌شده، در فایل محلی نگه داشته می‌شوند و در صورت تنظیم به تلگرام هم می‌روند.
+const ALERTS_FILE = path.join(path.resolve('.'), '.alerts.json');
+const alertState = { data: { alerts: [], open: {} }, running: false, last_check_at: '' };
+
+async function loadAlertState() {
+  try {
+    const saved = JSON.parse(await readFile(ALERTS_FILE, 'utf8'));
+    alertState.data = {
+      alerts: Array.isArray(saved?.alerts) ? saved.alerts : [],
+      open: saved?.open && typeof saved.open === 'object' ? saved.open : {},
+    };
+    alertState.last_check_at = saved?.last_check_at || '';
+  } catch {
+    /* نخستین اجرا */
+  }
+}
+
+async function saveAlertState() {
+  await writeFile(
+    ALERTS_FILE,
+    JSON.stringify({ ...alertState.data, last_check_at: alertState.last_check_at }, null, 2),
+    { mode: 0o600 }
+  );
+}
+
+async function probeAllChannels() {
+  const results = [];
+  for (const channel of LIVE_CHANNELS) {
+    let healthy = '';
+    for (const url of (channel.fallbacks || []).slice(0, 3)) {
+      // eslint-disable-next-line no-await-in-loop
+      if (await probeStream(url, { timeoutMs: 5000 })) {
+        healthy = url;
+        break;
+      }
+    }
+    results.push({ id: channel.id, name: channel.name, healthy });
+  }
+  return results;
+}
+
+async function checkAlerts({ probeStreams = true, notify = true } = {}) {
+  if (alertState.running) return { ok: false, running: true };
+  alertState.running = true;
+  try {
+    const data = await readData();
+    const channels = probeStreams ? await probeAllChannels() : [];
+    const issues = collectIssues({ data, channels });
+    const result = applyIssues({ state: alertState.data, issues });
+    alertState.data = result.state;
+    alertState.last_check_at = new Date().toISOString();
+    await saveAlertState();
+
+    const config = telegramConfig();
+    let sent = 0;
+    const errors = [];
+    if (notify && config.configured) {
+      for (const alert of result.created) {
+        // eslint-disable-next-line no-await-in-loop
+        const response = await sendTelegram({ ...config, text: formatAlert(alert) });
+        if (response.ok) sent += 1;
+        else errors.push(response.error);
+      }
+    }
+    if (result.created.length) broadcast('alerts', { unread: unreadCount(alertState.data), created: result.created.length });
+    return {
+      ok: true,
+      created: result.created.length,
+      sent,
+      telegram_configured: config.configured,
+      errors,
+      probed: channels.length,
+      unread: unreadCount(alertState.data),
+    };
+  } catch (error) {
+    return { ok: false, error: String(error?.message || error) };
+  } finally {
+    alertState.running = false;
+  }
+}
+
 await loadAuthRecord();
+await loadAlertState();
 
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
@@ -438,6 +532,63 @@ const server = createServer(async (req, res) => {
     const body = await readJsonBody(req).catch(() => ({}));
     const result = await runTool(String(body.name || ''), body.args || {}, adminToolContext());
     sendJson(res, 200, result);
+    return;
+  }
+
+  if (pathname === '/admin/api/alerts' && req.method === 'GET') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    const config = telegramConfig();
+    sendJson(res, 200, {
+      alerts: alertState.data.alerts.slice(0, 50),
+      unread: unreadCount(alertState.data),
+      open: Object.keys(alertState.data.open || {}).length,
+      last_check_at: alertState.last_check_at || '',
+      checking: alertState.running,
+      telegram: { configured: config.configured, chat_id: maskChatId(config.chatId) },
+    });
+    return;
+  }
+
+  if (pathname === '/admin/api/alerts/read' && req.method === 'POST') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    alertState.data = markAllRead(alertState.data);
+    await saveAlertState();
+    sendJson(res, 200, { ok: true, unread: 0 });
+    return;
+  }
+
+  if (pathname === '/admin/api/alerts/check' && req.method === 'POST') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    const body = await readJsonBody(req).catch(() => ({}));
+    const result = await checkAlerts({ probeStreams: body.probe !== false });
+    sendJson(res, result.ok ? 200 : 409, result);
+    return;
+  }
+
+  if (pathname === '/admin/api/alerts/test' && req.method === 'POST') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    const config = telegramConfig();
+    if (!config.configured) {
+      sendJson(res, 400, { error: 'ALERT_TELEGRAM_BOT_TOKEN و ALERT_TELEGRAM_CHAT_ID را در .env بگذار' });
+      return;
+    }
+    const result = await sendTelegram({
+      ...config,
+      text: `🔔 پیام آزمایشی رصد خبر\nزمان: ${new Date().toLocaleString('fa-IR')}\nاتصال بات تلگرام درست است.`,
+    });
+    sendJson(res, result.ok ? 200 : 502, result);
     return;
   }
 
@@ -613,4 +764,9 @@ const server = createServer(async (req, res) => {
 server.listen(PORT, HOST, () => {
   console.log(`› داشبورد رصد خبر روی http://${HOST}:${PORT} فعال شد (به‌روزرسانی هر ${UPDATE_INTERVAL_MINUTES} دقیقه)`);
   scheduleRefresh().catch((error) => console.error('خطا در زمان‌بندی:', error));
+
+  // هشدارها: یک‌بار کمی بعد از بالا آمدن سرور و بعد هر چند دقیقه یک‌بار
+  const alertIntervalMs = Number(process.env.ALERT_INTERVAL_MINUTES || 10) * 60 * 1000;
+  setTimeout(() => checkAlerts().catch(() => {}), 15000);
+  setInterval(() => checkAlerts().catch(() => {}), alertIntervalMs);
 });
