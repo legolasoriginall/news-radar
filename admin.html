@@ -69,6 +69,21 @@
       <p class="muted" id="session-info"></p>
     </div>
   </section>
+
+  <section id="settings" hidden style="margin-top:14px">
+    <div class="card">
+      <h2 style="font-size:15px;margin:0 0 4px">تغییر رمز مدیر</h2>
+      <p class="muted" id="pwd-info"></p>
+      <input type="password" id="cur-pwd" placeholder="رمز فعلی" autocomplete="current-password">
+      <input type="password" id="new-pwd" placeholder="رمز تازه: دست‌کم ۸ نویسه، حرف + رقم یا نماد" autocomplete="new-password">
+      <input type="password" id="new-pwd2" placeholder="تکرار رمز تازه" autocomplete="new-password">
+      <div class="row">
+        <button id="pwd-btn">ذخیرهٔ رمز تازه</button>
+        <span class="muted" id="pwd-msg"></span>
+      </div>
+      <p class="muted">رمز فقط به‌صورت هش (scrypt) روی همین سرور ذخیره می‌شود؛ بعد از تغییر، نشست‌های قبلی باطل می‌شوند.</p>
+    </div>
+  </section>
 </main>
 
 <script>
@@ -91,10 +106,24 @@
     return payload;
   }
 
+  function formatDate(value) {
+    if (!value) return '';
+    try {
+      return new Date(value).toLocaleString('fa-IR');
+    } catch (error) {
+      return value;
+    }
+  }
+
   function showChat(session) {
     el('login').hidden = true;
     el('chat').style.display = 'block';
+    el('settings').hidden = false;
     el('logout').hidden = false;
+    el('pwd-info').textContent = session.password_changed_at
+      ? 'آخرین تغییر رمز: ' + formatDate(session.password_changed_at)
+      : '';
+    el('pwd-info').dataset.changedAt = session.password_changed_at || '';
     el('no-key').hidden = Boolean(session.hasKey);
     el('session-info').textContent = session.hasKey
       ? 'مدل: ' + session.model + ' · نشست تا ۱۲ ساعت'
@@ -129,6 +158,32 @@
   el('logout').addEventListener('click', async function () {
     await fetch('/admin/logout', { method: 'POST' });
     location.reload();
+  });
+
+  el('pwd-btn').addEventListener('click', async function () {
+    var msg = el('pwd-msg');
+    msg.textContent = '';
+    var next = el('new-pwd').value;
+    if (next !== el('new-pwd2').value) {
+      msg.textContent = 'تکرار رمز تازه یکسان نیست';
+      return;
+    }
+    el('pwd-btn').disabled = true;
+    try {
+      var result = await api('/admin/api/password', {
+        method: 'POST',
+        body: JSON.stringify({ current: el('cur-pwd').value, next: next, confirm: el('new-pwd2').value })
+      });
+      el('cur-pwd').value = '';
+      el('new-pwd').value = '';
+      el('new-pwd2').value = '';
+      msg.textContent = 'رمز تغییر کرد؛ از این پس با رمز تازه وارد شو.';
+      el('pwd-info').textContent = 'آخرین تغییر رمز: ' + formatDate(result.updated_at);
+    } catch (error) {
+      msg.textContent = error.message || 'تغییر رمز ممکن نشد';
+    } finally {
+      el('pwd-btn').disabled = false;
+    }
   });
 
   async function send(text) {

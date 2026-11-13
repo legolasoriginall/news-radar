@@ -1,7 +1,7 @@
 // دستیار مدیر: ورود رمزدار، نشست امضاشده و ابزارهای امن برای کارهای روزمرهٔ داشبورد.
 // کلید مدل فقط در محیط سرور خوانده می‌شود و هرگز به مرورگر فرستاده نمی‌شود.
 
-import { createHmac, timingSafeEqual } from 'node:crypto';
+import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { LIVE_CHANNELS, probeStream } from './live.mjs';
 
 export const SESSION_COOKIE = 'radar_admin';
@@ -14,6 +14,30 @@ export function passwordMatches(input, expected) {
   const right = Buffer.from(String(expected));
   if (left.length !== right.length) return false;
   return timingSafeEqual(left, right);
+}
+
+/** رمز را با scrypt و نمک تصادفی هش می‌کند تا در فایل ذخیره شود، نه به‌صورت متن ساده. */
+export function hashPassword(password, salt = randomBytes(16).toString('hex')) {
+  const hash = scryptSync(String(password), salt, 64).toString('hex');
+  return { salt, hash, algorithm: 'scrypt' };
+}
+
+export function verifyPassword(password, record) {
+  if (!record || !record.salt || !record.hash) return false;
+  const expected = Buffer.from(String(record.hash), 'hex');
+  if (!expected.length) return false;
+  const actual = scryptSync(String(password ?? ''), String(record.salt), expected.length);
+  return timingSafeEqual(actual, expected);
+}
+
+/** شرط‌های رمز تازه؛ خروجی رشتهٔ خطا یا رشتهٔ خالی. */
+export function validateNewPassword(next) {
+  const value = String(next ?? '');
+  if (value.length < 8) return 'رمز تازه باید دست‌کم ۸ نویسه باشد';
+  if (value.length > 128) return 'رمز تازه بیش از حد بلند است';
+  if (!/[A-Za-z]/.test(value)) return 'رمز تازه باید حداقل یک حرف داشته باشد';
+  if (!/[^A-Za-z]/.test(value)) return 'رمز تازه باید حداقل یک رقم یا نماد داشته باشد';
+  return '';
 }
 
 export function signSession(secret, expiresAt) {

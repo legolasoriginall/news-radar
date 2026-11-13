@@ -1,6 +1,7 @@
 // سرور داشبورد + به‌روزرسانی خودکار هر ۵ دقیقه
 import { createServer } from 'node:http';
-import { readFile, stat } from 'node:fs/promises';
+import { readFile, stat, writeFile } from 'node:fs/promises';
+import { randomBytes } from 'node:crypto';
 import path from 'node:path';
 import { runPipeline } from './pipeline.mjs';
 import { fetchMarkets } from './src/markets.mjs';
@@ -13,9 +14,19 @@ import {
   verifySession,
   parseCookies,
   passwordMatches,
+  hashPassword,
+  verifyPassword,
+  validateNewPassword,
   llmConfig,
   runAssistant,
 } from './src/admin.mjs';
+
+// متغیرهای محلی (رمز مدیر، کلید مدل) از .env خوانده می‌شوند؛ این فایل در گیت نیست.
+try {
+  if (typeof process.loadEnvFile === 'function') process.loadEnvFile('.env');
+} catch {
+  /* بدون .env هم سرور بالا می‌آید */
+}
 import { UPDATE_INTERVAL_MINUTES } from './src/sources.mjs';
 
 // نرخ‌های بازار جدا از خبرها و هر چند ثانیه یک‌بار خوانده می‌شوند تا تابلوی قیمت «لحظه‌ای» باشد.
@@ -32,8 +43,37 @@ const liveChannelCache = { at: 0, payload: null, inflight: null };
 
 // دستیار مدیر فقط روی سرور خود میزبان فعال است؛ رمز و کلید مدل از محیط خوانده می‌شوند.
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || '';
-const ADMIN_SECRET = process.env.ADMIN_SECRET || ADMIN_PASSWORD || 'news-radar-admin';
 const loginAttempts = new Map();
+
+// رمز مدیر در فایل محلی به‌صورت هش نگه داشته می‌شود تا از پنل قابل تغییر باشد.
+const AUTH_FILE = path.join(path.resolve('.'), '.admin-auth.json');
+const authState = { record: null, secret: '' };
+
+async function saveAuthRecord(record) {
+  await writeFile(AUTH_FILE, JSON.stringify(record, null, 2), { mode: 0o600 });
+  authState.record = record;
+  authState.secret = record.secret;
+}
+
+async function loadAuthRecord() {
+  try {
+    const record = JSON.parse(await readFile(AUTH_FILE, 'utf8'));
+    if (record && record.salt && record.hash) {
+      authState.record = record;
+      authState.secret = record.secret || record.hash;
+      return;
+    }
+  } catch {
+    /* نخستین اجرا */
+  }
+  if (ADMIN_PASSWORD) {
+    await saveAuthRecord({
+      ...hashPassword(ADMIN_PASSWORD),
+      secret: randomBytes(32).toString('hex'),
+      updated_at: new Date().toISOString(),
+    });
+  }
+}
 
 const ROOT = path.resolve('.');
 const PORT = Number(process.env.PORT || 3000);
@@ -248,9 +288,13 @@ async function readJsonBody(req, limit = 64 * 1024) {
 }
 
 function isAdmin(req) {
-  if (!ADMIN_PASSWORD) return false;
+  if (!authState.record) return false;
   const cookies = parseCookies(req.headers.cookie);
-  return verifySession(ADMIN_SECRET, cookies[SESSION_COOKIE]);
+  return verifySession(authState.secret, cookies[SESSION_COOKIE]);
+}
+
+function sessionCookie(secret) {
+  return `${SESSION_COOKIE}=${createSession(secret)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`;
 }
 
 function tooManyAttempts(ip) {
@@ -308,6 +352,8 @@ async function serveStatic(req, res, pathname) {
   }
 }
 
+await loadAuthRecord();
+
 const server = createServer(async (req, res) => {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;
@@ -321,10 +367,11 @@ const server = createServer(async (req, res) => {
     const config = llmConfig();
     sendJson(res, 200, {
       authed: isAdmin(req),
-      configured: Boolean(ADMIN_PASSWORD),
+      configured: Boolean(authState.record),
       hasKey: Boolean(config.apiKey),
       model: config.model || '',
       provider: config.provider || '',
+      password_changed_at: authState.record?.updated_at || null,
     });
     return;
   }
@@ -336,16 +383,47 @@ const server = createServer(async (req, res) => {
       return;
     }
     const body = await readJsonBody(req).catch(() => ({}));
-    if (!ADMIN_PASSWORD || !passwordMatches(body.password, ADMIN_PASSWORD)) {
+    const ok = authState.record
+      ? verifyPassword(body.password, authState.record)
+      : passwordMatches(body.password, ADMIN_PASSWORD);
+    if (!ok) {
       sendJson(res, 401, { error: 'unauthorized' });
       return;
     }
     loginAttempts.delete(ip);
-    res.setHeader(
-      'Set-Cookie',
-      `${SESSION_COOKIE}=${createSession(ADMIN_SECRET)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`
-    );
+    res.setHeader('Set-Cookie', sessionCookie(authState.secret));
     sendJson(res, 200, { ok: true });
+    return;
+  }
+
+  if (pathname === '/admin/api/password' && req.method === 'POST') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    const body = await readJsonBody(req).catch(() => ({}));
+    if (!authState.record || !verifyPassword(body.current, authState.record)) {
+      sendJson(res, 401, { error: 'رمز فعلی درست نیست' });
+      return;
+    }
+    const problem = validateNewPassword(body.next);
+    if (problem) {
+      sendJson(res, 400, { error: problem });
+      return;
+    }
+    if (String(body.next) !== String(body.confirm ?? body.next)) {
+      sendJson(res, 400, { error: 'تکرار رمز تازه یکسان نیست' });
+      return;
+    }
+    const record = {
+      ...hashPassword(String(body.next)),
+      secret: randomBytes(32).toString('hex'),
+      updated_at: new Date().toISOString(),
+    };
+    await saveAuthRecord(record);
+    // نشست‌های قبلی با راز تازه نامعتبر می‌شوند و برای همین مرورگر نشست تازه صادر می‌شود.
+    res.setHeader('Set-Cookie', sessionCookie(authState.secret));
+    sendJson(res, 200, { ok: true, updated_at: record.updated_at });
     return;
   }
 

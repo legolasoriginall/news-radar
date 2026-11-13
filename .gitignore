@@ -5,3 +5,5 @@ update.log
 .DS_Store
 .env
 scheduler/token.txt
+
+.admin-auth.json

@@ -2,6 +2,9 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
   passwordMatches,
+  hashPassword,
+  verifyPassword,
+  validateNewPassword,
   createSession,
   verifySession,
   parseCookies,
@@ -27,6 +30,24 @@ test('نشست امضاشده فقط تا زمان انقضا معتبر است'
   assert.equal(verifySession('other-secret', token, now + 1000), false);
   assert.equal(verifySession(secret, token.replace(/\d$/, '0'), now + 1000), false);
   assert.equal(verifySession(secret, 'broken', now), false);
+});
+
+test('رمز به‌صورت هش ذخیره و فقط با مقدار درست تأیید می‌شود', () => {
+  const record = hashPassword('A654a4546@');
+  assert.equal(record.hash.includes('A654a4546@'), false);
+  assert.equal(verifyPassword('A654a4546@', record), true);
+  assert.equal(verifyPassword('A654a4546', record), false);
+  assert.equal(verifyPassword('anything', null), false);
+  const other = hashPassword('A654a4546@');
+  assert.notEqual(other.salt, record.salt);
+  assert.notEqual(other.hash, record.hash);
+});
+
+test('رمز تازه باید بلند و ترکیبی باشد', () => {
+  assert.equal(validateNewPassword('short1'), 'رمز تازه باید دست‌کم ۸ نویسه باشد');
+  assert.equal(validateNewPassword('12345678'), 'رمز تازه باید حداقل یک حرف داشته باشد');
+  assert.equal(validateNewPassword('abcdefgh'), 'رمز تازه باید حداقل یک رقم یا نماد داشته باشد');
+  assert.equal(validateNewPassword('abcdefg1'), '');
 });
 
 test('کوکی‌های درخواست به نقشه تبدیل می‌شوند', () => {
