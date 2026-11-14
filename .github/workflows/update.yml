@@ -17,6 +17,7 @@ on:
       - 'test/**'
       - 'package.json'
       - 'index.html'
+      - 'vendor/**'
       - '.github/workflows/update.yml'
 
 permissions:
@@ -69,6 +70,7 @@ jobs:
           cp index.html _site/
           cp data.json _site/
           cp news.xlsx _site/
+          cp -r vendor _site/
           ls -lh _site
 
       - name: پیکربندی Pages

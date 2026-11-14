@@ -120,6 +120,15 @@ a:hover { text-decoration: underline; }
 .live-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11.5px; padding: 4px 10px; border-radius: 999px; background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; font-variant-numeric: tabular-nums; }
 .live-pill.wait { background: #f8fafc; color: var(--muted); border-color: #e2e8f0; }
 .live-pill.off { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
+.live-cdn { font-size: 11px; color: #0f766e; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 999px; padding: 2px 9px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* وضعیت مسیر شبکه: آیا آینه‌های iptv-org از این دستگاه در دسترس‌اند */
+.route-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 2px; font-size: 11.8px; color: var(--muted); }
+.route-title { font-weight: 700; color: #334155; }
+.route-pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: 11.5px; border: 1px solid #cbd5e1; background: #f8fafc; color: #475569; }
+.route-pill.ok { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
+.route-pill.warn { background: #fffbeb; color: #b45309; border-color: #fde68a; }
+.route-pill.bad { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
+.route-detail { flex: 1 1 320px; min-width: 0; }
 .live-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #0b1220; border-radius: 12px; overflow: hidden; }
 .live-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 .live-video { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; object-fit: contain; }
@@ -136,6 +145,8 @@ a:hover { text-decoration: underline; }
 .sat-item .sat-meta { color: #94a3b8; font-size: 11px; flex: 0 0 auto; }
 .sat-player { margin-top: 12px; }
 .sat-empty { color: #64748b; font-size: 12.5px; padding: 10px 2px; }
+/* لایهٔ پیام پخش‌کننده نباید کلیک‌ها را بگیرد؛ وگرنه دکمهٔ تمام‌صفحه و کنترل‌ها کار نمی‌کنند */
+#sat-player-note { pointer-events: none; }
 .sat-only { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #334155; flex: 0 0 auto; cursor: pointer; white-space: nowrap; }
 .sat-only input { accent-color: #0d9488; }
 .sat-free { font-size: 10.5px; color: #0f766e; background: #e6f7f3; border-radius: 999px; padding: 2px 7px; flex: 0 0 auto; }
@@ -157,6 +168,35 @@ a:hover { text-decoration: underline; }
 .tg-foot a { color: #0d9488; text-decoration: none; }
 .tg-foot a:hover { text-decoration: underline; }
 
+/* سلامت منابع: فیدهای خراب و سکوت خبری */
+.src-summary { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 14px; }
+.src-stat { display: inline-flex; align-items: baseline; gap: 6px; border: 1px solid var(--line); background: #fcfdfe; border-radius: 11px; padding: 7px 12px; font-size: 12.5px; color: #475467; }
+.src-stat b { font-size: 16px; color: var(--navy); font-variant-numeric: tabular-nums; }
+.src-stat.bad b { color: var(--red); }
+.src-stat.warn { border-color: #fde68a; background: #fffbeb; color: #92400e; }
+.src-stat.warn b { color: #92400e; }
+.src-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 18px; }
+.src-block h3 { font-size: 13.5px; margin: 0 0 9px; display: flex; align-items: center; gap: 7px; color: #344054; }
+.src-count { font-size: 11.5px; font-weight: 700; background: #f1f5f9; color: #475467; border-radius: 999px; padding: 1px 8px; }
+.src-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 7px; }
+.src-item { border: 1px solid #e6eaf0; border-radius: 10px; padding: 9px 11px; background: #fcfdff; }
+.src-item.bad { border-color: #fecaca; background: #fef7f7; }
+.src-item-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 8px; font-size: 12.8px; font-weight: 700; color: #1e293b; }
+.src-item-head a { color: #0d9488; text-decoration: none; font-weight: 500; font-size: 11.2px; word-break: break-all; }
+.src-item-head a:hover { text-decoration: underline; }
+.src-item-meta { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.src-item-err { margin-top: 4px; color: #b91c1c; font-size: 12px; word-break: break-word; }
+.src-empty { color: var(--muted); font-size: 12.3px; padding: 4px 2px 8px; }
+
+/* پنل مدیر در قاب هم‌مبدأ */
+.admin-overlay { position: fixed; inset: 0; z-index: 90; background: rgba(15,23,42,.55); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.admin-overlay[hidden] { display: none; }
+.admin-frame-wrap { width: min(1180px, 100%); height: min(88vh, 900px); background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 24px 60px rgba(15,23,42,.35); display: flex; flex-direction: column; }
+.admin-frame-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 14px; background: #0f766e; color: #fff; font-size: 13px; font-weight: 700; }
+.admin-frame-bar button { border: 0; background: rgba(255,255,255,.16); color: #fff; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 14px; line-height: 1; }
+.admin-frame-bar button:hover { background: rgba(255,255,255,.28); }
+#admin-frame { flex: 1 1 auto; width: 100%; border: 0; background: #fff; }
+
 section { margin-top: 22px; }
 .panel { background: var(--panel); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); border: 1px solid rgba(16,24,40,.03); }
 .panel-head { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; margin-bottom: 14px; flex-wrap: wrap; }
@@ -164,8 +204,10 @@ section { margin-top: 22px; }
 .panel-head .hint { font-size: 12px; color: var(--muted); }
 .panel-head { align-items: center; }
 .panel.collapsed > *:not(.panel-head) { display: none; }
-.collapse-btn { display: inline-flex; align-items: center; justify-content: center; width: 27px; height: 27px; border-radius: 9px; border: 1px solid #dbe3ec; background: #f8fafc; color: #475569; cursor: pointer; font-size: 12px; line-height: 1; flex: 0 0 auto; transition: transform 0.18s ease, background 0.15s ease; }
-.collapse-btn:hover { background: #eef2f7; }
+/* فلش باز/بسته‌کردن بخش‌ها: زمینهٔ مشکی و فلش سفید تا واضح دیده شود */
+.collapse-btn { display: inline-flex; align-items: center; justify-content: center; width: 27px; height: 27px; border-radius: 9px; border: 1px solid #111827; background: #111827; color: #ffffff; cursor: pointer; font-size: 13px; line-height: 1; flex: 0 0 auto; transition: transform 0.18s ease, background 0.15s ease, border-color 0.15s ease; }
+.collapse-btn:hover { background: #1f2937; border-color: #1f2937; }
+.collapse-btn:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; }
 .panel.collapsed .collapse-btn { transform: rotate(-90deg); }
 .panel.collapsed .panel-head { margin-bottom: 0; }
 .panel.collapsed .panel-head .hint { display: none; }
@@ -359,6 +401,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       <div class="panel-head">
         <h2><span class="ico">▶</span> شبکه‌های زنده</h2>
         <span class="hint" id="live-hint">پخش زندهٔ ۲۴ ساعته</span>
+        <span class="live-cdn" id="live-cdn" hidden></span>
       </div>
       <div class="tg-filters" id="live-tabs" role="tablist" aria-label="انتخاب شبکهٔ زنده"></div>
       <div class="live-wrap" id="live-wrap">
@@ -385,6 +428,11 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
           <option value="">همهٔ کشورها</option>
         </select>
         <label class="sat-only"><input type="checkbox" id="sat-only-free"> فقط بدون فیلترشکن</label>
+      </div>
+      <div class="route-status" id="route-status" role="status" aria-live="polite">
+        <span class="route-title">مسیر شبکه</span>
+        <span class="route-pill" id="route-pill">در حال بررسی آینه‌ها…</span>
+        <span class="route-detail" id="route-detail">این سایت خودش فیلترشکن اجرا نمی‌کند؛ اگر مسیر بسته بود، سایفون یا فیلترشکن دستگاه را روشن کن.</span>
       </div>
       <div class="live-wrap sat-player" id="sat-player" hidden>
         <video id="sat-video" class="live-video" controls playsinline hidden></video>
@@ -431,6 +479,33 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     </div>
   </section>
 
+  <section id="sources">
+    <div class="panel">
+      <div class="panel-head">
+        <h2><span class="ico">⚑</span> سلامت منابع خبری</h2>
+        <span class="hint" id="sources-hint"></span>
+      </div>
+      <div class="src-summary" id="sources-summary"></div>
+      <div class="src-grid">
+        <div class="src-block">
+          <h3>فیدهای خراب <span class="src-count" id="sources-broken-count"></span></h3>
+          <ul class="src-list" id="sources-broken"></ul>
+          <div class="src-empty" id="sources-broken-empty">همهٔ فیدها پاسخ داده‌اند.</div>
+        </div>
+        <div class="src-block">
+          <h3>سکوت خبری <span class="src-count" id="sources-silent-count"></span></h3>
+          <ul class="src-list" id="sources-silent"></ul>
+          <div class="src-empty" id="sources-silent-empty">هیچ منبعی در این بازه ساکت نبوده است.</div>
+        </div>
+        <div class="src-block" id="sources-mirror-block" hidden>
+          <h3>از مسیر آینه <span class="src-count" id="sources-mirror-count"></span></h3>
+          <ul class="src-list" id="sources-mirrors"></ul>
+        </div>
+      </div>
+      <p class="market-note" id="sources-note"></p>
+    </div>
+  </section>
+
   <footer>
     <div class="fgrid">
       <div>
@@ -455,13 +530,23 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
         <ul>
           <li id="method-note">ترجمهٔ ماشینی ممکن است در برخی عنوان‌ها ناقص باشد؛ پیوند اصل خبر همیشه در دسترس است.</li>
           <li>ترتیب خبر‌ها به‌طور خودکار و بدون دخالت دستی تعیین می‌شود.</li>
-          <li><a href="data.json" download>داده خام JSON</a> · <a href="news.xlsx" download>جدول اکسل</a></li>
+          <li><a href="data.json" download>داده خام JSON</a> · <a href="news.xlsx" download>جدول اکسل</a> · <a href="admin" id="open-admin">داشبورد مدیر ↗</a></li>
           <li class="demo-links">نمایش آزمایشی: <a href="?demo=backup">حالت پشتیبان</a> · <a href="?demo=offline">حالت قطع منابع</a></li>
         </ul>
       </div>
     </div>
   </footer>
 </main>
+
+<div class="admin-overlay" id="admin-overlay" hidden>
+  <div class="admin-frame-wrap" role="dialog" aria-modal="true" aria-label="داشبورد مدیر">
+    <div class="admin-frame-bar">
+      <span>داشبورد مدیر</span>
+      <button type="button" id="admin-close" aria-label="بستن پنل مدیر">✕</button>
+    </div>
+    <iframe id="admin-frame" title="داشبورد مدیر" src="about:blank"></iframe>
+  </div>
+</div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -733,6 +818,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     renderTelegram();
     renderStories();
     renderFeed();
+    renderSourceHealth();
     var note = $('method-note');
     if (note && state.data.translations) {
       note.textContent = 'ترجمهٔ ماشینی (' + (state.data.translations.provider || 'MyMemory') + ') ممکن است در برخی عنوان‌ها ناقص باشد؛ پیوند اصل خبر همیشه در دسترس است.';
@@ -1276,6 +1362,147 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     $('feed-hint').textContent = 'همهٔ خبرها بدون محدودیت زمانی · ' + fmt(data.articles.length) + ' خبر';
   }
 
+  /* ---------------- سلامت منابع ---------------- */
+
+  var SILENT_HOURS = 24;
+
+  // تازه‌ترین زمان انتشار هر منبع، از همان خبرهایی که در داشبورد دیده می‌شوند.
+  function latestBySource(articles) {
+    var map = {};
+    (articles || []).forEach(function (article) {
+      if (!article) return;
+      var id = article.source_id;
+      var ts = Date.parse(article.published);
+      if (!id || !isFinite(ts)) return;
+      if (!map[id] || ts > map[id]) map[id] = ts;
+    });
+    return map;
+  }
+
+  function silenceText(hours) {
+    if (hours >= 48) return fmt(Math.floor(hours / 24)) + ' روز';
+    return fmt(Math.max(1, Math.floor(hours))) + ' ساعت';
+  }
+
+  function renderSourceHealth() {
+    var data = state.data;
+    if (!data) return;
+    var health = Array.isArray(data.source_health) ? data.source_health : [];
+    var latest = latestBySource(data.articles);
+    var broken = [];
+    var silent = [];
+    health.forEach(function (source) {
+      if (!source.ok) { broken.push(source); return; }
+      var ts = latest[source.id];
+      // منابعی که هیچ خبر تاریخ‌داری در داده ندارند (معمولاً ردشده در فیلترها)
+      // هشدار سکوت نمی‌گیرند تا فهرست پر از هشدار تکراری نشود.
+      if (!ts) return;
+      var hours = (Date.now() - ts) / 3600000;
+      if (hours > SILENT_HOURS) silent.push({ source: source, ts: ts, hours: hours });
+    });
+    silent.sort(function (a, b) { return b.hours - a.hours; });
+
+    var healthy = health.length - broken.length;
+    var mirrored = health.filter(function (source) { return source.mirror; });
+    $('sources-summary').innerHTML =
+      '<span class="src-stat">کل منابع <b>' + fmt(health.length) + '</b></span>' +
+      '<span class="src-stat">سالم <b>' + fmt(healthy) + '</b></span>' +
+      '<span class="src-stat bad">فید خراب <b>' + fmt(broken.length) + '</b></span>' +
+      '<span class="src-stat' + (silent.length ? ' warn' : '') + '">سکوت خبری <b>' + fmt(silent.length) + '</b></span>' +
+      (mirrored.length ? '<span class="src-stat">از مسیر آینه <b>' + fmt(mirrored.length) + '</b></span>' : '');
+
+    $('sources-broken-count').textContent = broken.length ? fmt(broken.length) : '';
+    $('sources-silent-count').textContent = silent.length ? fmt(silent.length) : '';
+
+    $('sources-broken').innerHTML = broken.map(function (source) {
+      var name = source.name || source.id || 'منبع ناشناخته';
+      var meta = [];
+      if (source.lang) meta.push(source.lang === 'fa' ? 'فارسی' : 'انگلیسی');
+      if (isFinite(Number(source.elapsed_ms))) meta.push('زمان پاسخ: ' + fmt(Number(source.elapsed_ms)) + ' میلی‌ثانیه');
+      if (isFinite(Number(source.success_percent))) meta.push('موفقیت: ' + fmt(Number(source.success_percent)) + '٪');
+      return '<li class="src-item bad">' +
+        '<div class="src-item-head"><span>' + esc(name) + '</span>' +
+          (source.url ? '<a href="' + safeUrl(source.url) + '" target="_blank" rel="noopener noreferrer nofollow" dir="ltr">' + esc(source.url) + '</a>' : '') +
+        '</div>' +
+        '<div class="src-item-err">' + esc(source.error || source.status || 'بی‌پاسخ') + '</div>' +
+        (meta.length ? '<div class="src-item-meta">' + meta.map(function (item) { return '<span>' + esc(item) + '</span>'; }).join('') + '</div>' : '') +
+        '</li>';
+    }).join('');
+
+    $('sources-silent').innerHTML = silent.map(function (entry) {
+      var source = entry.source;
+      var name = source.name || source.id || 'منبع ناشناخته';
+      var lastIso = new Date(entry.ts).toISOString();
+      var meta = [
+        'آخرین خبر: ' + dateTime(lastIso) + ' (' + timeAgo(lastIso) + ')',
+        'سکوت: ' + silenceText(entry.hours),
+      ];
+      if (isFinite(Number(source.count))) meta.push('در داده: ' + fmt(Number(source.count)) + ' خبر');
+      return '<li class="src-item">' +
+        '<div class="src-item-head"><span>' + esc(name) + '</span>' +
+          (source.url ? '<a href="' + safeUrl(source.url) + '" target="_blank" rel="noopener noreferrer nofollow" dir="ltr">' + esc(source.url) + '</a>' : '') +
+        '</div>' +
+        '<div class="src-item-meta">' + meta.map(function (item) { return '<span>' + esc(item) + '</span>'; }).join('') + '</div>' +
+        '</li>';
+    }).join('');
+
+    $('sources-mirrors').innerHTML = mirrored.map(function (source) {
+      var name = source.name || source.id || 'منبع ناشناخته';
+      var isArchive = /web\.archive\.org/.test(source.via || '');
+      var kind = isArchive ? 'آرشیو اینترنتی — ممکن است محتوا قدیمی باشد' : 'مسیر جایگزین';
+      return '<li class="src-item">' +
+        '<div class="src-item-head"><span>' + esc(name) + '</span>' +
+          (source.url ? '<a href="' + safeUrl(source.url) + '" target="_blank" rel="noopener noreferrer nofollow" dir="ltr">' + esc(source.url) + '</a>' : '') +
+        '</div>' +
+        '<div class="src-item-meta"><span>خوانده‌شده از: ' + esc(kind) + '</span></div>' +
+        '</li>';
+    }).join('');
+    $('sources-mirror-block').hidden = !mirrored.length;
+    $('sources-mirror-count').textContent = mirrored.length ? fmt(mirrored.length) : '';
+
+    $('sources-broken-empty').style.display = broken.length ? 'none' : 'block';
+    $('sources-silent-empty').style.display = silent.length ? 'none' : 'block';
+    $('sources-hint').textContent = health.length
+      ? fmt(health.length) + ' منبع بررسی شد · آستانهٔ سکوت ' + fmt(SILENT_HOURS) + ' ساعت'
+      : 'دادهٔ سلامت منابع در این به‌روزرسانی نیست';
+    $('sources-note').textContent = 'سکوت خبری یعنی فید پاسخ می‌دهد ولی در ' + fmt(SILENT_HOURS) +
+      ' ساعت گذشته خبر تازه‌ای نداشته است؛ منابعی که هیچ خبر تاریخ‌داری در داده ندارند (معمولاً ردشده در فیلترها) در این فهرست نمی‌آیند.' +
+      (mirrored.length ? ' ' + fmt(mirrored.length) + ' منبع از مسیر جایگزین یا آرشیو خوانده شد.' : '');
+  }
+
+  /* ---------------- پنل مدیر (قاب هم‌مبدأ) ---------------- */
+
+  (function () {
+    var overlay = $('admin-overlay');
+    var frame = $('admin-frame');
+    var opener = $('open-admin');
+    var closer = $('admin-close');
+    if (!overlay || !frame || !opener || !closer) return;
+
+    function openPanel(event) {
+      if (event) event.preventDefault();
+      // فقط یک‌بار بارگذاری می‌شود و بعد همان نشست را نگه می‌دارد.
+      if (!frame.getAttribute('src') || frame.getAttribute('src') === 'about:blank') frame.src = 'admin';
+      overlay.hidden = false;
+      document.body.style.overflow = 'hidden';
+      closer.focus();
+    }
+    function closePanel() {
+      overlay.hidden = true;
+      document.body.style.overflow = '';
+      opener.focus();
+    }
+
+    opener.addEventListener('click', openPanel);
+    closer.addEventListener('click', closePanel);
+    overlay.addEventListener('click', function (event) {
+      if (event.target === overlay) closePanel();
+    });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !overlay.hidden) closePanel();
+    });
+  })();
+
   /* ---------------- events ---------------- */
 
   var trendRange = $('trend-range');
@@ -1394,15 +1621,114 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     if (hint) hint.textContent = 'پخش زنده · ' + liveChannelById(liveState.channel).name;
   }
 
+  // نسخهٔ محلی hls.js از خود سایت سرو می‌شود و مسیر اصلی است. فقط یک آدرس CDN
+  // به‌عنوان آخرین گزینه نگه داشته شده تا اگر فایل vendor/ در دسترس نبود، پخش از
+  // دست نرود. سایر آینه‌های CDN حذف شدند.
+  // نسخه در آدرس آمده تا کش یک‌سالهٔ فایل محلی با آپدیت hls.js باطل شود
+  var HLS_LOCAL = 'vendor/hls.min.js?v=1.5.20';
+  var HLS_CDNS = [
+    'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js'
+  ];
+
+  function injectHlsScript(url, timeoutMs) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement('script');
+      var done = false;
+      var timer = setTimeout(function () {
+        if (done) return;
+        done = true;
+        s.remove();
+        reject(new Error('hls-timeout'));
+      }, timeoutMs);
+      s.src = url;
+      s.async = true;
+      s.onload = function () {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        resolve(window.Hls);
+      };
+      s.onerror = function () {
+        if (done) return;
+        done = true;
+        clearTimeout(timer);
+        s.remove();
+        reject(new Error('hls-script'));
+      };
+      document.head.appendChild(s);
+    });
+  }
+
+  // نشانگر کوچک: نشان می‌دهد hls.js از کدام مسیر آمده و چقدر طول کشیده
+  function hlsHostLabel(url) {
+    if (url === HLS_LOCAL || /^vendor\//.test(String(url))) return 'خود سایت';
+    try { return new URL(url).hostname.replace(/^www\./, ''); } catch (e) { return 'CDN'; }
+  }
+
+  function showHlsBadge(url, ms, version) {
+    var el = $('live-cdn');
+    if (!el) return;
+    var parts = ['hls.js'];
+    if (version) parts.push(String(version));
+    parts.push('از ' + hlsHostLabel(url));
+    if (isFinite(ms)) parts.push(fmt(ms) + ' میلی‌ثانیه');
+    el.textContent = parts.join(' · ');
+    el.hidden = false;
+  }
+
+  function showHlsInfoFromStore() {
+    var el = $('live-cdn');
+    if (el && !el.hidden && el.textContent) return;
+    var saved = storeGet('newsradar:hlsInfo', null);
+    if (saved && saved.url) showHlsBadge(saved.url, saved.ms, saved.version);
+  }
+
+  function showNativeBadge() {
+    var el = $('live-cdn');
+    if (!el) return;
+    el.textContent = 'پخش بومی مرورگر · بدون hls.js';
+    el.hidden = false;
+  }
+
   function loadHlsScript() {
-    if (window.Hls) return Promise.resolve(window.Hls);
+    if (window.Hls) { showHlsInfoFromStore(); return Promise.resolve(window.Hls); }
     if (liveState.script) return liveState.script;
     liveState.script = new Promise(function (resolve, reject) {
-      var s = document.createElement('script');
-      s.src = 'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js';
-      s.onload = function () { resolve(window.Hls); };
-      s.onerror = function () { liveState.script = null; reject(new Error('hls-script')); };
-      document.head.appendChild(s);
+      var startedAt = Date.now();
+      var settled = false;
+      function finish(url, Hls) {
+        if (settled) return;
+        settled = true;
+        var ms = Date.now() - startedAt;
+        storeSet('newsradar:hlsCdn', url);
+        storeSet('newsradar:hlsInfo', { url: url, ms: ms, version: String((Hls && Hls.version) || '') });
+        showHlsBadge(url, ms, Hls && Hls.version);
+        resolve(Hls);
+      }
+      // مسیر محلی همیشه اول و تنها مسیر عادی است؛ تا وقتی فایل vendor/hls.min.js
+      // از خود سایت می‌آید، هیچ درخواستی به CDN فرستاده نمی‌شود.
+      function loadLocal() {
+        injectHlsScript(HLS_LOCAL, 6000).then(function (Hls) {
+          if (Hls && typeof Hls.isSupported === 'function') { finish(HLS_LOCAL, Hls); return; }
+          loadFallback();
+        }).catch(loadFallback);
+      }
+      // آخرین گزینه: تنها اگر فایل محلی نبود یا خطا داد، همین یک CDN امتحان می‌شود
+      function loadFallback() {
+        if (settled) return;
+        var url = HLS_CDNS[0];
+        function giveUp() {
+          if (settled) return;
+          liveState.script = null;
+          reject(new Error('hls-all-sources-failed'));
+        }
+        if (!url) { giveUp(); return; }
+        injectHlsScript(url, 8000).then(function (Hls) {
+          if (Hls && typeof Hls.isSupported === 'function') { finish(url, Hls); return; }
+          giveUp();
+        }).catch(giveUp);
+      }
+      loadLocal();
     });
     return liveState.script;
   }
@@ -1507,6 +1833,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     }
     try {
       if (video.canPlayType('application/vnd.apple.mpegurl')) {
+        showNativeBadge();
         video.src = src;
       } else {
         var Hls = await loadHlsScript();
@@ -1579,8 +1906,93 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
 
   /* ---------------- همهٔ شبکه‌های ماهواره‌ای ---------------- */
 
-  var SAT_COUNTRIES_URL = 'https://iptv-org.github.io/api/countries.json';
-  var SAT_ALL_URL = 'https://iptv-org.github.io/iptv/index.m3u';
+  // آینه‌های iptv-org: اول GitHub Pages، بعد jsDelivr (cdn و fastly)، raw.githack و
+  // GitHub Raw (شاخهٔ gh-pages) تا اگر GitHub Pages در دسترس نبود، فهرست شبکه‌ها باز هم بیاید.
+  var SAT_IPTV_MIRRORS = [
+    'https://iptv-org.github.io/iptv',
+    'https://cdn.jsdelivr.net/gh/iptv-org/iptv@gh-pages',
+    'https://fastly.jsdelivr.net/gh/iptv-org/iptv@gh-pages',
+    'https://raw.githack.com/iptv-org/iptv/gh-pages',
+    'https://raw.githubusercontent.com/iptv-org/iptv/gh-pages'
+  ];
+  var SAT_COUNTRIES_URLS = [
+    'https://iptv-org.github.io/api/countries.json',
+    'https://cdn.jsdelivr.net/gh/iptv-org/api@gh-pages/countries.json',
+    'https://raw.githack.com/iptv-org/api/gh-pages/countries.json',
+    'https://raw.githubusercontent.com/iptv-org/api/gh-pages/countries.json'
+  ];
+
+  function satIptvUrls(file) {
+    return SAT_IPTV_MIRRORS.map(function (base) { return base + '/' + file; });
+  }
+
+  var SAT_ALL_URLS = satIptvUrls('index.m3u');
+
+  // وضعیت مسیر شبکه: کدام آینه‌های iptv-org از این دستگاه در دسترس‌اند.
+  // سایت خودش VPN اجرا نمی‌کند؛ این نشانگر فقط می‌گوید مسیر باز است یا نه.
+  var SAT_MIRROR_LABELS = {
+    'iptv-org.github.io': 'GitHub Pages',
+    'cdn.jsdelivr.net': 'jsDelivr',
+    'fastly.jsdelivr.net': 'jsDelivr (Fastly)',
+    'raw.githack.com': 'raw.githack',
+    'raw.githubusercontent.com': 'GitHub Raw'
+  };
+
+  function satMirrorLabel(base) {
+    try {
+      var host = new URL(base).hostname;
+      return SAT_MIRROR_LABELS[host] || host;
+    } catch (e) { return base; }
+  }
+
+  async function probeRouteStatus() {
+    var pill = $('route-pill');
+    var detail = $('route-detail');
+    if (!pill) return;
+    pill.className = 'route-pill';
+    pill.textContent = 'در حال بررسی آینه‌ها…';
+    var checks = await Promise.all(SAT_IPTV_MIRRORS.map(async function (base) {
+      var started = Date.now();
+      try {
+        var response = await fetch(base + '/languages/fas.m3u', { cache: 'no-store', signal: AbortSignal.timeout(7000) });
+        var body = response.ok ? await response.text() : '';
+        return { base: base, ok: response.ok && body.indexOf('#EXTM3U') >= 0, ms: Date.now() - started };
+      } catch (e) {
+        return { base: base, ok: false, ms: Date.now() - started };
+      }
+    }));
+    var open = checks.filter(function (c) { return c.ok; });
+    var names = open.map(function (c) { return satMirrorLabel(c.base); });
+    var fastest = open.slice().sort(function (a, b) { return a.ms - b.ms; })[0];
+    if (!open.length) {
+      pill.className = 'route-pill bad';
+      pill.textContent = 'همهٔ آینه‌ها بسته‌اند';
+      if (detail) detail.textContent = 'مسیر باز نشد؛ سایفون یا فیلترشکن دستگاه را روشن کن و صفحه را تازه کن.';
+    } else if (open.length === checks.length) {
+      pill.className = 'route-pill ok';
+      pill.textContent = 'مسیر باز · ' + open.length + ' از ' + checks.length + ' آینه';
+      if (detail) detail.textContent = 'آینه‌ها: ' + names.join('، ') + (fastest ? ' · سریع‌ترین ' + fastest.ms + 'ms' : '');
+    } else {
+      pill.className = 'route-pill warn';
+      pill.textContent = 'مسیر نیمه‌باز · ' + open.length + ' از ' + checks.length + ' آینه';
+      if (detail) detail.textContent = 'در دسترس: ' + names.join('، ') + ' · بقیه بسته‌اند؛ اگر پخشی نیامد سایفون را روشن کن.';
+    }
+  }
+
+  // اولین آینه‌ای که پاسخ سالم بدهد استفاده می‌شود
+  async function satFetchFirst(urls, options) {
+    var lastError = null;
+    for (var i = 0; i < urls.length; i++) {
+      try {
+        var response = await fetch(urls[i], options || {});
+        if (!response.ok) throw new Error('HTTP ' + response.status);
+        return response;
+      } catch (e) {
+        lastError = e;
+      }
+    }
+    throw lastError || new Error('all-mirrors-failed');
+  }
   var SAT_COUNTRY_NAMES = {
     IR: 'ایران', AF: 'افغانستان', TJ: 'تاجیکستان', US: 'آمریکا', GB: 'بریتانیا', DE: 'آلمان',
     FR: 'فرانسه', TR: 'ترکیه', AE: 'امارات', SA: 'عربستان', IQ: 'عراق', AZ: 'آذربایجان',
@@ -1638,8 +2050,19 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     return 'newsradar:satSource:' + (entry.id ? entry.id.split('@')[0] : entry.name);
   }
 
-  function satCountryUrl(code) {
-    return 'https://iptv-org.github.io/iptv/countries/' + String(code).toLowerCase() + '.m3u';
+  function satCountryUrls(code) {
+    return satIptvUrls('countries/' + String(code).toLowerCase() + '.m3u');
+  }
+
+  // اگر همهٔ آینه‌های فهرست کشورها بسته بود، گزینه‌ها از نقشهٔ نام‌های داخلی ساخته می‌شوند
+  function satCountryOptionsFromBuiltin() {
+    var items = Object.keys(SAT_COUNTRY_NAMES).map(function (code) { return { code: code }; });
+    items.sort(function (a, b) { return satCountryName(a.code).localeCompare(satCountryName(b.code), 'fa'); });
+    var options = ['<option value="">همهٔ کشورها</option>'];
+    items.forEach(function (country) {
+      options.push('<option value="' + country.code + '">' + esc(satCountryName(country.code)) + '</option>');
+    });
+    return options.join('');
   }
 
   function satCountryName(code) {
@@ -1682,8 +2105,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     var existing = $('sat-country');
     if (existing && existing.options.length > 5) return true;
     try {
-      var response = await fetch(SAT_COUNTRIES_URL, { cache: 'force-cache' });
-      if (!response.ok) return false;
+      var response = await satFetchFirst(SAT_COUNTRIES_URLS, { cache: 'force-cache' });
       var list = await response.json();
       if (!Array.isArray(list)) return false;
       var options = ['<option value="">همهٔ کشورها</option>'];
@@ -1716,9 +2138,16 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     loadSatCountries().then(function (ok) {
       var select = $('sat-country');
       if (!select) return;
-      if (!ok && !satState.list.length && attempt < 3) {
-        setTimeout(function () { ensureSatCountries(attempt + 1); }, 5000);
-        return;
+      if (!ok && !satState.list.length) {
+        if (attempt < 3) {
+          setTimeout(function () { ensureSatCountries(attempt + 1); }, 5000);
+          return;
+        }
+        // همهٔ آینه‌های فهرست کشورها پاسخ ندادند؛ گزینه‌ها از نقشهٔ داخلی پر می‌شوند
+        if (select.options.length <= 5) {
+          select.innerHTML = satCountryOptionsFromBuiltin();
+          select.value = 'IR';
+        }
       }
       loadSatList(select.value || 'IR');
     });
@@ -1737,8 +2166,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     if (hint) hint.textContent = 'در حال خواندن فهرست…';
     if (box) box.innerHTML = '';
     try {
-      var response = await fetch(code ? satCountryUrl(code) : SAT_ALL_URL, { cache: 'force-cache' });
-      if (!response.ok) throw new Error('HTTP ' + response.status);
+      var response = await satFetchFirst(code ? satCountryUrls(code) : SAT_ALL_URLS, { cache: 'force-cache' });
       var text = await response.text();
       if (token !== satState.token) return;
       var list = groupSatChannels(parseM3uText(text));
@@ -1810,6 +2238,8 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       video.load();
       video.hidden = true;
     }
+    var note = $('sat-player-note');
+    if (note) note.style.display = 'flex';
   }
 
   // یک شبکه ممکن است چند نشانی داشته باشد؛ نشانی که قبلاً جواب داده اول امتحان می‌شود
@@ -1851,6 +2281,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     if (!wrap || !video || !note || !entry) return;
     if (satState.retry) { clearTimeout(satState.retry); satState.retry = 0; }
     if (index >= urls.length) {
+      note.style.display = 'flex';
       note.textContent = 'همهٔ مسیرهای این شبکه بسته بودند؛ در ۲۰ ثانیه دوباره امتحان می‌شود';
       video.hidden = true;
       satState.retry = setTimeout(function () {
@@ -1867,6 +2298,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       wrap.hidden = false;
       wrap.scrollIntoView({ block: 'nearest' });
     }
+    note.style.display = 'flex';
     note.textContent = urls.length > 1
       ? 'بررسی مسیر ' + fmt(index + 1) + ' از ' + fmt(urls.length) + ' برای ' + entry.name + '…'
       : 'در حال اتصال به ' + entry.name + '…';
@@ -1884,6 +2316,8 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       var current = urls[index];
       hls.on(Hls.Events.MANIFEST_PARSED, function () {
         video.hidden = false;
+        // پخش که شروع شد، لایهٔ پیام کنار می‌رود تا نوار کنترل و دکمهٔ تمام‌صفحه آزاد باشد
+        note.style.display = 'none';
         note.textContent = '';
         storeSet(satSourceKey(entry), current);
         var played = video.play();
@@ -1935,6 +2369,8 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       playSat(entry, satAlternates(entry), 0);
     });
     ensureSatCountries(0);
+    probeRouteStatus();
+    setInterval(probeRouteStatus, 300000);
   })();
 
   (async function boot() {
