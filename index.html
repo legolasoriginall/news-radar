@@ -1768,6 +1768,10 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     stopLiveWatchdog();
     if (liveState && liveState.retry) { clearTimeout(liveState.retry); liveState.retry = 0; }
     if (liveState && liveState.hls) { try { liveState.hls.destroy(); } catch (e) { /* ignore */ } liveState.hls = null; }
+    if (liveState && liveState.nativeErrorHandler && video) {
+      video.removeEventListener('error', liveState.nativeErrorHandler);
+      liveState.nativeErrorHandler = null;
+    }
     if (video) {
       video.pause();
       video.removeAttribute('src');
@@ -1817,9 +1821,14 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     }
   }
 
-  async function startLiveSource(channel, index) {
+  async function startLiveSource(channel, index, forceHls) {
     var video = $('live-video');
     if (!video) return;
+    // شنوندهٔ خطای مسیر قبلی کنار می‌رود تا پخش تازه را خراب نکند
+    if (liveState.nativeErrorHandler) {
+      video.removeEventListener('error', liveState.nativeErrorHandler);
+      liveState.nativeErrorHandler = null;
+    }
     if (index >= channel.sources.length) {
       showLiveError();
       return;
@@ -1832,8 +1841,19 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       return;
     }
     try {
-      if (video.canPlayType('application/vnd.apple.mpegurl')) {
+      if (!forceHls && video.canPlayType('application/vnd.apple.mpegurl')) {
         showNativeBadge();
+        // اگر پخش بومی خطا داد (مثلاً VOA در کروم: MEDIA_ERR_SRC_NOT_SUPPORTED)،
+        // بدون دخالت کاربر همان مسیر با hls.js دوباره امتحان می‌شود.
+        var onNativeError = function () {
+          if (liveState.hls) return; // همین حالا hls.js پخش می‌کند؛ کاری لازم نیست
+          video.removeEventListener('error', onNativeError);
+          liveState.nativeErrorHandler = null;
+          try { video.removeAttribute('src'); video.load(); } catch (e) { /* ignore */ }
+          startLiveSource(channel, index, true);
+        };
+        liveState.nativeErrorHandler = onNativeError;
+        video.addEventListener('error', onNativeError);
         video.src = src;
       } else {
         var Hls = await loadHlsScript();
@@ -2214,7 +2234,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     satState.shown = list.slice(0, 300);
     box.innerHTML = satState.shown.map(function (entry, index) {
       var logo = entry.logo
-        ? '<img src="' + esc(entry.logo) + '" alt="" loading="lazy" onerror="this.style.opacity=0">'
+        ? '<img src="' + esc(entry.logo) + '" alt="" loading="lazy">'
         : '<img alt="" src="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23e2e8f0%27/%3E%3C/svg%3E">';
       var meta = [
         entry.group,
@@ -2361,6 +2381,11 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       if (wrap) wrap.hidden = true;
       loadSatList(select.value || '');
     });
+    // لوگوی خراب بی‌صدإ کنار برود؛ به‌جای onerror درون‌خطی که CSP آن را می‌بندد
+    list.addEventListener('error', function (event) {
+      var img = event.target;
+      if (img && img.tagName === 'IMG') img.style.opacity = '0';
+    }, true);
     list.addEventListener('click', function (event) {
       var button = event.target.closest ? event.target.closest('[data-index]') : null;
       if (!button) return;

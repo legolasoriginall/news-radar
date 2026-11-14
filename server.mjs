@@ -7,6 +7,7 @@ import { runPipeline } from './pipeline.mjs';
 import { fetchMarkets } from './src/markets.mjs';
 import { fetchTelegramFeeds, fetchTelegramFeed, addTelegramChannel, removeTelegramChannel, TELEGRAM_CHANNELS } from './src/telegram.mjs';
 import { parseSourceInput, parseChannelInput, looksLikeFeed, feedItemCount } from './src/custom.mjs';
+import { firstUrlIn } from './src/web.mjs';
 import { resolveLiveChannels, probeStream, LIVE_CHANNELS } from './src/live.mjs';
 import {
   collectIssues,
@@ -95,6 +96,74 @@ const ROOT = path.resolve('.');
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const INTERVAL_MS = UPDATE_INTERVAL_MINUTES * 60 * 1000;
+// setTimeout/setInterval بیش از ۲^۳۱−۱ میلی‌ثانیه را نمی‌پذیرند و بلافاصله اجرا می‌شوند؛
+// پس تأخیرها همیشه محدود می‌شوند تا تنظیم بازهٔ خیلی بزرگ باعث حلقهٔ به‌روزرسانی نشود.
+const MAX_TIMEOUT_MS = 2147483647;
+const clampDelay = (ms) => Math.min(Math.max(0, Number.isFinite(ms) ? ms : INTERVAL_MS), MAX_TIMEOUT_MS);
+
+// --- محدودیت نرخ ---------------------------------------------------------
+// هر مسیر عمومی/مدیر سهم خودش را از یک پنجرهٔ زمانی دارد تا یک کلاینت نتواند
+// با درخواست پیاپی، سرور را به کار سنگین (به‌روزرسانی، فچ بیرونی، اتصال زنده) وادار کند.
+const RATE_WINDOWS = {
+  api: { limit: 180, windowMs: 60 * 1000 },
+  live: { limit: 30, windowMs: 60 * 1000 },
+  refresh: { limit: 5, windowMs: 60 * 1000 },
+  login: { limit: 20, windowMs: 5 * 60 * 1000 },
+  admin: { limit: 120, windowMs: 60 * 1000 },
+};
+const rateBuckets = new Map();
+
+function clientIp(req) {
+  const direct = String(req.socket?.remoteAddress || 'unknown').replace(/^::ffff:/, '');
+  // آدرس واقعی فقط وقتی از هدر خوانده می‌شود که سرور پشت پروکسی مطمئن باشد؛
+  // وگرنه هر کلاینتی می‌تواند با X-Forwarded-For سهم بقیه را بخورد.
+  if (process.env.TRUST_PROXY === '1') {
+    const forwarded = String(req.headers['x-forwarded-for'] || '').split(',')[0].trim();
+    if (forwarded) return forwarded;
+  }
+  return direct;
+}
+
+function hitRate(key, limit, windowMs) {
+  const now = Date.now();
+  // سقف سخت: کلاینتی که با آدرس‌های تازه سطل می‌سازد نباید حافظه را بی‌نهایت کند.
+  if (rateBuckets.size > 5000) {
+    for (const [bucketKey, bucket] of rateBuckets) {
+      if (bucket.resetAt <= now) rateBuckets.delete(bucketKey);
+    }
+    while (rateBuckets.size > 5000) {
+      const oldest = rateBuckets.keys().next().value;
+      rateBuckets.delete(oldest);
+    }
+  }
+  let entry = rateBuckets.get(key);
+  if (!entry || entry.resetAt <= now) {
+    entry = { count: 0, resetAt: now + windowMs };
+    rateBuckets.set(key, entry);
+  }
+  entry.count += 1;
+  return { allowed: entry.count <= limit, retryAfter: Math.max(1, Math.ceil((entry.resetAt - now) / 1000)) };
+}
+
+function rateClassFor(pathname) {
+  if (pathname === '/admin/login') return 'login';
+  if (pathname === '/api/live') return 'live';
+  if (pathname === '/api/refresh') return 'refresh';
+  if (pathname.startsWith('/api/')) return 'api';
+  if (pathname.startsWith('/admin/')) return 'admin';
+  return '';
+}
+
+function enforceRateLimit(req, res, pathname) {
+  const bucket = rateClassFor(pathname);
+  if (!bucket) return true;
+  const config = RATE_WINDOWS[bucket];
+  const result = hitRate(`${bucket}:${clientIp(req)}`, config.limit, config.windowMs);
+  if (result.allowed) return true;
+  res.setHeader('Retry-After', String(result.retryAfter));
+  sendJson(res, 429, { error: 'درخواست‌های زیاد؛ چند لحظه بعد دوباره امتحان کن', retry_after: result.retryAfter });
+  return false;
+}
 
 const MIME = {
   '.html': 'text/html; charset=utf-8',
@@ -110,11 +179,66 @@ const MIME = {
   '.txt': 'text/plain; charset=utf-8',
 };
 
+// --- هدرهای امنیتی --------------------------------------------------------
+// اسکریپت‌ها nonce دارند و 'unsafe-inline' از script-src حذف شده است. هر پاسخ HTML
+// یک nonce تازه می‌گیرد و سرور آن را در تگ‌های <script> درون‌خطی می‌گذارد؛ 'strict-dynamic'
+// اجازه می‌دهد همان اسکریپت مورد اعتماد، hls.js را از CDN یا مسیر محلی بارگذاری کند.
+// استایل‌ها هنوز درون‌خطی‌اند، پس style-src همان 'unsafe-inline' را نگه می‌دارد.
+function buildCsp(nonce, isAdminPage) {
+  const directives = [
+    "default-src 'self'",
+    `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'`,
+    "style-src 'self' 'unsafe-inline' https:",
+    "img-src 'self' data: blob: https:",
+    "media-src 'self' data: blob: https:",
+    "connect-src 'self' https: blob:",
+    "font-src 'self' data: https:",
+    "worker-src 'self' blob:",
+    "object-src 'none'",
+    "base-uri 'self'",
+    "form-action 'self'",
+  ];
+  // پنل مدیر فقط در قاب هم‌مبدأ (داخل خود داشبورد) مجاز است
+  if (isAdminPage) directives.push("frame-ancestors 'self'");
+  return directives.join('; ');
+}
+
+// nonce را در تگ‌های <script> درون‌خطی می‌گذارد (تگ‌های دارای src دست نمی‌خورند)
+function withCspNonce(html, nonce) {
+  return String(html).replace(/<script(?![^>]*\bsrc=)([^>]*)>/gi, (tag, attrs) => `<script nonce="${nonce}"${attrs}>`);
+}
+
+function isSecureRequest(req) {
+  if (req.socket && req.socket.encrypted) return true;
+  return String(req.headers['x-forwarded-proto'] || '').split(',')[0].trim().toLowerCase() === 'https';
+}
+
+function applySecurityHeaders(req, res, pathname) {
+  const isAdminPage = pathname === '/admin' || pathname === '/admin/';
+  // هر پاسخ یک nonce تازه می‌گیرد؛ بدنهٔ HTML با همین مقدار تزریق می‌شود.
+  const nonce = randomBytes(16).toString('base64');
+  res.cspNonce = nonce;
+  res.setHeader('X-Content-Type-Options', 'nosniff');
+  res.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+  res.setHeader('Permissions-Policy', 'geolocation=(), microphone=(), camera=(), payment=()');
+  res.setHeader('Cross-Origin-Opener-Policy', 'same-origin');
+  res.setHeader('Content-Security-Policy', buildCsp(nonce, isAdminPage));
+  if (isAdminPage) {
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    res.setHeader('X-Robots-Tag', 'noindex');
+  }
+  // HSTS فقط روی درخواست HTTPS تا اجرای محلی با http خراب نشود.
+  if (isSecureRequest(req)) {
+    res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+  }
+}
+
 const state = {
   running: false,
   last_error: '',
   last_started_at: '',
   last_finished_at: '',
+  last_manual_at: 0,
   next_run_at: '',
   clients: new Set(),
 };
@@ -123,6 +247,12 @@ function broadcast(event, payload) {
   const message = `event: ${event}\ndata: ${JSON.stringify(payload)}\n\n`;
   for (const res of state.clients) {
     try {
+      // کلاینت کندی که بافر می‌فرستد نباید حافظه را پر کند؛ قطعش می‌کنیم.
+      if (res.writableLength > 512 * 1024) {
+        state.clients.delete(res);
+        res.destroy();
+        continue;
+      }
       res.write(message);
     } catch {
       state.clients.delete(res);
@@ -174,13 +304,14 @@ async function scheduleRefresh() {
   } else {
     state.next_run_at = new Date(lastTs + INTERVAL_MS).toISOString();
   }
+  const nextAt = new Date(state.next_run_at).getTime();
   setTimeout(function tick() {
     const startedAt = Date.now();
     refresh().finally(() => {
       const elapsed = Date.now() - startedAt;
-      setTimeout(tick, Math.max(5000, INTERVAL_MS - elapsed));
+      setTimeout(tick, clampDelay(Math.max(5000, INTERVAL_MS - elapsed)));
     });
-  }, Math.max(5000, new Date(state.next_run_at).getTime() - Date.now()));
+  }, clampDelay(Number.isFinite(nextAt) ? Math.max(5000, nextAt - Date.now()) : INTERVAL_MS));
 }
 
 function sendJson(res, status, payload) {
@@ -311,8 +442,9 @@ function isAdmin(req) {
   return verifySession(authState.secret, cookies[SESSION_COOKIE]);
 }
 
-function sessionCookie(secret) {
-  return `${SESSION_COOKIE}=${createSession(secret)}; Path=/; HttpOnly; SameSite=Strict; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`;
+function sessionCookie(secret, secure = false) {
+  const flags = `Path=/; HttpOnly; SameSite=Strict; Max-Age=${Math.floor(SESSION_TTL_MS / 1000)}`;
+  return `${SESSION_COOKIE}=${createSession(secret)}; ${flags}${secure ? '; Secure' : ''}`;
 }
 
 function tooManyAttempts(ip) {
@@ -329,11 +461,14 @@ function tooManyAttempts(ip) {
 
 async function serveAdminPage(res) {
   try {
-    const body = await readFile(path.join(ROOT, 'admin.html'));
+    const raw = await readFile(path.join(ROOT, 'admin.html'));
+    const body = res.cspNonce
+      ? Buffer.from(withCspNonce(raw.toString('utf8'), res.cspNonce), 'utf8')
+      : raw;
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
-      'X-Frame-Options': 'DENY',
+      'X-Frame-Options': 'SAMEORIGIN',
       'X-Robots-Tag': 'noindex',
       'Content-Length': body.length,
     });
@@ -344,11 +479,40 @@ async function serveAdminPage(res) {
   }
 }
 
+// فقط همین فایل‌ها و پوشه‌ها عمومی‌اند؛ هر چیز دیگری (کد سرور، پیکربندی،
+// فایل‌های نقطه‌ای و پوشه‌های داخلی) حتی با آدرس مستقیم هم سرو نمی‌شود.
+const PUBLIC_FILES = new Set(['/index.html', '/data.json', '/news.xlsx', '/favicon.ico']);
+const PUBLIC_DIRS = ['/vendor/'];
+
+function isPublicAsset(relative) {
+  if (PUBLIC_FILES.has(relative)) return true;
+  return PUBLIC_DIRS.some((dir) => relative.startsWith(dir) && relative.length > dir.length);
+}
+
 async function serveStatic(req, res, pathname) {
-  let relative = decodeURIComponent(pathname);
+  if (req.method !== 'GET' && req.method !== 'HEAD') {
+    res.setHeader('Allow', 'GET, HEAD');
+    res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('Method Not Allowed');
+    return;
+  }
+  let relative;
+  try {
+    relative = decodeURIComponent(pathname);
+  } catch {
+    res.writeHead(400, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('آدرس نامعتبر است');
+    return;
+  }
   if (relative === '/' || relative === '') relative = '/index.html';
+  if (!isPublicAsset(relative)) {
+    res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
+    res.end('یافت نشد');
+    return;
+  }
   const filePath = path.join(ROOT, relative);
-  if (!filePath.startsWith(ROOT) || relative.split('/').some((part) => part.startsWith('.'))) {
+  const rootPrefix = ROOT.endsWith(path.sep) ? ROOT : ROOT + path.sep;
+  if (!filePath.startsWith(rootPrefix) || relative.split('/').some((part) => part.startsWith('.'))) {
     res.writeHead(403);
     res.end('Forbidden');
     return;
@@ -356,12 +520,27 @@ async function serveStatic(req, res, pathname) {
   try {
     const info = await stat(filePath);
     if (!info.isFile()) throw new Error('not a file');
-    const body = await readFile(filePath);
+    const raw = await readFile(filePath);
     const ext = path.extname(filePath).toLowerCase();
+    const isHtml = ext === '.html';
+    // HTML هر بار nonce تازه می‌گیرد، پس نباید کش شود؛ بقیهٔ فایل‌ها:
+    // vendor با نسخه در آدرس → کش یک‌سالهٔ immutable، بقیه کوتاه‌مدت.
+    const body = isHtml && res.cspNonce
+      ? Buffer.from(withCspNonce(raw.toString('utf8'), res.cspNonce), 'utf8')
+      : raw;
+    const isVendorAsset = relative.startsWith('/vendor/');
+    const cacheControl = isHtml
+      ? 'no-store'
+      : ext === '.json'
+        ? 'no-store'
+        : isVendorAsset
+          ? 'public, max-age=31536000, immutable'
+          : 'public, max-age=60';
     res.writeHead(200, {
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'Content-Length': body.length,
-      'Cache-Control': ext === '.json' ? 'no-store' : 'public, max-age=60',
+      'Cache-Control': cacheControl,
+      'X-Content-Type-Options': 'nosniff',
     });
     res.end(body);
   } catch {
@@ -525,9 +704,31 @@ await loadAuthRecord();
 await loadAlertState();
 await loadCustomConfig();
 
-const server = createServer(async (req, res) => {
+async function handleRequest(req, res) {
   const url = new URL(req.url || '/', `http://${req.headers.host || 'localhost'}`);
   const pathname = url.pathname;
+
+  // محدودیت نرخ پیش از هر پردازش، تا درخواست پیاپی به کار سنگین نرسد.
+  if (!enforceRateLimit(req, res, pathname)) return;
+
+  // دفاع CSRF: درخواست تغییردهندهٔ پنل مدیر باید از همان میزبان صفحه باشد.
+  // مرورگرها برای POST همیشه Origin می‌فرستند؛ نبودنش (مثلاً curl) مشکلی نیست
+  // چون این مسیرها بدون نشست معتبر ۴۰۱ می‌گیرند.
+  if (req.method === 'POST' && (pathname === '/admin/login' || pathname.startsWith('/admin/api/'))) {
+    const origin = String(req.headers.origin || '');
+    if (origin) {
+      let originHost = '';
+      try {
+        originHost = new URL(origin).host;
+      } catch {
+        originHost = '';
+      }
+      if (!originHost || originHost !== String(req.headers.host || '')) {
+        sendJson(res, 403, { error: 'درخواست از مبدأ نامعتبر رد شد' });
+        return;
+      }
+    }
+  }
 
   if (pathname === '/admin' || pathname === '/admin/') {
     await serveAdminPage(res);
@@ -761,7 +962,7 @@ const server = createServer(async (req, res) => {
       return;
     }
     loginAttempts.delete(ip);
-    res.setHeader('Set-Cookie', sessionCookie(authState.secret));
+    res.setHeader('Set-Cookie', sessionCookie(authState.secret, isSecureRequest(req)));
     sendJson(res, 200, { ok: true });
     return;
   }
@@ -792,13 +993,16 @@ const server = createServer(async (req, res) => {
     };
     await saveAuthRecord(record);
     // نشست‌های قبلی با راز تازه نامعتبر می‌شوند و برای همین مرورگر نشست تازه صادر می‌شود.
-    res.setHeader('Set-Cookie', sessionCookie(authState.secret));
+    res.setHeader('Set-Cookie', sessionCookie(authState.secret, isSecureRequest(req)));
     sendJson(res, 200, { ok: true, updated_at: record.updated_at });
     return;
   }
 
   if (pathname === '/admin/logout') {
-    res.setHeader('Set-Cookie', `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0`);
+    res.setHeader(
+      'Set-Cookie',
+      `${SESSION_COOKIE}=; Path=/; HttpOnly; SameSite=Strict; Max-Age=0${isSecureRequest(req) ? '; Secure' : ''}`
+    );
     sendJson(res, 200, { ok: true });
     return;
   }
@@ -822,13 +1026,20 @@ const server = createServer(async (req, res) => {
         // بدون هیچ مدلی: پیام مدیر به یکی از دستورهای آماده تبدیل می‌شود
         const text = lastUser?.content;
         const intent = intentOf(text);
-        const args = intent === 'news_search' ? { query: queryOf(text), limit: 5 } : {};
-        if (!intent || (intent === 'news_search' && !args.query)) {
+        const args = intent === 'news_search' || intent === 'web_search'
+          ? { query: queryOf(text), limit: 5 }
+          : intent === 'read_url'
+            ? { url: firstUrlIn(text) }
+            : {};
+        const missing = (intent === 'news_search' || intent === 'web_search') && !args.query
+          || intent === 'read_url' && !args.url;
+        if (!intent || missing) {
           sendJson(res, 200, {
             reply: [
               'بدون مدل کار می‌کنم. این دستورها را می‌شناسم:',
               '«وضعیت سایت» · «سلامت پخش» · «گزارش منابع» · «موضوع‌های داغ»',
-              '«خبرهای دربارهٔ اقتصاد» (یا هر واژهٔ دیگر) · «به‌روزرسانی خبرها»',
+              '«خبرهای دربارهٔ اقتصاد» · «از اینترنت دربارهٔ قیمت دلار جستجو کن»',
+              '«این لینک را بخوان: https://…» · «به‌روزرسانی خبرها»',
             ].join('\n'),
             used: [],
             keyless: true,
@@ -887,17 +1098,34 @@ const server = createServer(async (req, res) => {
     return;
   }
 
-  if (pathname === '/api/refresh' && (req.method === 'POST' || req.method === 'GET')) {
+  if (pathname === '/api/refresh' && req.method === 'POST') {
+    const now = Date.now();
+    if (state.last_manual_at && now - state.last_manual_at < 15000) {
+      sendJson(res, 429, { ok: false, error: 'به‌روزرسانی دستی خیلی زود تکرار شد؛ چند لحظه بعد دوباره امتحان کن' });
+      return;
+    }
+    state.last_manual_at = now;
     const result = await refresh();
     sendJson(res, result.ok || result.running ? 200 : 500, result);
     return;
   }
 
   if (pathname === '/api/events') {
+    // اتصال زنده گران است (همیشه باز می‌ماند و هر کلاینت یک سوکت می‌گیرد)؛
+    // پس هم سقف کلی و هم سقف هر IP دارد تا حافظه با هزار اتصال پر نشود.
+    const ip = clientIp(req);
+    const perIp = ssePerIp.get(ip) || 0;
+    if (state.clients.size >= SSE_MAX_TOTAL || perIp >= SSE_MAX_PER_IP) {
+      res.setHeader('Retry-After', '30');
+      sendJson(res, 429, { error: 'اتصال‌های زندهٔ همزمان زیاد است؛ چند لحظه بعد دوباره وصل شو' });
+      return;
+    }
+    ssePerIp.set(ip, perIp + 1);
     res.writeHead(200, {
       'Content-Type': 'text/event-stream; charset=utf-8',
       'Cache-Control': 'no-store',
       Connection: 'keep-alive',
+      'X-Accel-Buffering': 'no',
     });
     res.write(`retry: 5000\n\n`);
     res.write(`event: hello\ndata: ${JSON.stringify({ interval_minutes: UPDATE_INTERVAL_MINUTES })}\n\n`);
@@ -905,15 +1133,64 @@ const server = createServer(async (req, res) => {
     const keepAlive = setInterval(() => {
       try { res.write(': ping\n\n'); } catch { /* ignore */ }
     }, 25000);
+    let closed = false;
     req.on('close', () => {
+      if (closed) return;
+      closed = true;
       clearInterval(keepAlive);
       state.clients.delete(res);
+      const left = (ssePerIp.get(ip) || 1) - 1;
+      if (left <= 0) ssePerIp.delete(ip);
+      else ssePerIp.set(ip, left);
     });
     return;
   }
 
   await serveStatic(req, res, pathname);
+}
+
+const server = createServer((req, res) => {
+  // هدرهای امنیتی برای همهٔ پاسخ‌ها (صفحه، API و فایل) پیش از هر نوشتن تنظیم می‌شوند.
+  const headerPath = String(req.url || '/').split('?')[0] || '/';
+  applySecurityHeaders(req, res, headerPath);
+  handleRequest(req, res).catch((error) => {
+    console.error('✖ خطای درخواست:', error);
+    if (!res.headersSent) {
+      res.writeHead(500, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
+      res.end(JSON.stringify({ error: 'خطای داخلی سرور' }));
+    } else {
+      try { res.end(); } catch { /* ignore */ }
+    }
+  });
 });
+
+server.on('error', (error) => {
+  console.error(`✖ سرور روی ${HOST}:${PORT} بالا نیامد:`, error?.message || error);
+  process.exitCode = 1;
+});
+
+// سقف اتصال‌های زندهٔ SSE
+const SSE_MAX_TOTAL = Number(process.env.SSE_MAX_TOTAL || 20);
+const SSE_MAX_PER_IP = Number(process.env.SSE_MAX_PER_IP || 6);
+const ssePerIp = new Map();
+
+// درخواست‌های کند و هدرهای حجیم زودتر بسته می‌شوند؛ اتصال زندهٔ SSE فقط پاسخ
+// را جریان می‌دهد و از این محدودیت آسیب نمی‌بیند.
+server.headersTimeout = 15000;
+server.requestTimeout = 30000;
+server.keepAliveTimeout = 10000;
+
+// پاک‌سازی دوره‌ای سطل‌های نرخ و ثبت تلاش‌های ورود تا با IPهای تازه بی‌نهایت بزرگ نشوند.
+const rateSweep = setInterval(() => {
+  const now = Date.now();
+  for (const [key, entry] of rateBuckets) {
+    if (entry.resetAt <= now) rateBuckets.delete(key);
+  }
+  for (const [ip, entry] of loginAttempts) {
+    if (now - entry.since > 10 * 60 * 1000) loginAttempts.delete(ip);
+  }
+}, 60000);
+if (typeof rateSweep.unref === 'function') rateSweep.unref();
 
 server.listen(PORT, HOST, () => {
   console.log(`› داشبورد رصد خبر روی http://${HOST}:${PORT} فعال شد (به‌روزرسانی هر ${UPDATE_INTERVAL_MINUTES} دقیقه)`);
@@ -922,5 +1199,5 @@ server.listen(PORT, HOST, () => {
   // هشدارها: یک‌بار کمی بعد از بالا آمدن سرور و بعد هر چند دقیقه یک‌بار
   const alertIntervalMs = Number(process.env.ALERT_INTERVAL_MINUTES || 10) * 60 * 1000;
   setTimeout(() => checkAlerts().catch(() => {}), 15000);
-  setInterval(() => checkAlerts().catch(() => {}), alertIntervalMs);
+  setInterval(() => checkAlerts().catch(() => {}), Math.min(Math.max(60000, alertIntervalMs), MAX_TIMEOUT_MS));
 });
