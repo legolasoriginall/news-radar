@@ -103,6 +103,11 @@
   </section>
 
   <section id="settings" hidden style="margin-top:14px">
+    <div class="card" id="chain-card" style="margin-bottom:14px">
+      <h2 style="font-size:15px;margin:0 0 4px">زنجیرهٔ به‌روزرسانی خودکار <span class="muted" id="chain-hint">در حال خواندن…</span></h2>
+      <p class="muted" id="chain-stats" style="margin:0">—</p>
+      <p class="muted" style="margin:6px 0 0">آمار از نسخهٔ تازه‌ترِ مخزن یا سایت خوانده می‌شود تا یک اجرا عقب نماند.</p>
+    </div>
     <div class="card" id="github-card" style="margin-bottom:14px" hidden>
       <h2 style="font-size:15px;margin:0 0 4px">ذخیرهٔ تنظیمات در گیت‌هاب</h2>
       <p class="muted">این نسخه روی GitHub Pages اجرا می‌شود و سرور ندارد؛ برای اینکه تنظیمات برای همه و در سایت منتشرشده ذخیره شود، پنل فایل <code>settings.json</code> را با توکن شخصی گیت‌هاب در مخزن به‌روز می‌کند و گردش‌کار سایت را با همان تنظیمات بازمی‌سازد.</p>
@@ -350,6 +355,65 @@
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var payload = await res.json();
     return (payload.workflow_runs && payload.workflow_runs[0]) || null;
+  }
+
+  // آمار زنجیره: نسخهٔ منتشرشده یک اجرا عقب‌تر از مخزن است، پس تازه‌ترِ آن دو خوانده می‌شود.
+  var CHAIN_REMOTE = 'https://raw.githubusercontent.com/legolasoriginall/news-radar/main/chain-log.json';
+
+  async function chainFile(url) {
+    var res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var list = await res.json();
+    return Array.isArray(list) ? list : [];
+  }
+
+  function chainStamp(list) {
+    var newest = 0;
+    list.forEach(function (run) {
+      var at = Date.parse(run && run.at);
+      if (isFinite(at) && at > newest) newest = at;
+    });
+    return newest;
+  }
+
+  async function loadChainCard() {
+    var hint = el('chain-hint');
+    var box = el('chain-stats');
+    if (!hint || !box) return;
+    try {
+      var both = await Promise.all([
+        chainFile('chain-log.json?_=' + Date.now()).catch(function () { return null; }),
+        chainFile(CHAIN_REMOTE + '?t=' + Date.now()).catch(function () { return null; })
+      ]);
+      var log = both[0];
+      var fromRepo = false;
+      if (both[1] && (!log || chainStamp(both[1]) > chainStamp(log))) {
+        log = both[1];
+        fromRepo = true;
+      }
+      if (!log) throw new Error('chain-log unavailable');
+      var stats = { runs: log.length, dataFail: 0, artFail: 0, deployFail: 0, rescued: 0 };
+      log.forEach(function (run) {
+        ['data', 'artifact', 'deploy'].forEach(function (key) {
+          var part = run[key] || {};
+          if (part.attempts && !part.ok) {
+            if (key === 'data') stats.dataFail += 1;
+            else if (key === 'artifact') stats.artFail += 1;
+            else stats.deployFail += 1;
+          }
+          if (part.attempts > 1 && part.ok) stats.rescued += 1;
+        });
+      });
+      function fa(value) { return Number(value).toLocaleString('fa-IR'); }
+      box.textContent = fa(stats.runs) + ' اجرا · شکست تولید داده ' + fa(stats.dataFail) +
+        ' · شکست بارگذاری ' + fa(stats.artFail) + ' · شکست انتشار ' + fa(stats.deployFail) +
+        ' · نجات با تلاش دوباره ' + fa(stats.rescued);
+      var last = log[log.length - 1];
+      hint.textContent = (fromRepo ? 'تازه‌ترین از مخزن' : 'از نسخهٔ منتشرشده') +
+        (last && last.at ? ' · آخرین اجرا ' + formatDate(last.at) : '');
+    } catch (error) {
+      hint.textContent = 'وضعیت زنجیره در دسترس نیست';
+    }
   }
 
   async function refreshBuildStatus() {
@@ -619,6 +683,7 @@
       ? 'این صفحه روی گیت‌هاب نیست؛ ذخیرهٔ مخزنی فقط در GitHub Pages کار می‌کند'
       : REPO.owner + '/' + REPO.repo + (github.token ? ' · توکن ذخیره شده است' : ' · برای ذخیره، توکن لازم است');
     loadSettings();
+    loadChainCard();
     if (github.token) refreshBuildStatus();
     var localOpen = el('local-admin-open');
     var localUrlInput = el('local-admin-url');
@@ -660,6 +725,7 @@
     el('no-key').hidden = Boolean(session.model_available);
     el('tg-card').hidden = false;
     loadTelegramCard(false);
+    loadChainCard();
     loadAlerts();
     if (!state.alertTimer) state.alertTimer = setInterval(loadAlerts, 30000);
     loadCustom();
