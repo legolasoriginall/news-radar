@@ -108,16 +108,50 @@ jobs:
           node - <<'NODE'
           const fs = require('fs');
           const data = JSON.parse(fs.readFileSync('_site/data.json', 'utf8'));
-          const keys = ['generated_at', 'next_update_at', 'update_interval_minutes', 'stats', 'markets',
-            'articles', 'stories', 'telegram', 'topics', 'translations', 'source_health', 'settings'];
-          const feed = {};
-          keys.forEach((key) => { if (key in data) feed[key] = data[key]; });
           const byDate = (a, b) => new Date(b.published) - new Date(a.published);
-          feed.articles = (data.articles || []).slice().sort(byDate).slice(0, 500);
-          feed.stories = (data.stories || []).slice(0, 12);
+          // فیلدهایی که صفحهٔ اصلی واقعاً می‌خواند؛ بقیه (کلیدواژه، عنوان خوشه، امتیازها) 
+          // فقط حجم اضافه‌اند و از نسخهٔ سبک حذف می‌شوند.
+          const ART_KEYS = ['uid', 'source_id', 'source_name', 'lang', 'title', 'title_fa', 'link',
+            'telegram', 'summary', 'summary_fa', 'published', 'is_new', 'topics', 'sources', 'source_count'];
+          const STORY_KEYS = ['title', 'title_fa', 'url', 'telegram', 'published', 'sentiment',
+            'primary_source', 'source_count'];
+          const trimArticle = (a) => {
+            const out = {};
+            ART_KEYS.forEach((key) => { if (a[key] !== undefined && a[key] !== null) out[key] = a[key]; });
+            if (a.translation && a.translation.is_translation) out.translation = { is_translation: true };
+            if (Array.isArray(out.topics)) out.topics = out.topics.map((t) => (t && typeof t === 'object' && t.name ? { name: t.name } : t));
+            return out;
+          };
+          const trimStory = (s) => {
+            const out = {};
+            STORY_KEYS.forEach((key) => { if (s[key] !== undefined && s[key] !== null) out[key] = s[key]; });
+            if (Array.isArray(s.sources)) out.sources = s.sources.map((src) => (src && src.name ? { name: src.name } : src));
+            return out;
+          };
+          const articles = (data.articles || []).slice().sort(byDate).map(trimArticle);
+          const HEAD = 200;   // همراه صفحهٔ اصلی
+          const MORE = 400;   // با «نمایش بیشتر» خوانده می‌شود
+          const feed = {};
+          ['generated_at', 'next_update_at', 'update_interval_minutes', 'stats', 'markets',
+            'topics', 'translations', 'source_health', 'settings'].forEach((key) => {
+            if (key in data) feed[key] = data[key];
+          });
+          feed.articles = articles.slice(0, HEAD);
+          feed.stories = (data.stories || []).slice(0, 12).map(trimStory);
+          // فهرست تلگرام (حدود ۲۰۰ کیلوبایت) فقط وقتی بخشش در دید بیاید در فایل جدا خوانده می‌شود.
+          const telegram = data.telegram || {};
+          feed.telegram = { posts: [], channels: Array.isArray(telegram.channels) ? telegram.channels : [], deferred: true };
           fs.writeFileSync('_site/feed.json', JSON.stringify(feed));
+          fs.writeFileSync('_site/feed-more.json', JSON.stringify({
+            generated_at: data.generated_at,
+            articles: articles.slice(HEAD, HEAD + MORE)
+          }));
+          fs.writeFileSync('_site/telegram.json', JSON.stringify({
+            generated_at: data.generated_at,
+            telegram: { posts: Array.isArray(telegram.posts) ? telegram.posts : [], channels: Array.isArray(telegram.channels) ? telegram.channels : [] }
+          }));
           NODE
-          ls -lh _site/feed.json
+          ls -lh _site/feed.json _site/feed-more.json _site/telegram.json
           # فهرست‌های پخش ماهواره به‌صورت محلی هم منتشر می‌شوند تا بازکردن این بخش به
           # میزبان‌های خارجی که از ایران کند یا بسته‌اند وابسته نباشد. اگر دانلود نشد،
           # سایت همان آینه‌های عمومی را امتحان می‌کند و چیزی نمی‌شکند.

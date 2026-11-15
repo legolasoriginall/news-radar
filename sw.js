@@ -6,13 +6,18 @@
  *   و اگر شبکه نبود نسخهٔ ذخیره‌شده نمایش داده می‌شود.
  * نام کش‌ها با نام مخزن شروع می‌شود چون دامنهٔ github.io بین همهٔ پروژه‌ها مشترک است.
  */
-const VERSION = 'news-radar-v1';
+const VERSION = 'news-radar-v2';
 const SHELL_CACHE = VERSION + '-shell';
 const DATA_CACHE = VERSION + '-data';
 
 const BASE = self.registration.scope; // مثلاً https://user.github.io/news-radar/
 const SHELL_KEY = new URL('index.html', BASE).href;
-const DATA_FILES = [new URL('feed.json', BASE).pathname, new URL('data.json', BASE).pathname];
+const DATA_FILES = [
+  new URL('feed.json', BASE).pathname,
+  new URL('feed-more.json', BASE).pathname,
+  new URL('telegram.json', BASE).pathname,
+  new URL('data.json', BASE).pathname
+];
 
 self.addEventListener('install', () => self.skipWaiting());
 

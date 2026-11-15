@@ -811,6 +811,66 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   var STATIC_HOST = /\.github\.io$/i.test(location.hostname);
   // نسخهٔ منتشرشده یک فایل سبک‌تر (feed.json) دارد؛ در اجرای محلی همان data.json به کار می‌رود.
   var FEED_FILE = 'feed.json';
+  // خبرهای بعدی و فهرست تلگرام همراه فایل اول نمی‌آیند تا باز شدن صفحه سبک بماند؛
+  // هرکدام یک‌بار و فقط وقتی لازم شد خوانده و برای نوسازی‌های بعدی نگه داشته می‌شوند.
+  var moreArticles = [];
+  var moreLoaded = false;
+  var moreBusy = false;
+  var telegramCache = null;
+  var telegramBusy = false;
+
+  function appendArticles(target, extra) {
+    if (!target || !Array.isArray(target.articles) || !Array.isArray(extra)) return;
+    var seen = {};
+    target.articles.forEach(function (article) { seen[article.uid || article.link] = true; });
+    extra.forEach(function (article) {
+      var key = article.uid || article.link;
+      if (!key || seen[key]) return;
+      seen[key] = true;
+      target.articles.push(article);
+    });
+  }
+
+  async function ensureMoreArticles() {
+    if (moreLoaded || moreBusy || !state.data) return;
+    // در اجرای محلی، data.json از ابتدا همهٔ خبرها را دارد و فایل دومی وجود ندارد.
+    if (FEED_FILE === 'data.json') { moreLoaded = true; return; }
+    moreBusy = true;
+    try {
+      var res = await fetch('feed-more.json', { cache: 'no-cache' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var json = await res.json();
+      moreArticles = Array.isArray(json.articles) ? json.articles : [];
+      appendArticles(state.data, moreArticles);
+      moreLoaded = true;
+      renderFeed();
+    } catch (error) {
+      moreLoaded = true; // جلوگیری از تلاش پشت‌سرهم روی اتصال قطع
+    } finally {
+      moreBusy = false;
+    }
+  }
+
+  async function ensureTelegram() {
+    if (telegramCache || telegramBusy || !state.data) return;
+    // سرور محلی خودش فیلتر تلگرام را زنده می‌خواند؛ نسخهٔ استاتیک از فایل جدا می‌آید.
+    if (!STATIC_HOST && FEED_FILE === 'data.json') return;
+    telegramBusy = true;
+    try {
+      var res = await fetch('telegram.json', { cache: 'no-cache' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var json = await res.json();
+      if (json && json.telegram) {
+        telegramCache = json.telegram;
+        state.data.telegram = telegramCache;
+        renderTelegram();
+      }
+    } catch (error) {
+      telegramBusy = false;
+      return;
+    }
+    telegramBusy = false;
+  }
   async function fetchFeed() {
     var res = await fetch(FEED_FILE, { cache: 'no-cache' });
     if (!res.ok && FEED_FILE !== 'data.json') {
@@ -854,6 +914,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         if (isFinite(dataSilent) && dataSilent > 0) SILENT_HOURS = dataSilent;
       }
       var changed = data.generated_at !== state.generatedAt;
+      if (moreArticles.length) appendArticles(data, moreArticles);
+      if (telegramCache) data.telegram = telegramCache;
       state.data = data;
       state.generatedAt = data.generated_at;
       REFRESH_MINUTES = Number(data.update_interval_minutes || 5);
@@ -1850,7 +1912,9 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     });
   }
 
-  $('more').addEventListener('click', function () {
+  $('more').addEventListener('click', async function () {
+    if (!state.data) return;
+    if (state.page + PAGE * 2 > (state.data.articles || []).length) await ensureMoreArticles();
     state.page += PAGE * 2;
     renderFeed();
   });
@@ -3440,6 +3504,31 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         }, 1200);
       });
     })();
+  })();
+
+  // فهرست تلگرام حدود ۲۰۰ کیلوبایت است؛ تا نزدیک‌شدن بخشش خوانده نمی‌شود.
+  (function watchTelegramSection() {
+    var listEl = $('telegram-list');
+    var section = listEl && listEl.closest ? listEl.closest('section') : null;
+    if (!section) return;
+    if ('IntersectionObserver' in window) {
+      var io = new IntersectionObserver(function (entries) {
+        entries.forEach(function (entry) {
+          if (!entry.isIntersecting) return;
+          io.disconnect();
+          ensureTelegram();
+        });
+      }, { rootMargin: '600px' });
+      io.observe(section);
+      // اگر بخش از ابتدا در دید بود (صفحهٔ بزرگ)، پس از بارشدن صفحه یک‌بار امتحان شود
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          if (section.getBoundingClientRect().top < window.innerHeight) ensureTelegram();
+        }, 1200);
+      });
+    } else {
+      ensureTelegram();
+    }
   })();
 
   // سرویس‌ورکر: بازدید دوباره فایل داده را از دیسک می‌خواند و نسخهٔ تازه را
