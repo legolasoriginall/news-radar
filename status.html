@@ -284,13 +284,23 @@ footer { color: var(--muted); font-size: 11.6px; padding: 0 0 26px; }
     });
   }
 
+  // صفحهٔ وضعیت فقط به سلامت منابع نیاز دارد؛ نسخهٔ سبک را می‌خواند و اگر نبود به data.json برمی‌گردد.
+  async function loadHealth() {
+    try {
+      var light = await fetch('health.json?_=' + Date.now(), { cache: 'no-store' });
+      if (light.ok) return await light.json();
+    } catch (error) { /* نسخهٔ سبک نیست؛ دادهٔ کامل */ }
+    var full = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
+    return full.json();
+  }
+
   async function load() {
     try {
       var results = await Promise.all([
-        fetch('data.json?_=' + Date.now(), { cache: 'no-store' }),
+        loadHealth(),
         fetch('api/status?_=' + Date.now(), { cache: 'no-store' }).catch(function () { return null; })
       ]);
-      var data = await results[0].json();
+      var data = results[0];
       state.health = Array.isArray(data.source_health) ? data.source_health : [];
       state.generated_at = data.generated_at || '';
       if (results[1] && results[1].ok) {

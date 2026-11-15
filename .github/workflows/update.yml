@@ -160,8 +160,33 @@ jobs:
             generated_at: data.generated_at,
             telegram: { posts: Array.isArray(telegram.posts) ? telegram.posts : [], channels: Array.isArray(telegram.channels) ? telegram.channels : [] }
           }));
+          // پنل مدیر و صفحهٔ وضعیت کل data.json (چند مگابایت) را نمی‌خواهند؛ هر صفحه
+          // فایل سبک خودش را می‌گیرد: سلامت منابع برای وضعیت، خلاصهٔ کاری برای پنل مدیر.
+          const HEALTH_KEYS = ['id', 'name', 'lang', 'ok', 'elapsed_ms', 'success_percent', 'count', 'error', 'via', 'mirror'];
+          const health = (data.source_health || []).map((source) => {
+            const out = {};
+            HEALTH_KEYS.forEach((key) => { if (source[key] !== undefined && source[key] !== null) out[key] = source[key]; });
+            return out;
+          });
+          fs.writeFileSync('_site/health.json', JSON.stringify({ generated_at: data.generated_at, source_health: health }));
+          const STAT_KEYS = ['total', 'stories', 'multi_source_stories', 'fresh_24h', 'sources_ok', 'sources_total'];
+          const summaryStats = {};
+          STAT_KEYS.forEach((key) => { if (data.stats && data.stats[key] !== undefined) summaryStats[key] = data.stats[key]; });
+          const marketItems = (Array.isArray(data.markets) ? data.markets : ((data.markets && data.markets.items) || [])).slice(0, 14)
+            .map((item) => ({ label: item.label, value: item.value, unit: item.unit, change_percent: item.change_percent }));
+          fs.writeFileSync('_site/summary.json', JSON.stringify({
+            generated_at: data.generated_at,
+            stats: summaryStats,
+            topics: (data.topics || []).slice(0, 12).map((topic) => ({ name: topic.name, count: topic.count })),
+            markets: { items: marketItems },
+            summary_lines: (data.summary_lines || []).slice(0, 4),
+            source_health: health,
+            articles: articles.slice(0, 40).map((article) => ({
+              title: article.title, title_fa: article.title_fa, source_name: article.source_name, published: article.published
+            }))
+          }));
           NODE
-          ls -lh _site/feed.json _site/feed-more-*.json _site/telegram.json
+          ls -lh _site/feed.json _site/feed-more-*.json _site/telegram.json _site/summary.json _site/health.json
           # فهرست‌های پخش ماهواره به‌صورت محلی هم منتشر می‌شوند تا بازکردن این بخش به
           # میزبان‌های خارجی که از ایران کند یا بسته‌اند وابسته نباشد. اگر دانلود نشد،
           # سایت همان آینه‌های عمومی را امتحان می‌کند و چیزی نمی‌شکند.

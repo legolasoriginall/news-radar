@@ -719,10 +719,17 @@
   async function siteContext() {
     if (SITE_CTX && Date.now() - SITE_CTX_AT < 300000) return SITE_CTX;
     var data = null;
+    // نسخهٔ سبک سایت برای همین کار ساخته شده؛ اگر نبود، دادهٔ کامل خوانده می‌شود.
     try {
-      var res = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
+      var res = await fetch('summary.json?_=' + Date.now(), { cache: 'no-store' });
       if (res.ok) data = await res.json();
     } catch (error) { data = null; }
+    if (!data) {
+      try {
+        var full = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
+        if (full.ok) data = await full.json();
+      } catch (error) { data = null; }
+    }
     if (!data) { SITE_CTX = 'دادهٔ سایت در دسترس نیست.'; SITE_CTX_AT = Date.now(); return SITE_CTX; }
     var stats = data.stats || {};
     var lines = [
@@ -885,10 +892,18 @@
     var info = el('tg-info');
     if (info && manual) info.textContent = 'در حال خواندن…';
     try {
-      var res = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      var data = await res.json();
-      var feed = (data && data.telegram) || {};
+      // فهرست تلگرام در فایل جدا و تنبل منتشر می‌شود؛ نسخهٔ کامل fallback است.
+      var res = await fetch('telegram.json?_=' + Date.now(), { cache: 'no-store' });
+      var feed = null;
+      if (res.ok) {
+        var payload = await res.json();
+        feed = (payload && payload.telegram) || {};
+      } else {
+        var full = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
+        if (!full.ok) throw new Error('HTTP ' + full.status);
+        var data = await full.json();
+        feed = (data && data.telegram) || {};
+      }
       tgState.posts = Array.isArray(feed.posts) ? feed.posts : [];
       tgState.channels = Array.isArray(feed.channels) ? feed.channels : [];
       var select = el('tg-channel');
