@@ -2664,6 +2664,16 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   }
 
   async function loadSatList(code) {
+    // در دستهٔ ۱۸+ همهٔ شبکه‌ها حتی بی‌پخش‌ها نمایش داده می‌شوند تا فهرست خالی نماند.
+    if (code === 'ADULT') {
+      satState.showDead = true;
+      var sd = $('sat-show-dead');
+      if (sd) sd.checked = false;
+    } else {
+      satState.showDead = false;
+      var sd2 = $('sat-show-dead');
+      if (sd2) sd2.checked = true;
+    }
     var key = code || 'all';
     var token = ++satState.token;
     if (satState.cache[key]) {
