@@ -123,6 +123,19 @@
       <p id="live-current" class="muted" style="margin:0 0 8px">پخش فعال: ندارد</p>
       <div id="live-paths"></div>
     </div>
+    <div class="card" id="sources-card" style="margin-bottom:14px">
+      <h2 style="font-size:15px;margin:0 0 4px">سلامت منابع خبری <span class="muted" id="admin-sources-hint">—</span></h2>
+      <p class="muted" id="admin-sources-summary" style="margin:0 0 8px">—</p>
+      <ul class="custom-list" id="admin-sources-broken"></ul>
+      <p class="muted" id="admin-sources-broken-empty" hidden>همهٔ فیدها پاسخ داده‌اند.</p>
+      <ul class="custom-list" id="admin-sources-silent"></ul>
+      <p class="muted" id="admin-sources-silent-empty" hidden>هیچ منبعی در این بازه ساکت نبوده است.</p>
+      <ul class="custom-list" id="admin-sources-mirrors" hidden></ul>
+      <p class="muted" id="admin-sources-note" style="margin:8px 0 0"></p>
+      <div class="row" style="margin-top:8px">
+        <a class="muted" id="admin-sources-status-link" target="_blank" rel="noopener">صفحهٔ وضعیت ↗</a>
+      </div>
+    </div>
     <div class="card" id="ops-card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">اجرا و انتشار</h2>
       <p class="muted">هر تغییر در تنظیمات یا منابع، خودکار بازسازی را شروع می‌کند؛ از اینجا می‌توانی بی‌صبرانه یک اجرای تازه هم شروع کنی و نتیجه‌اش را زنده ببینی. اجرای کامل حدود ۱۵ دقیقه طول می‌کشد.</p>
@@ -567,6 +580,7 @@
     var targets = {
       'link-site': site,
       'link-status': site + 'status.html',
+      'admin-sources-status-link': site + 'status.html',
       'link-actions': repoPath('/actions/workflows/update.yml'),
       'link-pages': repoPath('/settings/pages'),
       'link-repo': repoPath(''),
@@ -1068,6 +1082,179 @@
     if (hint) hint.textContent = anyTested ? 'آزموده شده' : 'هنوز آزمونی انجام نشده';
   }
 
+  var SILENT_HOURS = 24;
+
+  function latestBySourceAdmin(articles) {
+    var map = {};
+    (articles || []).forEach(function (article) {
+      if (!article) return;
+      var id = article.source_id;
+      var ts = Date.parse(article.published);
+      if (!id || !isFinite(ts)) return;
+      if (!map[id] || ts > map[id]) map[id] = ts;
+    });
+    return map;
+  }
+
+  function adminSourceEsc(value) {
+    return tgEscape(value);
+  }
+
+  function adminSourceMeta(source) {
+    var meta = [];
+    if (source.lang) meta.push(source.lang === 'fa' ? 'فارسی' : 'انگلیسی');
+    if (isFinite(Number(source.elapsed_ms))) meta.push('زمان پاسخ: ' + Number(source.elapsed_ms).toLocaleString('fa-IR') + ' میلی‌ثانیه');
+    if (isFinite(Number(source.success_percent))) meta.push('موفقیت: ' + Number(source.success_percent).toLocaleString('fa-IR') + '٪');
+    if (isFinite(Number(source.count))) meta.push('در داده: ' + Number(source.count).toLocaleString('fa-IR') + ' خبر');
+    return meta;
+  }
+
+  function renderAdminSourceHealth(data) {
+    var health = Array.isArray(data && data.source_health) ? data.source_health : [];
+    var articles = Array.isArray(data && data.articles) ? data.articles : [];
+    var latest = latestBySourceAdmin(articles);
+    var broken = [];
+    var silent = [];
+    health.forEach(function (source) {
+      if (!source || !source.ok) { if (source) broken.push(source); return; }
+      var ts = latest[source.id];
+      if (!ts) return;
+      var hours = (Date.now() - ts) / 3600000;
+      if (hours > SILENT_HOURS) silent.push({ source: source, ts: ts, hours: hours });
+    });
+    silent.sort(function (a, b) { return b.hours - a.hours; });
+    var healthy = health.length - broken.length;
+    var mirrored = health.filter(function (source) { return source && source.mirror; });
+
+    var summary = el('admin-sources-summary');
+    if (summary) summary.textContent = 'کل ' + health.length.toLocaleString('fa-IR') +
+      ' · سالم ' + healthy.toLocaleString('fa-IR') +
+      ' · خراب ' + broken.length.toLocaleString('fa-IR') +
+      ' · سکوت ' + silent.length.toLocaleString('fa-IR') +
+      ' · آینه ' + mirrored.length.toLocaleString('fa-IR');
+
+    var hint = el('admin-sources-hint');
+    if (hint) hint.textContent = health.length
+      ? health.length.toLocaleString('fa-IR') + ' منبع · آستانهٔ سکوت ' + SILENT_HOURS.toLocaleString('fa-IR') + ' ساعت'
+      : 'داده‌ای نیست';
+
+    var brokenList = el('admin-sources-broken');
+    if (brokenList) {
+      brokenList.innerHTML = broken.map(function (source) {
+        var name = source.name || source.id || 'منبع ناشناخته';
+        var meta = adminSourceMeta(source);
+        var recheck = (!github.static && source.id)
+          ? '<br><button type="button" class="ghost" style="font-size:12px;padding:4px 10px;margin-top:6px" data-source-id="' + adminSourceEsc(source.id) + '">بررسی مجدد</button>' +
+            '<span class="muted" style="font-size:11.5px;margin-right:8px" data-check-for="' + adminSourceEsc(source.id) + '"></span>'
+          : '';
+        return '<li><span><b>' + adminSourceEsc(name) + '</b>' +
+          (source.url ? '<br><a href="' + adminSourceEsc(source.url) + '" target="_blank" rel="noopener noreferrer nofollow" dir="ltr" style="font-size:11.5px;word-break:break-all">' + adminSourceEsc(source.url) + '</a>' : '') +
+          '<br><span style="color:#b91c1c;font-size:12px">' + adminSourceEsc(source.error || source.status || 'بی‌پاسخ') + '</span>' +
+          (meta.length ? '<br><span class="muted" style="font-size:11.5px">' + adminSourceEsc(meta.join(' · ')) + '</span>' : '') +
+          recheck + '</span></li>';
+      }).join('');
+    }
+    var brokenEmpty = el('admin-sources-broken-empty');
+    if (brokenEmpty) brokenEmpty.hidden = broken.length > 0;
+
+    var silentList = el('admin-sources-silent');
+    if (silentList) {
+      silentList.innerHTML = silent.map(function (entry) {
+        var source = entry.source;
+        var name = source.name || source.id || 'منبع ناشناخته';
+        var lastIso = new Date(entry.ts).toISOString();
+        var meta = [
+          'آخرین خبر: ' + (typeof dateTime === 'function' ? dateTime(lastIso) : new Date(lastIso).toLocaleString('fa-IR')) + ' (' + Math.round(entry.hours) + ' ساعت پیش)',
+          'سکوت: ' + (entry.hours >= 48 ? Math.floor(entry.hours / 24) + ' روز' : Math.max(1, Math.floor(entry.hours)) + ' ساعت'),
+        ];
+        if (isFinite(Number(source.count))) meta.push('در داده: ' + Number(source.count).toLocaleString('fa-IR') + ' خبر');
+        return '<li><span><b>' + adminSourceEsc(name) + '</b>' +
+          (source.url ? '<br><a href="' + adminSourceEsc(source.url) + '" target="_blank" rel="noopener noreferrer nofollow" dir="ltr" style="font-size:11.5px;word-break:break-all">' + adminSourceEsc(source.url) + '</a>' : '') +
+          '<br><span class="muted" style="font-size:11.5px">' + adminSourceEsc(meta.join(' · ')) + '</span></span></li>';
+      }).join('');
+    }
+    var silentEmpty = el('admin-sources-silent-empty');
+    if (silentEmpty) silentEmpty.hidden = silent.length > 0;
+
+    var mirrorsList = el('admin-sources-mirrors');
+    if (mirrorsList) {
+      if (mirrored.length) {
+        mirrorsList.hidden = false;
+        mirrorsList.innerHTML = mirrored.map(function (source) {
+          var name = source.name || source.id || 'منبع ناشناخته';
+          var isArchive = /web\.archive\.org/.test(source.via || '');
+          var kind = isArchive ? 'آرشیو اینترنتی' : 'مسیر جایگزین';
+          var ts = latest[source.id];
+          var days = ts ? Math.max(0, Math.floor((Date.now() - ts) / 86400000)) : null;
+          var ageText = days === null ? 'قدمت خبر: نامعلوم' : 'قدمت خبر: ' + (days === 0 ? 'امروز' : days === 1 ? '۱ روز' : days.toLocaleString('fa-IR') + ' روز');
+          return '<li><span><b>' + adminSourceEsc(name) + '</b>' +
+            (source.url ? '<br><a href="' + adminSourceEsc(source.url) + '" target="_blank" rel="noopener noreferrer nofollow" dir="ltr" style="font-size:11.5px;word-break:break-all">' + adminSourceEsc(source.url) + '</a>' : '') +
+            '<br><span class="muted" style="font-size:11.5px">خوانده‌شده از: ' + adminSourceEsc(kind) + ' · ' + adminSourceEsc(ageText) + '</span></span></li>';
+        }).join('');
+      } else {
+        mirrorsList.hidden = true;
+        mirrorsList.innerHTML = '';
+      }
+    }
+
+    var note = el('admin-sources-note');
+    if (note) note.textContent = 'سکوت خبری یعنی فید پاسخ می‌دهد ولی در ' + SILENT_HOURS.toLocaleString('fa-IR') +
+      ' ساعت گذشته خبر تازه‌ای نداشته است. برای جزئیات زمان پاسخ و موفقیت هر منبع، صفحهٔ وضعیت را ببین.';
+
+    if (!github.static) {
+      var list = el('admin-sources-broken');
+      if (list && !list._bound) {
+        list._bound = true;
+        list.addEventListener('click', function (event) {
+          var button = event.target.closest ? event.target.closest('[data-source-id]') : null;
+          if (!button) return;
+          var id = button.getAttribute('data-source-id') || '';
+          if (!id) return;
+          var out = list.querySelector('[data-check-for="' + id.replace(/["\\]/g, '') + '"]');
+          button.disabled = true;
+          button.textContent = 'در حال بررسی…';
+          if (out) { out.textContent = ''; }
+          fetch('/api/sources/check', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ id: id })
+          }).then(function (response) {
+            return response.json().catch(function () { return {}; }).then(function (payload) {
+              if (!response.ok || !payload.source) throw new Error(payload.error || ('HTTP ' + response.status));
+              return payload.source;
+            });
+          }).then(function (source) {
+            if (!out) return;
+            if (source.ok) {
+              out.textContent = '✓ پاسخ داد · ' + Number(source.items || 0).toLocaleString('fa-IR') + ' مورد' +
+                (source.via ? ' (از مسیر جایگزین)' : '') + ' · ' + Number(source.elapsed_ms || 0).toLocaleString('fa-IR') + ' میلی‌ثانیه';
+            } else {
+              out.textContent = '✕ باز هم پاسخ نداد · ' + (source.error || 'بی‌پاسخ') + ' · ' + Number(source.elapsed_ms || 0).toLocaleString('fa-IR') + ' میلی‌ثانیه';
+            }
+          }).catch(function (error) {
+            if (!out) return;
+            out.textContent = 'بررسی نشد: ' + (error && error.message ? error.message : 'خطای شبکه');
+          }).then(function () {
+            button.disabled = false;
+            button.textContent = 'بررسی مجدد';
+          });
+        });
+      }
+    }
+  }
+
+  async function loadSourceHealth() {
+    try {
+      var res = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var data = await res.json();
+      renderAdminSourceHealth(data);
+    } catch (error) {
+      var hint = el('admin-sources-hint');
+      if (hint) hint.textContent = 'خواندن داده ممکن نشد';
+    }
+  }
+
   async function startStaticMode() {
     github.static = true;
     github.token = loadToken();
@@ -1098,6 +1285,8 @@
     refreshRun();
     setupLiveAutoToggle();
     renderLivePaths();
+    loadSourceHealth();
+    setInterval(loadSourceHealth, 60000);
     window.addEventListener('storage', function (event) {
       if (event.key === 'newsradar:liveCurrent' || event.key === 'newsradar:liveVerified') renderLivePaths();
     });
@@ -1148,6 +1337,8 @@
     refreshRun();
     setupLiveAutoToggle();
     renderLivePaths();
+    loadSourceHealth();
+    if (!state.sourceHealthTimer) state.sourceHealthTimer = setInterval(loadSourceHealth, 60000);
     loadAlerts();
     if (!state.alertTimer) state.alertTimer = setInterval(loadAlerts, 30000);
     loadCustom();
@@ -1230,7 +1421,10 @@
     if (github.static) {
       try {
         var repo = await readRepoSettings();
-        if (repo.data.silent_hours) el('silent-hours').value = String(repo.data.silent_hours);
+        if (repo.data.silent_hours) {
+          el('silent-hours').value = String(repo.data.silent_hours);
+          SILENT_HOURS = Number(repo.data.silent_hours) || SILENT_HOURS;
+        }
         if (repo.data.price_stale_hours) el('price-stale-hours').value = String(repo.data.price_stale_hours);
         msg.textContent = '';
       } catch (error) {
@@ -1241,7 +1435,10 @@
     try {
       var payload = await api('/admin/api/settings');
       var input = el('silent-hours');
-      if (payload.settings && payload.settings.silent_hours) input.value = String(payload.settings.silent_hours);
+      if (payload.settings && payload.settings.silent_hours) {
+        input.value = String(payload.settings.silent_hours);
+        SILENT_HOURS = Number(payload.settings.silent_hours) || SILENT_HOURS;
+      }
       if (payload.limits) {
         input.min = payload.limits.min;
         input.max = payload.limits.max;
@@ -1271,11 +1468,14 @@
       var startedAt = Date.now();
       var payload = await saveSettings({ silent_hours: hours });
       el('silent-hours').value = String(payload.settings.silent_hours);
+      SILENT_HOURS = Number(payload.settings.silent_hours) || SILENT_HOURS;
+      loadSourceHealth();
       if (github.static) {
         msg.textContent = '⏳ ذخیره شد؛ در حال بازسازی سایت…';
         pollBuildStatus(msg, startedAt);
       } else {
         msg.textContent = 'ذخیره شد: ' + payload.settings.silent_hours + ' ساعت';
+        loadSourceHealth();
       }
     } catch (error) {
       msg.textContent = 'خطا: ' + error.message;
