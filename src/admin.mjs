@@ -246,6 +246,96 @@ export const ADMIN_TOOLS = [
       parameters: { type: 'object', properties: {}, additionalProperties: false },
     },
   },
+  {
+    type: 'function',
+    function: {
+      name: 'settings_get',
+      description: 'آستانه‌های تنظیم‌شدهٔ داشبورد (سکوت خبری و کهنه‌بودن قیمت) را برمی‌گرداند.',
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'settings_set',
+      description: 'آستانهٔ سکوت خبری یا کهنه‌بودن قیمت‌ها را تغییر می‌دهد (۱ تا ۱۶۸ ساعت).',
+      parameters: {
+        type: 'object',
+        properties: {
+          silent_hours: { type: 'number', description: 'ساعت سکوت خبری.' },
+          price_stale_hours: { type: 'number', description: 'ساعت کهنه‌بودن قیمت‌ها.' },
+        },
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'list_custom',
+      description: 'فهرست منابع و کانال‌های اختصاصی افزوده‌شده توسط مدیر را برمی‌گرداند.',
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_source',
+      description: 'یک منبع خبری RSS/Atom تازه اضافه می‌کند (پس از بررسی فید).',
+      parameters: {
+        type: 'object',
+        properties: {
+          name: { type: 'string', description: 'نام منبع.' },
+          url: { type: 'string', description: 'آدرس فید RSS/Atom.' },
+          lang: { type: 'string', description: 'زبان (fa یا en).' },
+          weight: { type: 'number', description: 'وزن اعتبار (۰ تا ۱).' },
+        },
+        required: ['name', 'url'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'add_channel',
+      description: 'یک کانال تلگرام تازه اضافه می‌کند (پس از بررسی پیش‌نمایش عمومی).',
+      parameters: {
+        type: 'object',
+        properties: {
+          handle: { type: 'string', description: 'هندل کانال (مثلاً @channel) یا لینک t.me.' },
+          name: { type: 'string', description: 'نام کانال (اختیاری).' },
+          weight: { type: 'number', description: 'وزن اعتبار (۰ تا ۱).' },
+        },
+        required: ['handle'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'remove_custom',
+      description: 'یک منبع یا کانال اختصاصی را حذف می‌کند (kind: source یا channel).',
+      parameters: {
+        type: 'object',
+        properties: {
+          kind: { type: 'string', enum: ['source', 'channel'], description: 'نوع مورد.' },
+          id: { type: 'string', description: 'شناسهٔ مورد.' },
+        },
+        required: ['kind', 'id'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'alerts_list',
+      description: 'فهرست هشدارهای ثبت‌شده (منابع خراب، سکوت خبری، شبکه‌های بی‌پخش) را برمی‌گرداند.',
+      parameters: { type: 'object', properties: {}, additionalProperties: false },
+    },
+  },
 ];
 
 export const ADMIN_SYSTEM_PROMPT = [
@@ -270,6 +360,9 @@ export function intentOf(text) {
   if (/منابع|منبع|سورس|بازنگری|source/i.test(value)) return 'source_report';
   if (/خطا|خراب|مشکل|error/i.test(value)) return 'source_report';
   if (/پخش|شبکه|استریم|سلامت|stream|live/i.test(value)) return 'stream_health';
+  if (/آستانه|تنظیمات|settings/i.test(value)) return 'settings_get';
+  if (/هشدار|alerts/i.test(value)) return 'alerts_list';
+  if (/منابع اختصاصی|کانال.*اختصاصی|custom/i.test(value)) return 'list_custom';
   if (/وضعیت|آمار|چند خبر|چند قصه|تازه|status/i.test(value)) return 'site_status';
   return '';
 }
@@ -360,6 +453,30 @@ export function describeToolResult(name, result) {
   if (name === 'refresh_site') {
     return result.ok ? 'به‌روزرسانی انجام شد.' : `به‌روزرسانی انجام نشد: ${result.error || result.message || ''}`;
   }
+  if (name === 'settings_get') {
+    return `سکوت خبری: ${result.silent_hours} ساعت · کهنه‌بودن قیمت: ${result.price_stale_hours} ساعت`;
+  }
+  if (name === 'settings_set') {
+    return result.ok ? `تنظیمات ذخیره شد: سکوت ${result.silent_hours}h · قیمت ${result.price_stale_hours}h` : `انجام نشد: ${result.error}`;
+  }
+  if (name === 'list_custom') {
+    const srcs = (result.sources || []).map((s) => `• ${s.name || s.id}`).join('\n');
+    const chans = (result.channels || []).map((c) => `• ${c.name || c.handle}`).join('\n');
+    return ['منابع اختصاصی:', srcs || '—', 'کانال‌های اختصاصی:', chans || '—'].join('\n');
+  }
+  if (name === 'add_source') {
+    return result.ok ? `منبع «${result.source?.name || ''}» اضافه شد (${result.items} خبر در فید).` : `انجام نشد: ${result.error}`;
+  }
+  if (name === 'add_channel') {
+    return result.ok ? `کانال «${result.channel?.name || result.title || ''}» اضافه شد (${result.posts} پست).` : `انجام نشد: ${result.error}`;
+  }
+  if (name === 'remove_custom') {
+    return result.ok ? 'حذف شد.' : `انجام نشد: ${result.error}`;
+  }
+  if (name === 'alerts_list') {
+    const alerts = (result.alerts || []).slice(0, 10).map((a) => `• ${a.kind || ''}: ${a.name || a.id || ''}`).join('\n');
+    return alerts || 'هشداری ثبت نشده است.';
+  }
   return 'انجام شد.';
 }
 
@@ -375,7 +492,7 @@ function safeJson(value) {
 export async function runTool(
   name,
   args = {},
-  { getStatus, getData, refresh, probe = probeStream, channels = LIVE_CHANNELS, webSearch = searchWeb, readPage: readUrl = readPage } = {}
+  { getStatus, getData, refresh, settingsGet, settingsSet, listCustom, removeCustom, addSource, addChannel, alertsList, probe = probeStream, channels = LIVE_CHANNELS, webSearch = searchWeb, readPage: readUrl = readPage } = {}
 ) {
   if (name === 'web_search') {
     return webSearch({ query: args.query, limit: args.limit, lang: args.lang === 'en' ? 'en' : 'fa' });
@@ -451,6 +568,34 @@ export async function runTool(
   if (name === 'refresh_site') {
     if (typeof refresh !== 'function') return { ok: false, error: 'به‌روزرسانی در دسترس نیست' };
     return { ok: true, ...(await refresh()) };
+  }
+  if (name === 'settings_get') {
+    if (typeof settingsGet !== 'function') return { ok: false, error: 'تنظیمات در دسترس نیست' };
+    return { ok: true, ...(await settingsGet()) };
+  }
+  if (name === 'settings_set') {
+    if (typeof settingsSet !== 'function') return { ok: false, error: 'تنظیمات در دسترس نیست' };
+    return await settingsSet(args || {});
+  }
+  if (name === 'list_custom') {
+    if (typeof listCustom !== 'function') return { ok: false, error: 'فهرست اختصاصی در دسترس نیست' };
+    return { ok: true, ...(await listCustom()) };
+  }
+  if (name === 'add_source') {
+    if (typeof addSource !== 'function') return { ok: false, error: 'افزودن منبع در دسترس نیست' };
+    return await addSource(args || {});
+  }
+  if (name === 'add_channel') {
+    if (typeof addChannel !== 'function') return { ok: false, error: 'افزودن کانال در دسترس نیست' };
+    return await addChannel(args || {});
+  }
+  if (name === 'remove_custom') {
+    if (typeof removeCustom !== 'function') return { ok: false, error: 'حذف در دسترس نیست' };
+    return await removeCustom(args || {});
+  }
+  if (name === 'alerts_list') {
+    if (typeof alertsList !== 'function') return { ok: false, error: 'هشدارها در دسترس نیست' };
+    return { ok: true, ...(await alertsList()) };
   }
   return { ok: false, error: `ابزار ناشناخته: ${name}` };
 }

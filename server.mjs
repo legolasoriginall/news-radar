@@ -675,6 +675,77 @@ function adminToolContext() {
     },
     getData: async () => readData(),
     refresh: async () => refresh(),
+    settingsGet: async () => ({ silent_hours: settings.silent_hours, price_stale_hours: settings.price_stale_hours }),
+    settingsSet: async ({ silent_hours, price_stale_hours } = {}) => {
+      if (silent_hours != null) {
+        const n = Number(silent_hours);
+        if (!Number.isFinite(n) || n < 1 || n > 168) return { ok: false, error: 'سکوت خبری باید بین ۱ تا ۱۶۸ ساعت باشد' };
+        settings.silent_hours = Math.round(n);
+      }
+      if (price_stale_hours != null) {
+        const n = Number(price_stale_hours);
+        if (!Number.isFinite(n) || n < 1 || n > 168) return { ok: false, error: 'کهنه‌بودن قیمت باید بین ۱ تا ۱۶۸ ساعت باشد' };
+        settings.price_stale_hours = Math.round(n);
+        setStaleHours(settings.price_stale_hours);
+      }
+      try { await writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8'); } catch (error) { return { ok: false, error: 'ذخیرهٔ تنظیمات ناموفق بود: ' + String(error?.message || error) }; }
+      return { ok: true, silent_hours: settings.silent_hours, price_stale_hours: settings.price_stale_hours };
+    },
+    listCustom: async () => ({ sources: customState.sources, channels: customState.channels }),
+    removeCustom: async ({ kind, id } = {}) => {
+      const k = String(kind || '');
+      const target = String(id || '');
+      let removed = false;
+      if (k === 'source') {
+        removed = removeSource(target);
+        if (removed) customState.sources = customState.sources.filter((item) => item.id !== target);
+      } else if (k === 'channel') {
+        removed = removeTelegramChannel(target);
+        if (removed) customState.channels = customState.channels.filter((item) => item.id !== target);
+      }
+      if (!removed) return { ok: false, error: 'پیدا نشد یا از فهرست پیش‌فرض است' };
+      await saveCustomConfig();
+      return { ok: true };
+    },
+    addSource: async ({ name, url, lang, weight } = {}) => {
+      const parsed = parseSourceInput({ name, url, lang, weight });
+      if (!parsed.ok) return { ok: false, error: parsed.error };
+      let xml = '';
+      try {
+        const response = await fetch(parsed.source.url, {
+          headers: { 'User-Agent': 'Mozilla/5.0 (compatible; NewsRadar/1.0)', Accept: 'application/rss+xml, application/atom+xml, application/xml;q=0.9, */*;q=0.8' },
+          signal: AbortSignal.timeout(12000),
+        });
+        if (!response.ok) return { ok: false, error: `آدرس فید پاسخ نداد (HTTP ${response.status})` };
+        xml = await response.text();
+      } catch (error) {
+        return { ok: false, error: `دسترسی به فید ممکن نشد: ${String(error?.message || error)}` };
+      }
+      if (!looksLikeFeed(xml)) return { ok: false, error: 'این آدرس خوراک RSS یا Atom نیست' };
+      const items = feedItemCount(xml);
+      if (!items) return { ok: false, error: 'فید خالی است' };
+      const source = addSource({ ...parsed.source, custom: true });
+      customState.sources = [...customState.sources.filter((item) => item.id !== source.id), source];
+      await saveCustomConfig();
+      return { ok: true, source, items };
+    },
+    addChannel: async ({ handle, name, weight } = {}) => {
+      const parsed = parseChannelInput({ handle, name, weight });
+      if (!parsed.ok) return { ok: false, error: parsed.error };
+      const duplicate = TELEGRAM_CHANNELS.find((channel) => String(channel.handle).toLowerCase() === parsed.channel.handle.toLowerCase());
+      if (duplicate) return { ok: false, error: `این کانال از قبل در فهرست هست: ${duplicate.name}` };
+      let feed;
+      try {
+        feed = await fetchTelegramFeed(parsed.channel, { limit: 5 });
+      } catch (error) {
+        return { ok: false, error: `خواندن کانال ممکن نشد: ${String(error?.message || error)}` };
+      }
+      const channel = addTelegramChannel({ ...parsed.channel, custom: true });
+      customState.channels = [...customState.channels.filter((item) => item.id !== channel.id), channel];
+      await saveCustomConfig();
+      return { ok: true, channel, title: feed.title || channel.name, posts: feed.posts.length };
+    },
+    alertsList: async () => ({ alerts: alertState.data.alerts || [], last_check_at: alertState.last_check_at || '' }),
   };
 }
 
