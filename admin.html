@@ -108,6 +108,24 @@
       <p class="muted" id="chain-stats" style="margin:0">—</p>
       <p class="muted" style="margin:6px 0 0">آمار از نسخهٔ تازه‌ترِ مخزن یا سایت خوانده می‌شود تا یک اجرا عقب نماند.</p>
     </div>
+    <div class="card" id="ops-card" style="margin-bottom:14px">
+      <h2 style="font-size:15px;margin:0 0 4px">اجرا و انتشار</h2>
+      <p class="muted">هر تغییر در تنظیمات یا منابع، خودکار بازسازی را شروع می‌کند؛ از اینجا می‌توانی بی‌صبرانه یک اجرای تازه هم شروع کنی و نتیجه‌اش را زنده ببینی. اجرای کامل حدود ۱۵ دقیقه طول می‌کشد.</p>
+      <div class="row">
+        <button id="run-now">به‌روزرسانی همین حالا</button>
+        <button class="ghost" id="run-refresh">بازخوانی وضعیت</button>
+        <span class="muted" id="run-status">—</span>
+        <a class="muted" id="run-link" target="_blank" rel="noopener" hidden>جزئیات اجرا ↗</a>
+      </div>
+      <div class="row" style="margin-top:10px;flex-wrap:wrap;gap:12px">
+        <a class="muted" id="link-site" target="_blank" rel="noopener">سایت ↗</a>
+        <a class="muted" id="link-status" target="_blank" rel="noopener">صفحهٔ وضعیت ↗</a>
+        <a class="muted" id="link-actions" target="_blank" rel="noopener">اجراها در گیت‌هاب ↗</a>
+        <a class="muted" id="link-pages" target="_blank" rel="noopener">تنظیمات Pages ↗</a>
+        <a class="muted" id="link-repo" target="_blank" rel="noopener">مخزن ↗</a>
+      </div>
+      <p class="muted" style="margin:8px 0 0">برای شروع اجرا، توکن گیت‌هاب باید دسترسی <strong>Actions: Read and write</strong> هم داشته باشد؛ توکن فعلی فقط برای نوشتن فایل‌هاست.</p>
+    </div>
     <div class="card" id="github-card" style="margin-bottom:14px" hidden>
       <h2 style="font-size:15px;margin:0 0 4px">ذخیرهٔ تنظیمات در گیت‌هاب</h2>
       <p class="muted">این نسخه روی GitHub Pages اجرا می‌شود و سرور ندارد؛ برای اینکه تنظیمات برای همه و در سایت منتشرشده ذخیره شود، پنل فایل <code>settings.json</code> را با توکن شخصی گیت‌هاب در مخزن به‌روز می‌کند و گردش‌کار سایت را با همان تنظیمات بازمی‌سازد.</p>
@@ -189,6 +207,26 @@
       <p class="muted">افزودنی‌ها در <code>.custom-sources.json</code> (خارج از گیت) ذخیره می‌شوند و از به‌روزرسانی بعدی خودکار در سایت دیده می‌شوند.</p>
     </div>
 
+    <div class="card" id="advanced-card" style="margin-bottom:14px">
+      <h2 style="font-size:15px;margin:0 0 4px">تنظیمات کامل (settings.json)</h2>
+      <p class="muted">همهٔ کلیدهای پیکربندی همین‌جاست؛ ذخیرهٔ این فایل بازسازی خودکار سایت را شروع می‌کند. کلیدهای آستانه‌ها باید عدد باشند (سکوت ۱ تا ۷۲۰، قیمت ۱ تا ۱۶۸).</p>
+      <textarea id="raw-settings" rows="8" dir="ltr" spellcheck="false" style="width:100%;font-family:ui-monospace,Menlo,monospace;font-size:12.5px;line-height:1.6;border-radius:10px;padding:10px;border:1px solid var(--line);background:#fff;color:var(--ink)"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button id="raw-save">ذخیرهٔ JSON</button>
+        <button class="ghost" id="raw-load">بارگذاری از مخزن</button>
+        <span class="muted" id="raw-msg"></span>
+      </div>
+    </div>
+    <div class="card" id="maint-card" style="margin-bottom:14px">
+      <h2 style="font-size:15px;margin:0 0 4px">نگهداری</h2>
+      <p class="muted">پشتیبان تنظیمات و منابع اختصاصی را به‌صورت یک فایل JSON می‌گیری؛ «پاک‌کردن کش» نسخهٔ قدیمی سایت را در همین مرورگر کنار می‌گذارد تا تازه‌ترین خروجی دیده شود.</p>
+      <div class="row">
+        <button class="ghost" id="backup-settings">دانلود پشتیبان</button>
+        <button class="ghost" id="cache-reset">پاک‌کردن کش این مرورگر</button>
+        <span class="muted" id="maint-msg"></span>
+      </div>
+    </div>
+
     <div class="card" id="pwd-card">
       <h2 style="font-size:15px;margin:0 0 4px">تغییر رمز مدیر</h2>
       <p class="muted" id="pwd-info"></p>
@@ -265,23 +303,12 @@
     return { data: data, sha: (payload && payload.sha) || null };
   }
 
-  async function saveRepoSettings(patch) {
+  async function putRepoFile(url, message, text, sha) {
     if (!REPO) throw new Error('این صفحه روی گیت‌هاب نیست');
     if (!github.token) throw new Error('اول توکن گیت‌هاب را ذخیره کن');
-    var current = await readRepoSettings();
-    var next = {
-      silent_hours: Number(current.data.silent_hours) || 24,
-      price_stale_hours: Number(current.data.price_stale_hours) || 48,
-    };
-    if (patch.silent_hours !== undefined) next.silent_hours = patch.silent_hours;
-    if (patch.price_stale_hours !== undefined) next.price_stale_hours = patch.price_stale_hours;
-    var body = {
-      message: 'تنظیمات داشبورد از پنل مدیر',
-      content: b64encode(JSON.stringify(next, null, 2) + '\n'),
-      branch: REPO.branch,
-    };
-    if (current.sha) body.sha = current.sha;
-    var res = await fetch(contentsUrl(), {
+    var body = { message: message, content: b64encode(text), branch: REPO.branch };
+    if (sha) body.sha = sha;
+    var res = await fetch(url, {
       method: 'PUT',
       headers: {
         Authorization: 'Bearer ' + github.token,
@@ -294,6 +321,24 @@
       var failure = await res.json().catch(function () { return {}; });
       throw new Error(failure.message || ('HTTP ' + res.status));
     }
+  }
+
+  async function saveRepoSettings(patch) {
+    var current = await readRepoSettings();
+    // کلیدهای ناشناخته و کلیدهای آینده حفظ می‌شوند؛ فقط همان کلیدی که تغییر کرده بازنویسی می‌شود.
+    var next = {};
+    Object.keys(current.data || {}).forEach(function (key) { next[key] = current.data[key]; });
+    if (next.silent_hours === undefined) next.silent_hours = 24;
+    if (next.price_stale_hours === undefined) next.price_stale_hours = 48;
+    if (patch.silent_hours !== undefined) next.silent_hours = patch.silent_hours;
+    if (patch.price_stale_hours !== undefined) next.price_stale_hours = patch.price_stale_hours;
+    await putRepoFile(contentsUrl(), 'تنظیمات داشبورد از پنل مدیر', JSON.stringify(next, null, 2) + '\n', current.sha);
+    return next;
+  }
+
+  async function saveRepoSettingsRaw(next) {
+    var current = await readRepoSettings();
+    await putRepoFile(contentsUrl(), 'تنظیمات داشبورد از پنل مدیر', JSON.stringify(next, null, 2) + '\n', current.sha);
     return next;
   }
 
@@ -413,6 +458,173 @@
         (last && last.at ? ' · آخرین اجرا ' + formatDate(last.at) : '');
     } catch (error) {
       hint.textContent = 'وضعیت زنجیره در دسترس نیست';
+    }
+  }
+
+  /* ---------------- مرکز کنترل: اجرا، تنظیمات کامل، نگهداری ---------------- */
+
+  var runWatch = { timer: null };
+
+  function say(id, text) {
+    var node = el(id);
+    if (node) node.textContent = text;
+  }
+
+  function repoPath(path) {
+    return REPO ? 'https://github.com/' + REPO.owner + '/' + REPO.repo + path : null;
+  }
+
+  function wireControlLinks() {
+    if (!REPO) return;
+    var site = location.origin + location.pathname.replace(/[^/]*$/, '');
+    var targets = {
+      'link-site': site,
+      'link-status': site + 'status.html',
+      'link-actions': repoPath('/actions/workflows/update.yml'),
+      'link-pages': repoPath('/settings/pages'),
+      'link-repo': repoPath(''),
+    };
+    Object.keys(targets).forEach(function (id) {
+      var node = el(id);
+      if (node && targets[id]) node.href = targets[id];
+    });
+  }
+
+  function renderRun(run) {
+    var status = el('run-status');
+    var link = el('run-link');
+    if (!status) return;
+    if (!run) { status.textContent = 'هیچ اجرایی ثبت نشده'; if (link) link.hidden = true; return; }
+    var when = formatDate(run.created_at);
+    if (run.status === 'completed') {
+      status.textContent = (run.conclusion === 'success' ? '✅ آخرین اجرا موفق بود' : '❌ آخرین اجرا ناموفق (' + (run.conclusion || '') + ')') + ' · ' + when;
+    } else {
+      status.textContent = '⏳ در حال اجرا (' + run.status + ') · ' + when;
+    }
+    if (link) {
+      if (run.html_url) { link.href = run.html_url; link.hidden = false; }
+      else link.hidden = true;
+    }
+  }
+
+  async function refreshRun() {
+    if (!github.token) {
+      say('run-status', 'برای دیدن و اجرای زنجیره، توکن گیت‌هاب لازم است');
+      return null;
+    }
+    try {
+      var run = await latestWorkflowRun();
+      renderRun(run);
+      return run;
+    } catch (error) {
+      say('run-status', 'خواندن وضعیت ناموفق: ' + (error.message || ''));
+      return null;
+    }
+  }
+
+  async function startRun() {
+    if (!REPO) throw new Error('این صفحه روی گیت‌هاب نیست');
+    if (!github.token) throw new Error('اول توکن گیت‌هاب را ذخیره کن');
+    var url = 'https://api.github.com/repos/' + REPO.owner + '/' + REPO.repo + '/actions/workflows/update.yml/dispatches';
+    var res = await fetch(url, {
+      method: 'POST',
+      headers: { Authorization: 'Bearer ' + github.token, Accept: 'application/vnd.github+json', 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ref: REPO.branch }),
+    });
+    if (res.status !== 204) {
+      var failure = await res.json().catch(function () { return {}; });
+      throw new Error(failure.message || ('HTTP ' + res.status));
+    }
+  }
+
+  // پس از ذخیره یا اجرای دستی، وضعیت را با فاصله می‌خواند تا معلوم شود اجرا شروع و تمام شد.
+  function watchRun() {
+    if (runWatch.timer) clearInterval(runWatch.timer);
+    var tries = 0;
+    runWatch.timer = setInterval(function () {
+      tries += 1;
+      refreshRun().then(function (run) {
+        if (run && run.status === 'completed') { say('maint-msg', 'اجرا تمام شد؛ نسخهٔ تازه در راه است'); }
+        if ((run && run.status === 'completed') || tries >= 40) {
+          clearInterval(runWatch.timer);
+          runWatch.timer = null;
+          loadChainCard();
+        }
+      });
+    }, 15000);
+  }
+
+  async function loadRawSettings() {
+    var box = el('raw-settings');
+    if (!box) return;
+    try {
+      var current = await readRepoSettings();
+      box.value = JSON.stringify(current.data || {}, null, 2);
+      say('raw-msg', current.sha ? 'از مخزن خوانده شد' : 'فایلی در مخزن نبود؛ شیء خالی است');
+    } catch (error) {
+      say('raw-msg', 'خواندن ناموفق: ' + (error.message || ''));
+    }
+  }
+
+  async function saveRawSettings() {
+    var box = el('raw-settings');
+    if (!box) return;
+    var parsed;
+    try {
+      parsed = JSON.parse(box.value);
+    } catch (error) {
+      say('raw-msg', 'JSON نامعتبر: ' + (error.message || ''));
+      return;
+    }
+    if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+      say('raw-msg', 'ریشهٔ JSON باید یک شیء { … } باشد');
+      return;
+    }
+    try {
+      await saveRepoSettingsRaw(parsed);
+      box.value = JSON.stringify(parsed, null, 2);
+      say('raw-msg', 'ذخیره شد؛ بازسازی خودکار شروع می‌شود');
+      loadSettings();
+      watchRun();
+    } catch (error) {
+      say('raw-msg', 'ذخیره ناموفق: ' + (error.message || ''));
+    }
+  }
+
+  async function downloadBackup() {
+    try {
+      var settings = (await readRepoSettings()).data || {};
+      var custom = (await readRepoCustom()).data || { sources: [], channels: [] };
+      var payload = JSON.stringify({ exported_at: new Date().toISOString(), settings: settings, custom_sources: custom }, null, 2);
+      var blob = new Blob([payload], { type: 'application/json' });
+      var link = document.createElement('a');
+      link.href = URL.createObjectURL(blob);
+      link.download = 'news-radar-settings-' + new Date().toISOString().slice(0, 10) + '.json';
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      setTimeout(function () { URL.revokeObjectURL(link.href); }, 5000);
+      say('maint-msg', 'پشتیبان دانلود شد');
+    } catch (error) {
+      say('maint-msg', 'پشتیبان‌گیری ناموفق: ' + (error.message || ''));
+    }
+  }
+
+  async function resetCache() {
+    say('maint-msg', 'در حال پاک‌کردن کش…');
+    try {
+      if ('serviceWorker' in navigator) {
+        var regs = await navigator.serviceWorker.getRegistrations();
+        await Promise.all(regs.map(function (reg) { return reg.unregister(); }));
+      }
+      if (window.caches && caches.keys) {
+        var keys = await caches.keys();
+        await Promise.all(keys.map(function (key) { return caches.delete(key); }));
+      }
+      say('maint-msg', 'کش پاک شد؛ صفحه دوباره بار می‌شود');
+      setTimeout(function () { location.reload(); }, 900);
+    } catch (error) {
+      say('maint-msg', 'پاک‌کردن کش ناموفق: ' + (error.message || ''));
     }
   }
 
@@ -684,6 +896,9 @@
       : REPO.owner + '/' + REPO.repo + (github.token ? ' · توکن ذخیره شده است' : ' · برای ذخیره، توکن لازم است');
     loadSettings();
     loadChainCard();
+    wireControlLinks();
+    loadRawSettings();
+    refreshRun();
     if (github.token) refreshBuildStatus();
     var localOpen = el('local-admin-open');
     var localUrlInput = el('local-admin-url');
@@ -726,6 +941,9 @@
     el('tg-card').hidden = false;
     loadTelegramCard(false);
     loadChainCard();
+    wireControlLinks();
+    loadRawSettings();
+    refreshRun();
     loadAlerts();
     if (!state.alertTimer) state.alertTimer = setInterval(loadAlerts, 30000);
     loadCustom();
@@ -1147,6 +1365,25 @@
   });
 
   if (el('build-check')) el('build-check').addEventListener('click', function () { refreshBuildStatus(); });
+  if (el('run-refresh')) el('run-refresh').addEventListener('click', function () { refreshRun(); loadChainCard(); });
+  if (el('run-now')) el('run-now').addEventListener('click', async function () {
+    if (!window.confirm('یک اجرای تازهٔ زنجیره شروع شود؟')) return;
+    this.disabled = true;
+    say('run-status', 'در حال ارسال درخواست اجرا…');
+    try {
+      await startRun();
+      say('run-status', '⏳ درخواست ثبت شد؛ وضعیت تا پایان اجرا تازه می‌شود');
+      watchRun();
+    } catch (error) {
+      say('run-status', 'شروع اجرا ناموفق: ' + (error.message || ''));
+    } finally {
+      this.disabled = false;
+    }
+  });
+  if (el('raw-save')) el('raw-save').addEventListener('click', function () { saveRawSettings(); });
+  if (el('raw-load')) el('raw-load').addEventListener('click', function () { loadRawSettings(); });
+  if (el('backup-settings')) el('backup-settings').addEventListener('click', function () { downloadBackup(); });
+  if (el('cache-reset')) el('cache-reset').addEventListener('click', function () { resetCache(); });
   el('gh-save').addEventListener('click', async function () {
     var msg = el('gh-msg');
     var token = el('gh-token').value.trim();
