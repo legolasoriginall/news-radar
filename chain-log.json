@@ -1,1 +1,20 @@
-[]
+[
+ {
+  "at": "2026-11-15T14:40:27.823Z",
+  "commit": "bda50ba",
+  "run": "43725548402",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ }
+]
