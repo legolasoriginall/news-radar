@@ -2600,6 +2600,12 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         };
         continue;
       }
+      if (line.indexOf('#EXTGRP') === 0 && pending) {
+        var ci = line.indexOf(':');
+        var grp = (ci >= 0 ? line.slice(ci + 1) : '').trim();
+        if (grp) pending.group = grp;
+        continue;
+      }
       if (line.charAt(0) === '#') continue;
       if (!pending) continue;
       pending.url = line;
