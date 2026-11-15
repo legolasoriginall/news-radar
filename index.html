@@ -749,6 +749,10 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   function storeDel(key) {
     try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
   }
+  // ادامهٔ خودکار پخش بعد از بازخوانی صفحه؛ پیش‌فرض روشن است.
+  function liveAutoResumeEnabled() {
+    try { var v = localStorage.getItem('newsradar:liveAutoResume'); return v === null ? true : JSON.parse(v) === true; } catch (e) { return true; }
+  }
 
   /* ---------------- بخش‌های بازشو (فِلش مانند) ---------------- */
 
@@ -2523,8 +2527,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var markPlayed = function () {
         video.removeEventListener('playing', markPlayed);
         storeSet(liveSourceKey(channel.id), src);
-        // برای بازسازی خودکار پخش‌کننده بعد از بازخوانی صفحه
-        storeSet('newsradar:livePlaying', channel.id);
+        // برای بازسازی خودکار پخش‌کننده بعد از بازخوانی صفحه (اگر کاربر روشن کرده باشد)
+        if (liveAutoResumeEnabled()) storeSet('newsradar:livePlaying', channel.id);
         var hint = $('live-hint');
         if (hint) hint.textContent = 'پخش زنده · ' + channel.name;
         var startBtn = $('live-start');
@@ -2596,7 +2600,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     renderLiveTabs();
     // اگر پیش از بازخوانی همین شبکه در حال پخش بود، پخش‌کننده دوباره ساخته می‌شود.
     var resumeChannel = storeGet('newsradar:livePlaying', '');
-    var resumePending = Boolean(resumeChannel) && resumeChannel === liveState.channel;
+    var resumePending = liveAutoResumeEnabled() && Boolean(resumeChannel) && resumeChannel === liveState.channel;
     function livePanelCollapsed() {
       var panel = document.querySelector('#live-tv .panel');
       return Boolean(panel && panel.classList.contains('collapsed'));
@@ -2636,6 +2640,11 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     start.addEventListener('click', playLive);
     loadLiveChannels();
     setInterval(loadLiveChannels, 10 * 60 * 1000);
+    // اگر کاربر در تب دیگری (پنل مدیر) ادامهٔ خودکار را خاموش کرد، اینجا هم واکنش نشان داده می‌شود.
+    window.addEventListener('storage', function (event) {
+      if (event.key !== 'newsradar:liveAutoResume') return;
+      if (!liveAutoResumeEnabled()) { storeDel('newsradar:livePlaying'); resumePending = false; }
+    });
   })();
 
   /* ---------------- همهٔ شبکه‌های ماهواره‌ای ---------------- */

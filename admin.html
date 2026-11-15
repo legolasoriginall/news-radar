@@ -109,6 +109,14 @@
       <ul class="alerts" id="chain-recent" hidden></ul>
       <p class="muted" style="margin:6px 0 0">آمار از نسخهٔ تازه‌ترِ مخزن یا سایت خوانده می‌شود تا یک اجرا عقب نماند.</p>
     </div>
+    <div class="card" id="live-card" style="margin-bottom:14px">
+      <h2 style="font-size:15px;margin:0 0 4px">پخش زنده <span class="muted" id="live-auto-hint">—</span></h2>
+      <p class="muted" style="margin:0 0 8px">ادامهٔ خودکار پخش بعد از بازخوانی صفحه را روشن یا خاموش کن. وقتی خاموش باشد، شبکهٔ انتخاب‌شده بازیابی می‌شود ولی پخش خودکار شروع نمی‌شود.</p>
+      <div class="row">
+        <button id="live-auto-toggle">—</button>
+        <span class="muted" id="live-auto-status">—</span>
+      </div>
+    </div>
     <div class="card" id="ops-card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">اجرا و انتشار</h2>
       <p class="muted">هر تغییر در تنظیمات یا منابع، خودکار بازسازی را شروع می‌کند؛ از اینجا می‌توانی بی‌صبرانه یک اجرای تازه هم شروع کنی و نتیجه‌اش را زنده ببینی. اجرای کامل حدود ۱۵ دقیقه طول می‌کشد.</p>
@@ -962,6 +970,31 @@
     }
   }
 
+  function liveAutoResumeEnabled() {
+    try { var v = localStorage.getItem('newsradar:liveAutoResume'); return v === null ? true : JSON.parse(v) === true; } catch (e) { return true; }
+  }
+  function renderLiveAutoToggle() {
+    var btn = el('live-auto-toggle');
+    var status = el('live-auto-status');
+    var hint = el('live-auto-hint');
+    var on = liveAutoResumeEnabled();
+    if (btn) { btn.textContent = on ? 'خاموش کردن ادامهٔ خودکار' : 'روشن کردن ادامهٔ خودکار'; btn.setAttribute('aria-pressed', String(on)); }
+    if (status) status.textContent = on ? 'روشن' : 'خاموش';
+    if (hint) hint.textContent = on ? 'روشن' : 'خاموش';
+  }
+  function setupLiveAutoToggle() {
+    var btn = el('live-auto-toggle');
+    if (!btn) return;
+    btn.addEventListener('click', function () {
+      var next = !liveAutoResumeEnabled();
+      try { localStorage.setItem('newsradar:liveAutoResume', JSON.stringify(next)); } catch (e) { /* ignore */ }
+      if (!next) { try { localStorage.removeItem('newsradar:livePlaying'); } catch (e) { /* ignore */ } }
+      renderLiveAutoToggle();
+      say('live-auto-status', next ? 'روشن شد' : 'خاموش شد');
+    });
+    renderLiveAutoToggle();
+  }
+
   async function startStaticMode() {
     github.static = true;
     github.token = loadToken();
@@ -990,6 +1023,7 @@
     wireControlLinks();
     loadRawSettings();
     refreshRun();
+    setupLiveAutoToggle();
     if (github.token) refreshBuildStatus();
     var localOpen = el('local-admin-open');
     var localUrlInput = el('local-admin-url');
@@ -1035,6 +1069,7 @@
     wireControlLinks();
     loadRawSettings();
     refreshRun();
+    setupLiveAutoToggle();
     loadAlerts();
     if (!state.alertTimer) state.alertTimer = setInterval(loadAlerts, 30000);
     loadCustom();
