@@ -15,19 +15,22 @@
   .card { background: #fff; border: 1px solid var(--line); border-radius: 14px; padding: 16px; }
   .muted { color: var(--muted); font-size: 12.5px; line-height: 1.7; }
   input, textarea, button { font-family: inherit; font-size: 14px; }
-  input[type=password] { width: 100%; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; margin: 10px 0; }
+  input[type=password] { width: 100%; padding: 10px 12px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; margin: 10px 0; }
   input[type=password]:focus, textarea:focus { outline: 2px solid rgba(13,148,136,.35); border-color: var(--teal); }
-  button { border: 0; border-radius: 10px; padding: 9px 16px; background: var(--teal); color: #fff; cursor: pointer; font-weight: 600; }
+  button { border: 0; border-radius: 10px; padding: 9px 16px; min-height: 44px; background: var(--teal); color: #fff; cursor: pointer; font-weight: 600; }
   button.ghost { background: #eef2f7; color: #334155; font-weight: 500; }
   button:disabled { opacity: .55; cursor: default; }
   .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
-  .field { flex: 1 1 180px; min-width: 0; padding: 9px 11px; border: 1px solid var(--line); border-radius: 10px; }
+  .field { flex: 1 1 180px; min-width: 0; padding: 9px 11px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; }
   select.field { background: #fff; }
   .custom-list { list-style: none; margin: 10px 0 0; padding: 0; }
   .custom-list li { border-top: 1px solid var(--line); padding: 7px 0; font-size: 13px; display: flex; gap: 8px; align-items: flex-start; justify-content: space-between; }
   .custom-list li > span { min-width: 0; overflow-wrap: anywhere; line-height: 1.7; }
-  .custom-list .del { white-space: nowrap; flex: 0 0 auto; }
-  .custom-list .del { background: #fee2e2; color: #991b1b; font-weight: 500; font-size: 12px; padding: 4px 10px; min-height: 30px; }
+  .custom-list a, .alerts a, .msg a { display: inline-flex; align-items: center; min-height: 44px; }
+a.muted { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+#live-current { overflow-wrap: anywhere; word-break: break-word; }
+.custom-list .del { white-space: nowrap; flex: 0 0 auto; }
+  .custom-list .del { background: #fee2e2; color: #991b1b; font-weight: 500; font-size: 12px; padding: 4px 10px; min-height: 44px; min-width: 44px; }
   #chat { display: none; }
   #log { display: grid; gap: 10px; max-height: 58vh; overflow-y: auto; padding: 4px 2px 12px; }
   .msg { padding: 10px 13px; border-radius: 12px; line-height: 1.85; font-size: 13.5px; white-space: pre-wrap; }
@@ -37,7 +40,7 @@
   .composer { display: flex; gap: 8px; margin-top: 8px; }
   textarea { flex: 1; resize: vertical; min-height: 64px; padding: 10px 12px; border: 1px solid var(--line); border-radius: 10px; }
   .chips { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
-  .chips button { background: #eef2f7; color: #334155; font-weight: 500; font-size: 12.5px; padding: 6px 11px; min-height: 34px; }
+  .chips button { background: #eef2f7; color: #334155; font-weight: 500; font-size: 12.5px; padding: 6px 11px; min-height: 44px; }
   .badge { background: #dc2626; color: #fff; border-radius: 999px; font-size: 11px; padding: 1px 7px; margin-right: 6px; vertical-align: middle; }
   .alerts { list-style: none; margin: 10px 0 0; padding: 0; max-height: 260px; overflow: auto; }
   .alerts li { border-top: 1px solid var(--line); padding: 8px 0; font-size: 13px; line-height: 1.8; }
