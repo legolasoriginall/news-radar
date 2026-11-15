@@ -209,3 +209,20 @@ test('ارسال تلگرام بدون تنظیمات رد نمی‌شود و خ
   assert.equal(threw.ok, false);
   assert.match(threw.error, /network down/);
 });
+
+test('مشکل نوسانی بعد از بازگشت، تا پایان cooldown دوباره هشدار نمی‌سازد', () => {
+  const now = Date.UTC(2026, 10, 13, 10, 0, 0);
+  const issue = [{ id: 'source:x', kind: 'source', target: 'x', message: 'مشکل' }];
+  const first = applyIssues({ state: {}, issues: issue, now });
+  assert.equal(first.created.length, 1);
+
+  const recovery = applyIssues({ state: first.state, issues: [], now: now + 60000 });
+  assert.equal(recovery.created.length, 1);
+  assert.equal(recovery.created[0].recovery, true);
+
+  const flapping = applyIssues({ state: recovery.state, issues: issue, now: now + 120000 });
+  assert.equal(flapping.created.length, 0, 'بازگشت سریع مشکل نباید هشدار تازه بسازد');
+
+  const later = applyIssues({ state: flapping.state, issues: issue, now: now + ALERT_COOLDOWN_MS + 120000 });
+  assert.equal(later.created.length, 1);
+});

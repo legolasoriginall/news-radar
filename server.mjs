@@ -1045,7 +1045,8 @@ async function handleRequest(req, res) {
     }
     const config = telegramConfig();
     sendJson(res, 200, {
-      alerts: alertState.data.alerts.slice(0, 50),
+      alerts: alertState.data.alerts.slice(0, 100),
+      total: alertState.data.alerts.length,
       unread: unreadCount(alertState.data),
       open: Object.keys(alertState.data.open || {}).length,
       last_check_at: alertState.last_check_at || '',

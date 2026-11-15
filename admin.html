@@ -50,9 +50,11 @@ label.muted { min-height: 44px; }
   .chips button { background: #eef2f7; color: #334155; font-weight: 500; font-size: 12.5px; padding: 6px 11px; min-height: 44px; }
   .badge { background: #dc2626; color: #fff; border-radius: 999px; font-size: 11px; padding: 1px 7px; margin-right: 6px; vertical-align: middle; }
   .alerts { list-style: none; margin: 10px 0 0; padding: 0; max-height: 260px; overflow: auto; }
-  .alerts li { border-top: 1px solid var(--line); padding: 8px 0; font-size: 13px; line-height: 1.8; }
-  .alerts .when { color: #64748b; font-size: 11.5px; }
-  .alerts .tag { font-size: 11px; border-radius: 6px; padding: 1px 6px; margin-left: 6px; }
+  .alerts li { border-top: 1px solid var(--line); padding: 8px 0; font-size: 13px; line-height: 1.8; display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 3px 8px; }
+  .alerts li.empty { display: block; }
+  .alerts .alert-text { grid-column: 2; min-width: 0; overflow-wrap: anywhere; }
+  .alerts .when { grid-column: 1 / -1; color: #64748b; font-size: 11.5px; }
+  .alerts .tag { font-size: 11px; border-radius: 6px; padding: 1px 6px; justify-self: start; align-self: start; }
   .tag.err { background: #fee2e2; color: #991b1b; }
   .tag.ok { background: #dcfce7; color: #166534; }
   .warn { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 10px; padding: 10px 12px; font-size: 12.5px; margin-bottom: 12px; line-height: 1.75; }
@@ -1412,7 +1414,7 @@ label.muted { min-height: 44px; }
   function formatDate(value) {
     if (!value) return '';
     try {
-      return new Date(value).toLocaleString('fa-IR');
+      return new Date(value).toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' }).replace(',', '،');
     } catch (error) {
       return value;
     }
@@ -1780,7 +1782,8 @@ label.muted { min-height: 44px; }
     try {
       renderAlerts(await api('/admin/api/alerts'));
     } catch (error) {
-      /* نشست یا شبکه قطع است؛ دفعهٔ بعد */
+      var info = el('alerts-info');
+      if (info) info.textContent = 'دریافت هشدارها ممکن نشد؛ بررسی خودکار بعدی دوباره تلاش می‌کند.';
     }
   }
 
@@ -1788,8 +1791,11 @@ label.muted { min-height: 44px; }
     var list = el('alerts-list');
     var badge = el('alerts-badge');
     if (!list) return;
-    badge.hidden = !payload.unread;
-    badge.textContent = payload.unread || '';
+    var unread = Number(payload.unread) || 0;
+    var total = Number(payload.total) || (payload.alerts || []).length;
+    badge.hidden = !unread;
+    badge.textContent = unread > 99 ? '99+' : String(unread || '');
+    badge.setAttribute('aria-label', unread + ' هشدار خوانده‌نشده');
     var telegram = payload.telegram && payload.telegram.configured
       ? 'تلگرام وصل است (' + payload.telegram.chat_id + ')'
       : 'تلگرام وصل نیست؛ هشدارها فقط در همین پنل دیده می‌شوند.';
@@ -1798,13 +1804,18 @@ label.muted { min-height: 44px; }
       : payload.last_check_at
         ? 'آخرین بررسی: ' + formatDate(payload.last_check_at)
         : 'هنوز بررسی نشده';
-    el('alerts-info').textContent = status + ' · ' + (payload.open ? payload.open + ' مشکل باز' : 'همه‌چیز سالم') + ' · ' + telegram;
+    el('alerts-info').textContent = status
+      + ' · ' + (payload.open ? payload.open + ' مشکل باز' : 'همه‌چیز سالم')
+      + (unread ? ' · ' + unread + ' خوانده‌نشده' : '')
+      + ' · ' + telegram;
+    var readBtn = el('alerts-read');
+    if (readBtn) readBtn.disabled = !unread;
 
     list.textContent = '';
     var alerts = (payload.alerts || []).slice(0, 20);
     if (!alerts.length) {
       var empty = document.createElement('li');
-      empty.className = 'muted';
+      empty.className = 'muted empty';
       empty.textContent = 'هشداری ثبت نشده است.';
       list.appendChild(empty);
       return;
@@ -1821,6 +1832,7 @@ label.muted { min-height: 44px; }
             ? 'سکوت'
             : 'منبع';
       var text = document.createElement('span');
+      text.className = 'alert-text';
       text.textContent = alert.message;
       var when = document.createElement('div');
       when.className = 'when';
@@ -1830,6 +1842,12 @@ label.muted { min-height: 44px; }
       item.appendChild(when);
       list.appendChild(item);
     });
+    if (total > alerts.length) {
+      var more = document.createElement('li');
+      more.className = 'muted empty';
+      more.textContent = 'نمایش ' + alerts.length + ' مورد آخر از ' + total + ' هشدار.';
+      list.appendChild(more);
+    }
   }
 
   el('alerts-check').addEventListener('click', async function () {
@@ -1849,11 +1867,14 @@ label.muted { min-height: 44px; }
   });
 
   el('alerts-read').addEventListener('click', async function () {
+    var button = el('alerts-read');
+    if (button) button.disabled = true;
     try {
       await api('/admin/api/alerts/read', { method: 'POST', body: '{}' });
-      loadAlerts();
+      await loadAlerts();
     } catch (error) {
       el('alerts-info').textContent = error.message || 'علامت‌گذاری ممکن نشد';
+      if (button) button.disabled = false;
     }
   });
 

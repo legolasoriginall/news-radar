@@ -98,6 +98,10 @@ export function applyIssues({
   };
   const open = {};
   for (const [id, value] of Object.entries(state.open || {})) open[id] = { ...value };
+  // تاریخچهٔ آخرین هشدار هر مشکل، حتی بعد از بسته‌شدن آن، می‌ماند تا مشکل
+  // نوسانی (خراب/سالم/خراب) در هر بررسی دوباره هشدار نسازد.
+  const history = {};
+  for (const [id, value] of Object.entries(state.history || {})) history[id] = { ...value };
   let alerts = Array.isArray(state.alerts) ? state.alerts.slice() : [];
   const created = [];
   const active = new Set(issues.map((issue) => issue.id));
@@ -105,8 +109,14 @@ export function applyIssues({
 
   for (const issue of issues) {
     const previous = open[issue.id];
-    const due = previous ? now - new Date(previous.last_sent_at || 0).getTime() >= cooldownFor(issue.kind) : true;
+    const lastEvent = history[issue.id];
+    const lastEventAt = lastEvent ? new Date(lastEvent.at || 0).getTime() : 0;
+    // اگر مشکل تازه باز شده، تا پایان cooldownِ آخرین هشدارش دوباره اعلام نمی‌شود.
+    const due = previous
+      ? now - new Date(previous.last_sent_at || 0).getTime() >= cooldownFor(issue.kind)
+      : !lastEvent || now - lastEventAt >= cooldownFor(issue.kind);
     if (!previous) {
+      if (!due) continue;
       open[issue.id] = { target: issue.target, kind: issue.kind, since: at, last_sent_at: at };
     } else if (due) {
       previous.last_sent_at = at;
@@ -114,6 +124,7 @@ export function applyIssues({
       continue;
     }
     const alert = { id: issue.id, kind: issue.kind, target: issue.target, message: issue.message, at, recovery: false, read: false };
+    history[issue.id] = { at, kind: issue.kind, target: issue.target, recovery: false };
     alerts = [alert, ...alerts];
     created.push(alert);
   }
@@ -130,11 +141,18 @@ export function applyIssues({
       recovery: true,
       read: false,
     };
+    history[id] = { at, kind: alert.kind, target: alert.target, recovery: true };
     alerts = [alert, ...alerts];
     created.push(alert);
   }
 
-  return { state: { alerts: alerts.slice(0, limit), open }, created };
+  // تاریخچه را کوتاه نگه می‌داریم؛ برای جلوگیری از هشدار تکراری فقط چند روز اخیر کافی است.
+  const historyCutoff = now - 7 * 24 * 60 * 60 * 1000;
+  for (const [id, value] of Object.entries(history)) {
+    if (!(Date.parse(value.at || '') >= historyCutoff)) delete history[id];
+  }
+
+  return { state: { alerts: alerts.slice(0, limit), open, history }, created };
 }
 
 export function unreadCount(state = {}) {
