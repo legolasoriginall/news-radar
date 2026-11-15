@@ -354,9 +354,22 @@ footer { color: var(--muted); font-size: 11.6px; padding: 0 0 26px; }
 
   // نسخهٔ منتشرشده یک اجرا عقب‌تر از مخزن است؛ نسخهٔ تازه‌تر مستقیم از مخزن خوانده می‌شود.
   var CHAIN_REMOTE = 'https://raw.githubusercontent.com/legolasoriginall/news-radar/main/chain-log.json';
+  // API گیت‌هاب بی‌کش است و نسخه‌ای تازه‌تر از raw.githubusercontent می‌دهد.
+  var CHAIN_API = 'https://api.github.com/repos/legolasoriginall/news-radar/contents/chain-log.json?ref=main';
 
   async function chainFile(url) {
     var res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var list = await res.json();
+    return Array.isArray(list) ? list : [];
+  }
+
+  async function chainApiFile() {
+    var res = await fetch(CHAIN_API + '&_=' + Date.now(), {
+      cache: 'no-store',
+      headers: { Accept: 'application/vnd.github.raw+json' },
+      signal: AbortSignal.timeout(8000)
+    });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var list = await res.json();
     return Array.isArray(list) ? list : [];
@@ -373,17 +386,24 @@ footer { color: var(--muted); font-size: 11.6px; padding: 0 0 26px; }
 
   async function loadChain() {
     try {
-      var both = await Promise.all([
+      var results = await Promise.all([
         chainFile('chain-log.json?_=' + Date.now()).catch(function () { return null; }),
-        chainFile(CHAIN_REMOTE + '?t=' + Date.now()).catch(function () { return null; })
+        chainFile(CHAIN_REMOTE + '?t=' + Date.now()).catch(function () { return null; }),
+        chainApiFile().catch(function () { return null; })
       ]);
-      var log = both[0];
-      var fromRepo = false;
-      if (both[1] && (!log || chainStamp(both[1]) > chainStamp(log))) {
-        log = both[1];
-        fromRepo = true;
-      }
-      if (!log) throw new Error('chain-log unavailable');
+      var candidates = [
+        { list: results[0], label: 'از نسخهٔ منتشرشده' },
+        { list: results[1], label: 'تازه‌ترین از مخزن' },
+        { list: results[2], label: 'تازه‌ترین از API' }
+      ].filter(function (item) { return item.list; });
+      if (!candidates.length) throw new Error('chain-log unavailable');
+      var best = candidates[0];
+      candidates.forEach(function (item) {
+        if (chainStamp(item.list) > chainStamp(best.list)) best = item;
+      });
+      var log = best.list;
+      var sourceLabel = best.label;
+      var fromRemote = sourceLabel !== 'از نسخهٔ منتشرشده';
       var stats = { runs: log.length, dataFail: 0, artFail: 0, deployFail: 0, rescued: 0 };
       log.forEach(function (run) {
         ['data', 'artifact', 'deploy'].forEach(function (key) {
@@ -406,7 +426,7 @@ footer { color: var(--muted); font-size: 11.6px; padding: 0 0 26px; }
       $('chain-rows').innerHTML = rows.map(chainRow).join('') ||
         '<tr><td colspan="6" class="empty">هنوز اجرایی ثبت نشده است.</td></tr>';
       $('chain-hint').textContent = num(log.length) + ' اجرا ثبت شده' +
-        (fromRepo ? ' · تازه‌ترین از مخزن' : '') +
+        (fromRemote ? ' · ' + sourceLabel : '') +
         (rows[0] && rows[0].at ? ' · آخرین: ' + age(rows[0].at) : '');
     } catch (error) {
       $('chain-hint').textContent = 'وضعیت زنجیره هنوز منتشر نشده است';
