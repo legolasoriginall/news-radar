@@ -840,6 +840,10 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (moreDone || moreBusy || !state.data) return;
     // در اجرای محلی، data.json از ابتدا همهٔ خبرها را دارد و قطعه‌ای وجود ندارد.
     if (FEED_FILE === 'data.json') { moreDone = true; return; }
+    // اگر همهٔ آرشیو (stats.total) همین حالا بارگذاری شده، درخواست قطعهٔ بعدی
+    // بی‌فایده است و فقط یک ۴۰۴ می‌آورد؛ پایان آرشیو همین‌جا تشخیص داده می‌شود.
+    var totalKnown = Number((state.data.stats && state.data.stats.total) || 0);
+    if (totalKnown && (state.data.articles || []).length >= totalKnown) { moreDone = true; return; }
     moreBusy = true;
     try {
       var res = await fetch('feed-more-' + moreChunk + '.json', { cache: 'no-cache' });
