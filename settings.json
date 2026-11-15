@@ -1,4 +1,4 @@
 {
   "silent_hours": 24,
-  "price_stale_hours": 48
+  "price_stale_hours": 24
 }
