@@ -2422,7 +2422,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     IE: 'ایرلند', UZ: 'ازبکستان', TM: 'ترکمنستان', KG: 'قرقیزستان', KZ: 'قزاقستان', CY: 'قبرس'
   };
 
-  var satState = { countryNames: {}, countryList: [], cache: {}, list: [], shown: [], query: '', token: 0, hls: null, retry: 0, onlyFree: false, showDead: false, dead: {}, verifying: 0, openGroups: {}, ageConfirmed: false };
+  var satState = { countryNames: {}, countryList: [], cache: {}, list: [], shown: [], query: '', token: 0, hls: null, retry: 0, onlyFree: false, showDead: false, dead: {}, verifying: 0, openGroups: {} };
 
   // میزبان‌هایی که معمولاً از داخل ایران بدون VPN باز می‌شوند (CDNهای ایرانی و سرویس‌های IPTV فارسی)
   var SAT_IRAN_HOSTS = [
@@ -2797,19 +2797,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     var branches = SAT_CATEGORIES.concat([SAT_OTHER]).filter(function (cat) { return buckets[cat.key]; });
     box.innerHTML = branches.map(function (cat) {
       var bucket = buckets[cat.key];
-      var isAdult = (cat.key === 'adult');
-      var body;
-      if (isAdult && !satState.ageConfirmed) {
-        body = '<div class="sat-age-gate">' +
-          '<p class="sat-age-gate-text">این بخش فقط برای افراد بالای ۱۸ سال است. برای دیدن شبکه‌ها، سن خود را تأیید کنید.</p>' +
-          '<div class="sat-age-gate-actions">' +
-            '<button type="button" class="sat-age-confirm" data-sat-age="confirm">تأیید می‌کنم (بالای ۱۸ سال)</button>' +
-            '<button type="button" class="sat-age-cancel" data-sat-age="cancel">انصراف</button>' +
-          '</div>' +
-        '</div>';
-      } else {
-        body = '<ul class="sat-sublist">' + bucket.items.map(function (item) { return satItemHtml(item.entry, item.index); }).join('') + '</ul>';
-      }
+      body = '<ul class="sat-sublist">' + bucket.items.map(function (item) { return satItemHtml(item.entry, item.index); }).join('') + '</ul>';
       return '<li><details class="sat-branch" data-group="' + esc(cat.key) + '"' + (satBranchOpen(cat.key) ? ' open' : '') + '>' +
         '<summary>' + esc(cat.label) + '<span class="sat-count">' + fmt(bucket.items.length) + '</span></summary>' +
         body +
@@ -3134,21 +3122,6 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       storeSet('newsradar:satGroups', satState.openGroups);
     }, true);
     list.addEventListener('click', function (event) {
-      var ageBtn = event.target.closest ? event.target.closest('[data-sat-age]') : null;
-      if (ageBtn) {
-        var action = ageBtn.getAttribute('data-sat-age');
-        if (action === 'confirm') {
-          satState.ageConfirmed = true;
-          storeSet('newsradar:satAgeConfirmed', true);
-          renderSat();
-        } else {
-          // hide adult branch by marking closed
-          satState.openGroups.adult = false;
-          storeSet('newsradar:satGroups', satState.openGroups);
-          renderSat();
-        }
-        return;
-      }
       var button = event.target.closest ? event.target.closest('[data-index]') : null;
       if (!button) return;
       var entry = (satState.shown || [])[Number(button.getAttribute('data-index'))];
@@ -3166,7 +3139,6 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (expandAll) expandAll.addEventListener('click', function () { satSetAllGroups(true); });
     var collapseAll = $('sat-collapse-all');
     if (collapseAll) collapseAll.addEventListener('click', function () { satSetAllGroups(false); });
-    satState.ageConfirmed = Boolean(storeGet('newsradar:satAgeConfirmed', false));
     // تیک به‌معنای «پنهان بمانند» است؛ پیش‌فرض هم پنهان‌بودن شبکه‌های بی‌پخش است.
     var showDead = $('sat-show-dead');
     if (showDead) {
