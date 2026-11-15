@@ -25,7 +25,8 @@ on:
       - '.github/workflows/update.yml'
 
 permissions:
-  contents: read
+  # نوشتن لازم است تا رکورد وضعیت زنجیره داخل مخزن ثبت شود.
+  contents: write
   pages: write
   id-token: write
   actions: write
@@ -178,6 +179,7 @@ jobs:
         # حتی با شکست مراحل قبلی، وضعیت همین اجرا ثبت و منتشر می‌شود.
         if: ${{ !cancelled() }}
         env:
+          LOG_TOKEN: ${{ github.token }}
           DISPATCH_TOKEN: ${{ secrets.NEWS_RADAR_TOKEN }}
           REPO: ${{ github.repository }}
           RUN_ID: ${{ github.run_id }}
@@ -223,8 +225,8 @@ jobs:
           git config user.email "actions@users.noreply.github.com"
           git add chain-log.json
           git commit -m "ثبت وضعیت اجرای زنجیره" >/dev/null 2>&1 || echo "رکورد جدیدی برای ثبت نبود"
-          if [ -n "${DISPATCH_TOKEN:-}" ]; then
-            git remote set-url origin "https://x-access-token:${DISPATCH_TOKEN}@github.com/${REPO}.git"
+          if [ -n "${LOG_TOKEN:-}" ]; then
+            git remote set-url origin "https://x-access-token:${LOG_TOKEN}@github.com/${REPO}.git"
             git push origin HEAD:main || {
               git pull --rebase origin main && git push origin HEAD:main
             } || echo "ثبت وضعیت در مخزن ناموفق بود" >&2
