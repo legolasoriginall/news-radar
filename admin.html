@@ -120,6 +120,7 @@
     <div class="card" id="live-paths-card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">مسیرهای پخش زنده <span class="muted" id="live-paths-hint">—</span></h2>
       <p class="muted" style="margin:0 0 8px">وضعیت سالم/خراب هر مسیر بر اساس آخرین آزمون واقعی تصویر در مرورگر. نتیجه در مرورگر کاربر ذخیره می‌شود و پس از بازدید از صفحهٔ اصلی به‌روز می‌گردد.</p>
+      <p id="live-current" class="muted" style="margin:0 0 8px">پخش فعال: ندارد</p>
       <div id="live-paths"></div>
     </div>
     <div class="card" id="ops-card" style="margin-bottom:14px">
@@ -1020,7 +1021,20 @@
 
   function livePathEsc(value) { return String(value == null ? '' : value).replace(/[<>&"]/g, ''); }
 
+  function renderLiveCurrent() {
+    var node = el('live-current');
+    if (!node) return;
+    var cur = null;
+    try { cur = JSON.parse(localStorage.getItem('newsradar:liveCurrent') || 'null'); } catch (e) { cur = null; }
+    if (!cur || !cur.channel) { node.textContent = 'پخش فعال: ندارد'; return; }
+    var name = cur.channel;
+    LIVE_PATH_CHANNELS.forEach(function (ch) { if (ch.id === cur.channel) name = ch.name; });
+    var when = cur.at ? ' · ' + formatDate(cur.at) : '';
+    node.textContent = 'پخش فعال: ' + name + ' — ' + cur.source + when;
+  }
+
   function renderLivePaths() {
+    renderLiveCurrent();
     var box = el('live-paths');
     var hint = el('live-paths-hint');
     if (!box) return;
@@ -1084,6 +1098,9 @@
     refreshRun();
     setupLiveAutoToggle();
     renderLivePaths();
+    window.addEventListener('storage', function (event) {
+      if (event.key === 'newsradar:liveCurrent' || event.key === 'newsradar:liveVerified') renderLivePaths();
+    });
     if (github.token) refreshBuildStatus();
     var localOpen = el('local-admin-open');
     var localUrlInput = el('local-admin-url');

@@ -2431,6 +2431,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       liveState.nativeUsed = false;
       liveState.nativeFallbackTried = false;
       liveState.currentSource = '';
+      storeDel('newsradar:liveCurrent');
     }
     if (video) {
       video.pause();
@@ -2495,6 +2496,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }
     var src = channel.sources[index];
     liveState.currentSource = src;
+    storeSet('newsradar:liveCurrent', { channel: channel.id, source: src, at: Date.now() });
     video.hidden = false;
     var reachable = await probeLiveSource(src);
     if (!reachable) {
