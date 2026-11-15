@@ -377,6 +377,7 @@ section { margin-top: 22px; }
 .more-wrap { text-align: center; margin-top: 14px; }
 .more { border: 1px solid var(--line); background: #fff; border-radius: 11px; padding: 8px 22px; font: inherit; font-size: 13px; cursor: pointer; color: var(--blue); }
 .more:hover { background: #f8fafc; }
+.archive-end { text-align: center; margin-top: 10px; color: var(--muted); font-size: 12.5px; }
 .counter { font-size: 12px; color: var(--muted); text-align: center; margin-top: 8px; }
 
 .sources-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(250px, 100%), 1fr)); gap: 10px; }
@@ -568,6 +569,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       <div class="empty" id="empty">خبری با این فیلترها پیدا نشد.</div>
       <div class="more-wrap"><button class="more" id="more" type="button">نمایش بیشتر</button></div>
       <div class="counter" id="counter"></div>
+      <div class="archive-end" id="archive-end" hidden>پایان آرشیو</div>
     </div>
   </section>
 
@@ -1641,6 +1643,12 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     // دکمه تا وقتی خبر خوانده‌شدهٔ نمایش‌داده‌نشده هست یا قطعهٔ بعدی آرشیو باقی است می‌ماند.
     var hasHidden = state.page < list.length;
     $('more').style.display = hasHidden || (!moreDone && totalKnown > state.page) ? 'inline-block' : 'none';
+    var archiveEnd = $('archive-end');
+    if (archiveEnd) {
+      var allLoaded = moreDone && list.length > 0 && list.length === (state.data.articles || []).length && state.page >= list.length;
+      archiveEnd.hidden = !allLoaded;
+      archiveEnd.style.display = allLoaded ? 'block' : 'none';
+    }
     $('counter').textContent = list.length
       ? 'نمایش ' + fmt(Math.min(state.page, list.length)) + ' از ' + fmt(totalKnown) + ' خبر'
       : '';
