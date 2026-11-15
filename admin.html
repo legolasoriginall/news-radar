@@ -16,7 +16,10 @@
   .muted { color: var(--muted); font-size: 12.5px; line-height: 1.7; }
   input, textarea, button { font-family: inherit; font-size: 14px; }
   input[type=password] { width: 100%; padding: 10px 12px; min-height: 44px; border: 1px solid var(--line); border-radius: 10px; margin: 10px 0; }
-  input[type=password]:focus, textarea:focus { outline: 2px solid rgba(13,148,136,.35); border-color: var(--teal); }
+  input[type=password]:focus, textarea:focus { border-color: var(--teal); }
+  :where(a, button, input, select, textarea, label):focus-visible { outline: 3px solid #1d4ed8; outline-offset: 3px; }
+  input[type=password]:focus-visible, textarea:focus-visible { outline: 3px solid #1d4ed8; outline-offset: 3px; }
+  .vpn-head button:focus-visible { outline-color: #fbbf24; }
   button { border: 0; border-radius: 10px; padding: 9px 16px; min-height: 44px; background: var(--teal); color: #fff; cursor: pointer; font-weight: 600; }
   button.ghost { background: #eef2f7; color: #334155; font-weight: 500; }
   button:disabled { opacity: .55; cursor: default; }

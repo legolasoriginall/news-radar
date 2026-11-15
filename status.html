@@ -20,6 +20,11 @@ body {
   font-size: 14.5px; line-height: 1.7;
 }
 a { color: inherit; }
+:where(a, button, input, select, textarea, summary):focus-visible {
+  outline: 3px solid #1d4ed8;
+  outline-offset: 3px;
+}
+header :where(a, button):focus-visible { outline-color: #fbbf24; }
 .wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
 header {
   background: linear-gradient(160deg, var(--navy) 0%, var(--navy-2) 100%);
