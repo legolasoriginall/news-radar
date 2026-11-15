@@ -810,5 +810,25 @@
    "ok": true
   },
   "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-15T20:14:02.160Z",
+  "started_at": "2026-11-15T20:13:36Z",
+  "duration_ms": 26161,
+  "commit": "cb16e2c",
+  "run": "43756816811",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
  }
 ]
