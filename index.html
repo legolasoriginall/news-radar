@@ -2048,7 +2048,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }
   ];
 
-  var liveState = { channel: 'iranintl', hls: null, script: null, retry: 0, watchdog: 0 };
+  var liveState = { channel: 'iranintl', hls: null, script: null, retry: 0, watchdog: 0, currentSource: '' };
   var liveChannels = LIVE_CHANNELS;
 
   function liveChannelById(id) {
@@ -2060,11 +2060,121 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
   function liveSourceKey(id) { return 'newsradar:liveSource:' + id; }
 
-  // آخرین مسیری که برای هر کانال جواب داده، اول امتحان می‌شود
+  // نتیجهٔ آزمون واقعی تصویر هر مسیر (نه فقط وجود فهرست m3u8) برای هر کانال
+  // نگه داشته می‌شود؛ مسیرهایی که تصویر داده‌اند اول فهرست می‌آیند و مسیرهای
+  // خراب به آخر می‌روند. بعد از ۶ ساعت دوباره آزموده می‌شوند.
+  var LIVE_VERIFY_KEY = 'newsradar:liveVerified';
+  var LIVE_VERIFY_TTL = 6 * 60 * 60 * 1000;
+  var liveVerify = storeGet(LIVE_VERIFY_KEY, null) || {};
+  var liveVerifyBusy = '';
+
+  function liveVerdict(channelId, url) {
+    var box = liveVerify[channelId];
+    var item = box && box[url];
+    if (!item || !item.at || Date.now() - item.at > LIVE_VERIFY_TTL) return '';
+    return item.ok ? 'ok' : 'bad';
+  }
+
+  function setLiveVerdict(channelId, url, ok) {
+    if (!liveVerify[channelId]) liveVerify[channelId] = {};
+    liveVerify[channelId][url] = { ok: Boolean(ok), at: Date.now() };
+    storeSet(LIVE_VERIFY_KEY, liveVerify);
+  }
+
+  // آخرین مسیر موفق اول، بعد مسیرهای آزموده‌شدهٔ سالم، بعد آزمون‌نشده‌ها و
+  // در پایان مسیرهایی که تصویر نداده‌اند.
   function preferredSources(channel) {
     var saved = storeGet(liveSourceKey(channel.id), '');
-    if (!saved || channel.sources.indexOf(saved) === -1) return channel.sources;
-    return [saved].concat(channel.sources.filter(function (url) { return url !== saved; }));
+    var rank = { ok: 0, '': 1, bad: 2 };
+    var list = channel.sources.map(function (url, index) {
+      return { url: url, index: index, verdict: liveVerdict(channel.id, url) };
+    });
+    list.sort(function (a, b) {
+      if (a.url === saved && b.url !== saved) return -1;
+      if (b.url === saved && a.url !== saved) return 1;
+      if (rank[a.verdict] !== rank[b.verdict]) return rank[a.verdict] - rank[b.verdict];
+      return a.index - b.index;
+    });
+    return list.map(function (item) { return item.url; });
+  }
+
+  // یک مسیر را در ویدئوی بی‌صدا و پنهان واقعاً پخش می‌کند و می‌بیند فریم
+  // تصویر تولید می‌شود یا نه؛ فقط پاسخ m3u8 کافی نیست.
+  function testLivePicture(url) {
+    return new Promise(function (resolve) {
+      var probe = document.createElement('video');
+      probe.muted = true;
+      probe.playsInline = true;
+      probe.preload = 'auto';
+      probe.style.cssText = 'position:fixed;left:-9999px;top:0;width:320px;height:180px';
+      document.body.appendChild(probe);
+      var hls = null;
+      var timer = 0;
+      var settled = false;
+      var frames = function () {
+        try { return probe.getVideoPlaybackQuality ? probe.getVideoPlaybackQuality().totalVideoFrames : 0; } catch (e) { return 0; }
+      };
+      var finish = function (ok) {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        try { probe.pause(); } catch (e) { /* ignore */ }
+        if (hls) { try { hls.destroy(); } catch (e) { /* ignore */ } }
+        try { probe.removeAttribute('src'); probe.load(); } catch (e) { /* ignore */ }
+        probe.remove();
+        resolve(ok);
+      };
+      timer = setTimeout(function () { finish(false); }, 15000);
+      var seen = false;
+      var look = function () {
+        if (seen || probe.videoWidth <= 0) return;
+        seen = true;
+        setTimeout(function () { finish(probe.videoWidth > 0 && frames() > 0); }, 2500);
+      };
+      probe.addEventListener('loadeddata', look);
+      probe.addEventListener('playing', look);
+      probe.addEventListener('error', function () { finish(false); });
+      (async function () {
+        try {
+          if (probe.canPlayType('application/vnd.apple.mpegurl')) {
+            probe.src = url;
+          } else {
+            var Hls = await loadHlsScript();
+            if (!Hls || !Hls.isSupported()) return finish(false);
+            hls = new Hls({ enableWorker: true });
+            hls.on(Hls.Events.ERROR, function (event, data) {
+              if (data && data.fatal) finish(false);
+            });
+            hls.loadSource(url);
+            hls.attachMedia(probe);
+          }
+          var played = probe.play();
+          if (played && played.catch) played.catch(function () { /* بی‌صدا؛ اگر بسته شد، تایمر تصمیم می‌گیرد */ });
+        } catch (e) { finish(false); }
+      })();
+    });
+  }
+
+  // مسیرهای یک کانال را یکی‌یکی و بی‌سر‌و‌صدا می‌آزماید؛ فقط وقتی پخش اصلی
+  // شروع شده و بخش زنده در دید است. یک آزمون در هر لحظه برای کل صفحه.
+  async function verifyLiveChannel(channelId) {
+    if (liveVerifyBusy) return;
+    var channel = liveChannelById(channelId);
+    if (!channel || !Array.isArray(channel.sources)) return;
+    liveVerifyBusy = channelId;
+    try {
+      for (var i = 0; i < channel.sources.length; i++) {
+        var url = channel.sources[i];
+        if (liveVerdict(channel.id, url)) continue;
+        var panel = document.querySelector('#live-tv .panel');
+        if (document.hidden || (panel && panel.classList.contains('collapsed'))) break;
+        if (liveState.currentSource === url) { setLiveVerdict(channel.id, url, true); continue; }
+        var ok = await testLivePicture(url);
+        setLiveVerdict(channel.id, url, ok);
+      }
+    } finally {
+      liveVerifyBusy = '';
+    }
   }
 
   // فهرست مسیرها از سرور تازه می‌شود؛ در میزبان ایستا همان فهرست پیش‌فرض می‌ماند
@@ -2303,6 +2413,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (liveState) {
       liveState.nativeUsed = false;
       liveState.nativeFallbackTried = false;
+      liveState.currentSource = '';
     }
     if (video) {
       video.pause();
@@ -2366,6 +2477,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       return;
     }
     var src = channel.sources[index];
+    liveState.currentSource = src;
     video.hidden = false;
     var reachable = await probeLiveSource(src);
     if (!reachable) {
@@ -2419,6 +2531,12 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         if (startBtn) startBtn.hidden = true;
         var label = $('live-start-label');
         if (label) label.textContent = 'پخش زنده را شروع کنید';
+        // مسیرهای دیگر همین کانال در پس‌زمینه آزموده می‌شوند تا دفعهٔ بعد
+        // آن‌هایی که واقعاً تصویر می‌دهند اول فهرست باشند.
+        setTimeout(function () {
+          if (document.hidden) return;
+          verifyLiveChannel(channel.id);
+        }, 4000);
       };
       video.addEventListener('playing', markPlayed);
       var played = video.play();
