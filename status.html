@@ -145,7 +145,7 @@ footer { color: var(--muted); font-size: 11.6px; padding: 0 0 26px; }
         <tbody id="chain-rows"></tbody>
       </table>
     </div>
-    <div class="hint" style="margin-top:8px">هر اجرای زنجیره یک ردیف ثبت می‌کند؛ ستون‌های «تلاش» نشان می‌دهند تلاش دوباره لازم شده یا نه.</div>
+    <div class="hint" style="margin-top:8px">هر اجرای زنجیره یک ردیف ثبت می‌کند؛ ستون‌های «تلاش» نشان می‌دهند تلاش دوباره لازم شده یا نه. اگر نسخهٔ منتشرشده عقب‌تر از مخزن باشد، نسخهٔ تازه‌تر مستقیم از مخزن خوانده می‌شود.</div>
   </section>
 
   <footer id="foot"></footer>
@@ -342,12 +342,38 @@ footer { color: var(--muted); font-size: 11.6px; padding: 0 0 26px; }
       '</tr>';
   }
 
+  // نسخهٔ منتشرشده یک اجرا عقب‌تر از مخزن است؛ نسخهٔ تازه‌تر مستقیم از مخزن خوانده می‌شود.
+  var CHAIN_REMOTE = 'https://raw.githubusercontent.com/legolasoriginall/news-radar/main/chain-log.json';
+
+  async function chainFile(url) {
+    var res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var list = await res.json();
+    return Array.isArray(list) ? list : [];
+  }
+
+  function chainStamp(list) {
+    var newest = 0;
+    list.forEach(function (run) {
+      var at = Date.parse(run && run.at);
+      if (isFinite(at) && at > newest) newest = at;
+    });
+    return newest;
+  }
+
   async function loadChain() {
     try {
-      var res = await fetch('chain-log.json?_=' + Date.now(), { cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
-      var log = await res.json();
-      if (!Array.isArray(log)) log = [];
+      var both = await Promise.all([
+        chainFile('chain-log.json?_=' + Date.now()).catch(function () { return null; }),
+        chainFile(CHAIN_REMOTE + '?t=' + Date.now()).catch(function () { return null; })
+      ]);
+      var log = both[0];
+      var fromRepo = false;
+      if (both[1] && (!log || chainStamp(both[1]) > chainStamp(log))) {
+        log = both[1];
+        fromRepo = true;
+      }
+      if (!log) throw new Error('chain-log unavailable');
       var stats = { runs: log.length, dataFail: 0, artFail: 0, deployFail: 0, rescued: 0 };
       log.forEach(function (run) {
         ['data', 'artifact', 'deploy'].forEach(function (key) {
@@ -370,6 +396,7 @@ footer { color: var(--muted); font-size: 11.6px; padding: 0 0 26px; }
       $('chain-rows').innerHTML = rows.map(chainRow).join('') ||
         '<tr><td colspan="6" class="empty">هنوز اجرایی ثبت نشده است.</td></tr>';
       $('chain-hint').textContent = num(log.length) + ' اجرا ثبت شده' +
+        (fromRepo ? ' · تازه‌ترین از مخزن' : '') +
         (rows[0] && rows[0].at ? ' · آخرین: ' + age(rows[0].at) : '');
     } catch (error) {
       $('chain-hint').textContent = 'وضعیت زنجیره هنوز منتشر نشده است';
