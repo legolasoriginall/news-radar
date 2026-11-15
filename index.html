@@ -162,9 +162,13 @@ a:hover { text-decoration: underline; }
 .sat-fs { position: absolute; top: 8px; inset-inline-start: 8px; z-index: 3; width: 30px; height: 30px; border-radius: 9px; border: 1px solid rgba(255,255,255,.35); background: rgba(11,18,32,.72); color: #fff; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
 .sat-fs:hover { background: rgba(11,18,32,.92); }
 .sat-fs:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; }
+.sat-close { position: absolute; top: 8px; inset-inline-end: 8px; z-index: 3; width: 30px; height: 30px; border-radius: 9px; border: 1px solid rgba(255,255,255,.35); background: rgba(11,18,32,.72); color: #fff; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
+.sat-close:hover { background: rgba(11,18,32,.92); }
+.sat-close:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; }
 /* حالت شبه‌تمام‌صفحه: وقتی API بومی مرورگر در دسترس نیست */
 #sat-player.pseudo-fs { position: fixed; inset: 0; z-index: 9999; margin: 0; width: 100vw; height: 100vh; height: 100dvh; aspect-ratio: auto; border-radius: 0; background: #000; }
 #sat-player.pseudo-fs .sat-fs { top: 12px; inset-inline-start: 12px; }
+#sat-player.pseudo-fs .sat-close { top: 12px; inset-inline-end: 12px; }
 body.sat-fs-lock { overflow: hidden; }
 .sat-empty { color: #64748b; font-size: 12.5px; padding: 10px 2px; }
 .sat-toggle-all { border: 1px solid #dbe3ec; background: #fff; border-radius: 9px; padding: 7px 11px; font-family: inherit; font-size: 12.5px; cursor: pointer; color: #334155; }
@@ -517,6 +521,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         <video id="sat-video" class="live-video" controls playsinline hidden></video>
         <div class="sat-empty" id="sat-player-note" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#e2e8f0;text-align:center;padding:12px"></div>
         <button class="sat-fs" id="sat-fs" type="button" aria-label="تمام‌صفحه" title="تمام‌صفحه" aria-pressed="false">⛶</button>
+        <button class="sat-close" id="sat-close" type="button" aria-label="بستن پخش‌کننده" title="بستن پخش‌کننده">✕</button>
       </div>
       <ul class="sat-list" id="sat-list"></ul>
       <button type="button" class="sat-toggle-all" id="sat-more" hidden>نمایش شبکه‌های بیشتر</button>
@@ -2958,6 +2963,11 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   function stopSatPlayback() {
     var video = $('sat-video');
     if ($('sat-player') && $('sat-player').classList.contains('pseudo-fs')) exitPseudoFullscreen();
+    var nativeEl = satFullscreenElement();
+    if (nativeEl && ($('sat-player') === nativeEl || video === nativeEl ||
+        ($('sat-player') && $('sat-player').contains(nativeEl)))) {
+      exitNativeFullscreen();
+    }
     hideHlsFailPanel($('sat-player'));
     if (satState.retry) { clearTimeout(satState.retry); satState.retry = 0; }
     if (satState.hls) { try { satState.hls.destroy(); } catch (e) { /* ignore */ } satState.hls = null; }
@@ -3186,13 +3196,42 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     setSatFsUi(false);
   }
 
+  function satInFullscreen() {
+    return Boolean(($('sat-player') && $('sat-player').classList.contains('pseudo-fs')) || satFullscreenElement());
+  }
+
+  // یک مسیر خروج برای همهٔ حالت‌ها: تمام‌صفحهٔ بومی، حالت شبه‌تمام‌صفحه و وضعیت‌های نیمه‌کاره
+  async function exitSatFullscreen() {
+    if (satFullscreenElement()) await exitNativeFullscreen();
+    exitPseudoFullscreen();
+  }
+
+  // کلیک روی نوارهای مشکی اطراف تصویر (حاشیهٔ letterbox) «زمینهٔ پخش‌کننده» حساب می‌شود
+  function satClickOnLetterbox(video, event) {
+    if (!video || !video.videoWidth || !video.videoHeight) return false;
+    var rect = video.getBoundingClientRect();
+    if (!rect.width || !rect.height) return false;
+    var scale = Math.min(rect.width / video.videoWidth, rect.height / video.videoHeight);
+    var shownW = video.videoWidth * scale;
+    var shownH = video.videoHeight * scale;
+    var x = event.clientX - rect.left - (rect.width - shownW) / 2;
+    var y = event.clientY - rect.top - (rect.height - shownH) / 2;
+    return x < 0 || y < 0 || x > shownW || y > shownH;
+  }
+
+  async function closeSatPlayer() {
+    await exitSatFullscreen();
+    stopSatPlayback();
+    var wrap = $('sat-player');
+    if (wrap) wrap.hidden = true;
+  }
+
   async function toggleSatFullscreen() {
     var wrap = $('sat-player');
     var video = $('sat-video');
     if (!wrap || !video) return;
-    if (wrap.classList.contains('pseudo-fs')) { exitPseudoFullscreen(); return; }
-    // اگر همین حالا در تمام‌صفحهٔ بومی هستیم، دکمه خارج می‌کند
-    if (satFullscreenElement()) { await exitNativeFullscreen(); setSatFsUi(false); return; }
+    // اگر در تمام‌صفحهٔ بومی یا شبه‌تمام‌صفحه هستیم، همین دکمه کوچک می‌کند
+    if (satInFullscreen()) { await exitSatFullscreen(); return; }
     // iOS: تنها راه تمام‌صفحهٔ واقعی، متد اختصاصی خود ویدیو است
     if (typeof video.webkitEnterFullscreen === 'function') {
       try { video.webkitEnterFullscreen(); setSatFsUi(true); return; } catch (e) { /* ادامه */ }
@@ -3215,6 +3254,26 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     var btn = $('sat-fs');
     if (!btn) return;
     btn.addEventListener('click', function () { toggleSatFullscreen(); });
+    var closeBtn = $('sat-close');
+    if (closeBtn) closeBtn.addEventListener('click', function () { closeSatPlayer(); });
+    var wrapEl = $('sat-player');
+    if (wrapEl) {
+      // در تمام‌صفحه، کلیک روی زمینهٔ پخش‌کننده (نه ویدیو و نه دکمه‌ها) خارج می‌کند
+      wrapEl.addEventListener('click', function (event) {
+        var target = event.target;
+        if (!target || !target.closest || !satInFullscreen()) return;
+        if (target.closest('#sat-fs') || target.closest('#sat-close') || target.closest('.hls-fail')) return;
+        // کلیک روی تصویر برای پخش/توقف است؛ فقط حاشیهٔ مشکی اطرافش خارج می‌کند
+        if (target === $('sat-video') && !satClickOnLetterbox(target, event)) return;
+        exitSatFullscreen();
+      });
+      // دوبار کلیک همه‌جا (حتی روی ویدیو) خارج می‌کند
+      wrapEl.addEventListener('dblclick', function (event) {
+        if (!satInFullscreen()) return;
+        event.preventDefault();
+        exitSatFullscreen();
+      });
+    }
     function syncSatFsUi() {
       var wrap = $('sat-player');
       if (!wrap) return;
@@ -3229,8 +3288,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (video && video.addEventListener) video.addEventListener('webkitendfullscreen', function () { setSatFsUi(false); });
     document.addEventListener('keydown', function (event) {
       if (event.key !== 'Escape' && event.key !== 'Esc') return;
-      var wrap = $('sat-player');
-      if (wrap && wrap.classList.contains('pseudo-fs')) exitPseudoFullscreen();
+      if (satInFullscreen()) exitSatFullscreen();
     });
   })();
 
