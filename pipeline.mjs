@@ -2,7 +2,7 @@
 import { readFile, writeFile, mkdir } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 import path from 'node:path';
-import { SOURCES, UPDATE_INTERVAL_MINUTES } from './src/sources.mjs';
+import { SOURCES, UPDATE_INTERVAL_MINUTES, addSource } from './src/sources.mjs';
 import { parseFeed, stripHtml, cleanText } from './src/parse.mjs';
 import {
   detectTopics,
@@ -22,6 +22,7 @@ import { fetchFeedWithMirrors } from './src/mirrors.mjs';
 import {
   fetchTelegramFeeds,
   TELEGRAM_CHANNELS,
+  addTelegramChannel,
   TELEGRAM_SOURCE,
   normalizeTelegramLink,
   telegramPostTitle,
@@ -43,6 +44,8 @@ const MAX_ARTICLES = 1400;
 // هم همان تنظیماتی را داشته باشد که در پنل مدیر ذخیره شده است.
 const SETTINGS_FILE = path.join(ROOT, 'settings.json');
 const DEFAULT_SETTINGS = { silent_hours: 24, price_stale_hours: 48 };
+const CUSTOM_SOURCES_FILE = path.join(ROOT, 'custom-sources.json');
+const LEGACY_CUSTOM_FILE = path.join(ROOT, '.custom-sources.json');
 const clampSetting = (value, min, max, fallback) => {
   const num = Number(value);
   if (!Number.isFinite(num) || num <= 0) return fallback;
@@ -55,6 +58,17 @@ async function loadSettings() {
     silent_hours: clampSetting(saved.silent_hours, 1, 720, DEFAULT_SETTINGS.silent_hours),
     price_stale_hours: clampSetting(saved.price_stale_hours, 1, 168, DEFAULT_SETTINGS.price_stale_hours),
   };
+}
+
+async function loadCustomConfig() {
+  let saved = {};
+  try { saved = JSON.parse(await readFile(CUSTOM_SOURCES_FILE, 'utf8')); } catch {
+    try { saved = JSON.parse(await readFile(LEGACY_CUSTOM_FILE, 'utf8')); } catch { saved = {}; }
+  }
+  const sources = Array.isArray(saved?.sources) ? saved.sources : [];
+  const channels = Array.isArray(saved?.channels) ? saved.channels : [];
+  for (const source of sources) addSource({ ...source, custom: true });
+  for (const channel of channels) addTelegramChannel({ ...channel, custom: true });
 }
 
 const faNumber = (value, digits = 0) =>
@@ -377,6 +391,7 @@ export async function runPipeline({ quiet = false } = {}) {
   const previousData = await readJson(DATA_FILE, null);
   const settings = await loadSettings();
   setStaleHours(settings.price_stale_hours);
+  await loadCustomConfig();
   const marketsPromise = fetchMarkets({ previous: previousData?.markets || null }).catch((error) => ({
     ok: false,
     stale: true,

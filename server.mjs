@@ -768,8 +768,12 @@ const CUSTOM_FILE = path.join(path.resolve('.'), '.custom-sources.json');
 const customState = { sources: [], channels: [] };
 
 async function loadCustomConfig() {
+  let saved = null;
+  for (const file of [CUSTOM_FILE, path.join(path.resolve('.'), 'custom-sources.json')]) {
+    try { saved = JSON.parse(await readFile(file, 'utf8')); break; } catch { /* try next */ }
+  }
+  if (!saved) return;
   try {
-    const saved = JSON.parse(await readFile(CUSTOM_FILE, 'utf8'));
     customState.sources = Array.isArray(saved?.sources) ? saved.sources : [];
     customState.channels = Array.isArray(saved?.channels) ? saved.channels : [];
     for (const source of customState.sources) addSource({ ...source, custom: true });

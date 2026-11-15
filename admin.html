@@ -270,6 +270,48 @@
     return next;
   }
 
+  async function readRepoCustom() {
+    if (!REPO) throw new Error('این صفحه روی گیت‌هاب نیست');
+    var headers = github.token ? { Authorization: 'Bearer ' + github.token } : {};
+    var res = await fetch('https://api.github.com/repos/' + REPO.owner + '/' + REPO.repo +
+      '/contents/custom-sources.json?ref=' + REPO.branch + '&_=' + Date.now(), { headers: headers, cache: 'no-store' });
+    if (res.status === 404) return { data: { sources: [], channels: [] }, sha: null };
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var payload = await res.json();
+    var text = payload && payload.content ? b64decode(payload.content) : '{}';
+    var data = {};
+    try { data = JSON.parse(text) || {}; } catch (e) { data = {}; }
+    if (!Array.isArray(data.sources)) data.sources = [];
+    if (!Array.isArray(data.channels)) data.channels = [];
+    return { data: data, sha: (payload && payload.sha) || null };
+  }
+
+  async function saveRepoCustom(next) {
+    if (!REPO) throw new Error('این صفحه روی گیت‌هاب نیست');
+    if (!github.token) throw new Error('اول توکن گیت‌هاب را ذخیره کن');
+    var current = await readRepoCustom();
+    var body = {
+      message: 'منابع و کانال‌های اختصاصی از پنل مدیر',
+      content: b64encode(JSON.stringify(next, null, 2) + '\n'),
+      branch: REPO.branch,
+    };
+    if (current.sha) body.sha = current.sha;
+    var res = await fetch('https://api.github.com/repos/' + REPO.owner + '/' + REPO.repo + '/contents/custom-sources.json', {
+      method: 'PUT',
+      headers: {
+        Authorization: 'Bearer ' + github.token,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      var failure = await res.json().catch(function () { return {}; });
+      throw new Error(failure.message || ('HTTP ' + res.status));
+    }
+    return next;
+  }
+
   async function saveSettings(patch) {
     if (github.static) return { settings: await saveRepoSettings(patch) };
     return api('/admin/api/settings', { method: 'POST', body: JSON.stringify(patch) });
@@ -340,7 +382,7 @@
     el('no-key').hidden = true;
     el('settings').hidden = false;
     el('github-card').hidden = false;
-    ['alerts-card', 'custom-card', 'pwd-card'].forEach(function (id) {
+    ['alerts-card', 'pwd-card'].forEach(function (id) {
       var card = el(id);
       if (card) card.hidden = true;
     });
@@ -532,6 +574,30 @@
   });
 
   async function loadCustom() {
+    if (github.static) {
+      try {
+        var repo = await readRepoCustom();
+        var list = el('custom-list');
+        list.textContent = '';
+        var sources = repo.data.sources || [];
+        var channels = repo.data.channels || [];
+        var count = sources.length + channels.length;
+        el('custom-info').textContent = count
+          ? count + ' مورد اختصاصی ذخیره شده در مخزن (' + sources.length + ' منبع و ' + channels.length + ' کانال)'
+          : 'هنوز چیزی اضافه نشده؛ افزودنی‌ها پس از بازسازی سایت دیده می‌شوند.';
+        sources.forEach(function (source) { addCustomRow('source', source, source.name + ' — ' + source.url); });
+        channels.forEach(function (channel) { addCustomRow('channel', channel, channel.name + ' — @' + channel.handle); });
+        if (!count) {
+          var empty = document.createElement('li');
+          empty.className = 'muted';
+          empty.textContent = 'فهرستی برای پاک کردن نیست.';
+          list.appendChild(empty);
+        }
+      } catch (error) {
+        el('custom-info').textContent = 'خواندن فهرست از گیت‌هاب ناموفق بود: ' + (error.message || '');
+      }
+      return;
+    }
     try {
       var payload = await api('/admin/api/custom');
       var list = el('custom-list');
@@ -563,7 +629,14 @@
     button.addEventListener('click', async function () {
       button.disabled = true;
       try {
-        await api('/admin/api/custom/remove', { method: 'POST', body: JSON.stringify({ kind: kind, id: item.id }) });
+        if (github.static) {
+          var repo = await readRepoCustom();
+          if (kind === 'source') repo.data.sources = (repo.data.sources || []).filter(function (x) { return x.id !== item.id; });
+          else repo.data.channels = (repo.data.channels || []).filter(function (x) { return x.id !== item.id; });
+          await saveRepoCustom(repo.data);
+        } else {
+          await api('/admin/api/custom/remove', { method: 'POST', body: JSON.stringify({ kind: kind, id: item.id }) });
+        }
         loadCustom();
       } catch (error) {
         el('custom-info').textContent = error.message || 'حذف ممکن نشد';
@@ -576,6 +649,31 @@
   }
 
   el('src-add').addEventListener('click', async function () {
+    if (github.static) {
+      el('src-msg').textContent = 'در حال ذخیره…';
+      el('src-add').disabled = true;
+      try {
+        var name = el('src-name').value.trim();
+        var url = el('src-url').value.trim();
+        if (!name || !url) throw new Error('نام و آدرس فید را بده');
+        try { new URL(url); } catch (e) { throw new Error('آدرس فید نامعتبر است'); }
+        var repo = await readRepoCustom();
+        var id = 'custom_' + Math.random().toString(36).slice(2, 10);
+        var source = { id: id, name: name, url: url, lang: el('src-lang').value, origin: el('src-origin').value, custom: true };
+        repo.data.sources = (repo.data.sources || []).filter(function (s) { return s.url !== url; });
+        repo.data.sources.push(source);
+        await saveRepoCustom(repo.data);
+        el('src-msg').textContent = 'ذخیره شد؛ از به‌روزرسانی بعدی سایت دیده می‌شود.';
+        el('src-name').value = '';
+        el('src-url').value = '';
+        loadCustom();
+      } catch (error) {
+        el('src-msg').textContent = error.message || 'افزودن ممکن نشد';
+      } finally {
+        el('src-add').disabled = false;
+      }
+      return;
+    }
     el('src-msg').textContent = 'در حال بررسی فید…';
     el('src-add').disabled = true;
     try {
@@ -600,6 +698,30 @@
   });
 
   el('tg-add').addEventListener('click', async function () {
+    if (github.static) {
+      el('tg-msg').textContent = 'در حال ذخیره…';
+      el('tg-add').disabled = true;
+      try {
+        var handle = el('tg-handle').value.trim();
+        if (!handle) throw new Error('شناسهٔ کانال را بده');
+        var name = el('tg-name').value.trim() || handle.replace(/^@/, '');
+        var id = 'tg_' + Math.random().toString(36).slice(2, 10);
+        var channel = { id: id, handle: handle, name: name, custom: true };
+        var repo = await readRepoCustom();
+        repo.data.channels = (repo.data.channels || []).filter(function (c) { return String(c.handle).toLowerCase() !== handle.toLowerCase(); });
+        repo.data.channels.push(channel);
+        await saveRepoCustom(repo.data);
+        el('tg-msg').textContent = 'ذخیره شد؛ از به‌روزرسانی بعدی سایت دیده می‌شود.';
+        el('tg-handle').value = '';
+        el('tg-name').value = '';
+        loadCustom();
+      } catch (error) {
+        el('tg-msg').textContent = error.message || 'افزودن ممکن نشد';
+      } finally {
+        el('tg-add').disabled = false;
+      }
+      return;
+    }
     el('tg-msg').textContent = 'در حال خواندن کانال…';
     el('tg-add').disabled = true;
     try {
