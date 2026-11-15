@@ -2567,7 +2567,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   function satCountryOptionsFromBuiltin() {
     var items = Object.keys(SAT_COUNTRY_NAMES).map(function (code) { return { code: code }; });
     items.sort(function (a, b) { return satCountryName(a.code).localeCompare(satCountryName(b.code), 'fa'); });
-    var options = ['<option value="">همهٔ کشورها</option>'];
+    var options = ['<option value="">همهٔ کشورها</option>', '<option value="ADULT">۱۸+</option>'];
     items.forEach(function (country) {
       options.push('<option value="' + country.code + '">' + esc(satCountryName(country.code)) + '</option>');
     });
@@ -2617,7 +2617,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var response = await satFetchFirst(SAT_COUNTRIES_URLS, { cache: 'force-cache' });
       var list = await response.json();
       if (!Array.isArray(list)) return false;
-      var options = ['<option value="">همهٔ کشورها</option>'];
+      var options = ['<option value="">همهٔ کشورها</option>', '<option value="ADULT">۱۸+</option>'];
       var items = list
         .filter(function (country) { return country && country.code; })
         .map(function (country) {
@@ -2631,6 +2631,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       items.forEach(function (country) {
         options.push('<option value="' + country.code + '">' + (country.flag ? country.flag + ' ' : '') + esc(satCountryName(country.code)) + '</option>');
       });
+      options.push('<option value="ADULT">۱۸+</option>');
       var select = $('sat-country');
       if (select) {
         select.innerHTML = options.join('');
@@ -2675,12 +2676,20 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (hint) hint.textContent = 'در حال خواندن فهرست…';
     if (box) box.innerHTML = '';
     try {
-      var response = await satFetchFirst(code ? satCountryUrls(code) : SAT_ALL_URLS, { cache: 'force-cache' });
+      var satUrl = (code === 'ADULT') ? 'Adult.m3u' : (code ? satCountryUrls(code) : SAT_ALL_URLS);
+      // Adult.m3u is a local relative path; use fetch directly
+      var response;
+      if (code === 'ADULT') {
+        response = await fetch('Adult.m3u', { cache: 'no-store' });
+      } else {
+        response = await satFetchFirst(satUrl, { cache: 'force-cache' });
+      }
       var text = await response.text();
       if (token !== satState.token) return;
       var list = groupSatChannels(parseM3uText(text));
+      if (code === 'ADULT') { list.forEach(function (e) { e.adult = true; }); }
       // کانال‌های ۱۸+ از فایل Adult.m3u (داخلی) همیشه افزوده می‌شوند.
-      try {
+      if (code !== 'ADULT') try {
         var aRes = await fetch('Adult.m3u', { cache: 'no-store' });
         if (aRes && aRes.ok) {
           var aText = await aRes.text();
@@ -2698,6 +2707,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
           }
         }
       } catch (e) { /* ignore */ }
+      }
       list.sort(function (a, b) {
         if (Boolean(a.free) !== Boolean(b.free)) return a.free ? -1 : 1;
         return String(a.name).localeCompare(String(b.name));
