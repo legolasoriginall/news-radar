@@ -2459,6 +2459,14 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   ];
   var SAT_EXTRA_COUNTRIES = { '': 1, IR: 1, AF: 1 };
   var SAT_ADULT_RE = /\bxxx\b|adult|18\+|porn/i;
+  // نام‌های کوتاه‌ترِ فهرست‌های دیگر به همان شبکهٔ اصلی برمی‌گردند تا ردیف تکراری نسازند.
+  var SAT_NAME_ALIASES = {
+    iranintl: 'iran international',
+    'iran international': 'iran international',
+    'radio farda': 'radio farda tv',
+    'voa persian': 'voa persian',
+    'voa tv persian': 'voa persian'
+  };
 
   // وضعیت مسیر شبکه: کدام آینه‌های iptv-org از این دستگاه در دسترس‌اند.
   // سایت خودش VPN اجرا نمی‌کند؛ این نشانگر فقط می‌گوید مسیر باز است یا نه.
@@ -2608,11 +2616,12 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     // کلید دوم فقط برای همین ادغام: «1080p»، «HD» و پسوندهای تبلیغاتی نام را یکی می‌کند
     // تا یک شبکه با دو نوشتار متفاوت، دو ردیف نشود.
     function looseKey(name) {
-      return satNameKey(name)
+      var key = satNameKey(name)
         .replace(/\b\d{3,4}p\b/g, ' ')
         .replace(/\biptv\b|\blive\b|\bchannel\b/g, ' ')
         .replace(/\s+/g, ' ')
         .trim();
+      return SAT_NAME_ALIASES[key] || key;
     }
     list.forEach(function (channel) {
       var id = String(channel.id || '').split('@')[0].trim().toLowerCase();
