@@ -61,10 +61,29 @@ jobs:
       - name: تست زنجیرهٔ منابع نرخ
         run: npm test
 
+      # تولید داده‌ها با سه تلاش و فاصلهٔ افزایشی؛ خطای موقت شبکه/منبع داده زنجیره را قطع نکند.
       - name: تولید داده‌ها
         env:
           MYMEMORY_EMAIL: ${{ secrets.MYMEMORY_EMAIL }}
-        run: node pipeline.mjs
+        run: |
+          set -u
+          attempt=1
+          max=3
+          while [ "$attempt" -le "$max" ]; do
+            echo "تلاش ${attempt} از ${max} برای تولید داده‌ها…"
+            if node pipeline.mjs; then
+              echo "تولید داده‌ها موفق بود."
+              exit 0
+            fi
+            if [ "$attempt" -eq "$max" ]; then
+              echo "تولید داده‌ها پس از ${max} تلاش ناموفق ماند." >&2
+              exit 1
+            fi
+            wait_s=$((attempt * 30))
+            echo "خطای موقت؛ ${wait_s} ثانیه صبر و تلاش دوباره…"
+            sleep "$wait_s"
+            attempt=$((attempt + 1))
+          done
 
       - name: آماده‌سازی سایت
         run: |
@@ -88,7 +107,23 @@ jobs:
       - name: پیکربندی Pages
         uses: actions/configure-pages@v6
 
-      - name: بارگذاری artifact
+      # بارگذاری artifact هم تلاش دوباره دارد تا خطای موقت، انتشار را از دست ندهد.
+      - name: بارگذاری artifact (تلاش ۱)
+        id: artifact
+        continue-on-error: true
+        uses: actions/upload-pages-artifact@v5
+        with:
+          path: _site
+
+      - name: فاصله پیش از بارگذاری دوباره
+        if: steps.artifact.outcome == 'failure'
+        run: |
+          echo "بارگذاری artifact ناموفق بود؛ ۳۰ ثانیه صبر…"
+          sleep 30
+
+      - name: بارگذاری artifact (تلاش ۲)
+        id: artifact-retry
+        if: steps.artifact.outcome == 'failure'
         uses: actions/upload-pages-artifact@v5
         with:
           path: _site
@@ -127,10 +162,17 @@ jobs:
         if: always()
         run: |
           url="${{ steps.deployment-final.outputs.page_url || steps.deployment-retry.outputs.page_url || steps.deployment.outputs.page_url }}"
+          if [ -z "$url" ]; then
+            # اگر هیچ تلاشی آدرس نداد، آدرس پیش‌فرض Pages همین مخزن ثبت می‌شود.
+            url="https://${GITHUB_REPOSITORY_OWNER}.github.io/${GITHUB_REPOSITORY#*/}/"
+          fi
           echo "page_url=${url}" >> "$GITHUB_OUTPUT"
-          printf 'آدرس منتشرشده: %s\n' "${url:-نامشخص}"
+          printf 'آدرس منتشرشده: %s\n' "$url"
 
       - name: زمان‌بندی اجرای بعدی
+        # حتی اگر انتشار یا تولید داده شکست بخورد، حلقهٔ خودکار متوقف نشود
+        # (اما با لغو دستی اجرا، اجرای بعدی زمان‌بندی نشود).
+        if: ${{ !cancelled() }}
         env:
           DISPATCH_TOKEN: ${{ secrets.NEWS_RADAR_TOKEN }}
           REPO: ${{ github.repository }}
