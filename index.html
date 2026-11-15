@@ -1579,7 +1579,9 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     // مرحله‌ای، شمارنده و دکمهٔ «نمایش بیشتر» زودتر از موعد متوقف می‌شدند.
     var totalKnown = Math.max(list.length, Number((data.stats && data.stats.total) || 0));
     $('empty').style.display = list.length ? 'none' : 'block';
-    $('more').style.display = !moreDone && totalKnown > state.page ? 'inline-block' : 'none';
+    // دکمه تا وقتی خبر خوانده‌شدهٔ نمایش‌داده‌نشده هست یا قطعهٔ بعدی آرشیو باقی است می‌ماند.
+    var hasHidden = state.page < list.length;
+    $('more').style.display = hasHidden || (!moreDone && totalKnown > state.page) ? 'inline-block' : 'none';
     $('counter').textContent = list.length
       ? 'نمایش ' + fmt(Math.min(state.page, list.length)) + ' از ' + fmt(totalKnown) + ' خبر'
       : '';
