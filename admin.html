@@ -105,6 +105,15 @@
       </div>
       <p class="muted">توکن را از GitHub → Settings → Developer settings → Fine-grained tokens بساز و فقط دسترسی <strong>Contents: Read and write</strong> به همین مخزن بده. توکن در کد یا فایل پروژه ذخیره نمی‌شود.</p>
     </div>
+    <div class="card" id="local-ai-card" style="margin-bottom:14px" hidden>
+      <h2 style="font-size:15px;margin:0 0 4px">هوش مصنوعی مدیر (سرور محلی)</h2>
+      <p class="muted">چت هوش مصنوعی فقط روی سرور محلی کار می‌کند. آدرس پنل مدیر محلی خود را بگذار و وارد شو.</p>
+      <input type="url" id="local-admin-url" placeholder="http://localhost:3000/admin" autocomplete="off" dir="ltr">
+      <div class="row" style="margin-top:8px">
+        <button id="local-admin-open">ورود به پنل مدیر محلی</button>
+        <span class="muted" id="local-admin-msg"></span>
+      </div>
+    </div>
     <div class="card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">آستانهٔ سکوت خبری</h2>
       <p class="muted">منبعی که پاسخ می‌دهد ولی بیش از این مدت خبر تازه نداده، در داشبورد «ساکت» و در هشدارها «سکوت خبری» حساب می‌شود. مقدار مجاز: ۱ تا ۷۲۰ ساعت.</p>
@@ -382,6 +391,9 @@
     el('no-key').hidden = true;
     el('settings').hidden = false;
     el('github-card').hidden = false;
+    el('local-ai-card').hidden = false;
+    var localUrlInput = el('local-admin-url');
+    if (localUrlInput) localUrlInput.value = localStorage.getItem('newsradar:localAdminUrl') || 'http://localhost:3000/admin';
     ['alerts-card', 'pwd-card'].forEach(function (id) {
       var card = el(id);
       if (card) card.hidden = true;
@@ -391,6 +403,12 @@
       : REPO.owner + '/' + REPO.repo + (github.token ? ' · توکن ذخیره شده است' : ' · برای ذخیره، توکن لازم است');
     loadSettings();
     if (github.token) refreshBuildStatus();
+    var localOpen = el('local-admin-open');
+    if (localOpen) localOpen.addEventListener('click', function () {
+      var url = (el('local-admin-url').value || '').trim() || 'http://localhost:3000/admin';
+      localStorage.setItem('newsradar:localAdminUrl', url);
+      window.open(url, '_blank', 'noopener');
+    });
   }
   function formatDate(value) {
     if (!value) return '';
