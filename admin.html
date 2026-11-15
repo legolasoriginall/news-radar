@@ -106,6 +106,7 @@
     <div class="card" id="chain-card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">زنجیرهٔ به‌روزرسانی خودکار <span class="muted" id="chain-hint">در حال خواندن…</span></h2>
       <p class="muted" id="chain-stats" style="margin:0">—</p>
+      <ul class="alerts" id="chain-recent" hidden></ul>
       <p class="muted" style="margin:6px 0 0">آمار از نسخهٔ تازه‌ترِ مخزن یا سایت خوانده می‌شود تا یک اجرا عقب نماند.</p>
     </div>
     <div class="card" id="ops-card" style="margin-bottom:14px">
@@ -425,6 +426,38 @@
     }
   }
 
+  var CHAIN_STEP_LABELS = { data: 'تولید داده', artifact: 'بارگذاری', deploy: 'انتشار' };
+
+  // نام مرحله‌های ناموفق یک اجرا؛ null یعنی اجرا هنوز تمام نشده است.
+  function chainFailures(run) {
+    if (!run || run.pending) return null;
+    var failed = [];
+    ['data', 'artifact', 'deploy'].forEach(function (key) {
+      var part = run[key];
+      if (part && part.attempts && !part.ok) failed.push(CHAIN_STEP_LABELS[key]);
+    });
+    if (failed.length) return failed;
+    var allOk = ['data', 'artifact', 'deploy'].every(function (key) {
+      var part = run[key];
+      return !part || !part.attempts || part.ok;
+    });
+    return allOk ? [] : ['نامشخص'];
+  }
+
+  function chainRunRow(run) {
+    var failed = chainFailures(run);
+    var status = failed === null
+      ? '<span class="tag">در حال اجرا</span>'
+      : failed.length
+        ? '<span class="tag err">ناموفق · ' + failed.join(' و ') + '</span>'
+        : '<span class="tag ok">موفق</span>';
+    var commit = run.commit ? ' · <code>' + String(run.commit).replace(/[<>&"]/g, '') + '</code>' : '';
+    var link = run.run && REPO
+      ? ' · <a href="' + repoPath('/actions/runs/' + encodeURIComponent(run.run)) + '" target="_blank" rel="noopener">اجرا ↗</a>'
+      : '';
+    return '<li>' + status + ' <span>' + (run.at ? formatDate(run.at) : '—') + commit + link + '</span></li>';
+  }
+
   function chainStamp(list) {
     var newest = 0;
     list.forEach(function (run) {
@@ -489,6 +522,13 @@
       var last = log[log.length - 1];
       hint.textContent = (fromRunApi ? 'تازه‌ترین از اجراهای گیت‌هاب' : sourceLabel) +
         (last && last.at ? ' · آخرین اجرا ' + formatDate(last.at) : '');
+      // سه اجرای آخر با نتیجهٔ هر مرحله، تازه‌ترین بالا.
+      var recent = el('chain-recent');
+      if (recent) {
+        var tail = log.slice(-3).reverse();
+        recent.innerHTML = tail.map(chainRunRow).join('');
+        recent.hidden = !tail.length;
+      }
     } catch (error) {
       hint.textContent = 'وضعیت زنجیره در دسترس نیست';
     }
