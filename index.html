@@ -746,6 +746,9 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   function storeSet(key, value) {
     try { localStorage.setItem(key, JSON.stringify(value)); } catch (e) { /* ignore */ }
   }
+  function storeDel(key) {
+    try { localStorage.removeItem(key); } catch (e) { /* ignore */ }
+  }
 
   /* ---------------- بخش‌های بازشو (فِلش مانند) ---------------- */
 
@@ -2347,14 +2350,24 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var markPlayed = function () {
         video.removeEventListener('playing', markPlayed);
         storeSet(liveSourceKey(channel.id), src);
+        // برای بازسازی خودکار پخش‌کننده بعد از بازخوانی صفحه
+        storeSet('newsradar:livePlaying', channel.id);
         var hint = $('live-hint');
         if (hint) hint.textContent = 'پخش زنده · ' + channel.name;
+        var startBtn = $('live-start');
+        if (startBtn) startBtn.hidden = true;
         var label = $('live-start-label');
         if (label) label.textContent = 'پخش زنده را شروع کنید';
       };
       video.addEventListener('playing', markPlayed);
       var played = video.play();
-      if (played && played.catch) played.catch(function () { /* autoplay blocked; controls remain */ });
+      if (played && played.catch) played.catch(function () {
+        // مرورگر پخش خودکار با صدا را بست؛ مسیر آماده است و یک کلیک کافی است.
+        var startBtn = $('live-start');
+        var label = $('live-start-label');
+        if (startBtn) startBtn.hidden = false;
+        if (label) label.textContent = 'ادامهٔ پخش «' + channel.name + '»';
+      });
     } catch (e) {
       if (isHlsLoadFailure(e)) {
         showLiveHlsFailure(channel, index);
@@ -2402,11 +2415,42 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     var saved = storeGet('newsradar:liveChannel', 'iranintl');
     liveState.channel = liveChannelById(saved).id;
     renderLiveTabs();
+    // اگر پیش از بازخوانی همین شبکه در حال پخش بود، پخش‌کننده دوباره ساخته می‌شود.
+    var resumeChannel = storeGet('newsradar:livePlaying', '');
+    var resumePending = Boolean(resumeChannel) && resumeChannel === liveState.channel;
+    function livePanelCollapsed() {
+      var panel = document.querySelector('#live-tv .panel');
+      return Boolean(panel && panel.classList.contains('collapsed'));
+    }
+    function resumeLiveIfNeeded() {
+      if (!resumePending) return;
+      if (livePanelCollapsed()) return;
+      resumePending = false;
+      playLive();
+    }
+    if (resumePending) {
+      var liveSection = $('live-tv');
+      if (liveSection && 'IntersectionObserver' in window) {
+        var observer = new IntersectionObserver(function (entries) {
+          for (var i = 0; i < entries.length; i++) {
+            if (entries[i].isIntersecting) {
+              observer.disconnect();
+              resumeLiveIfNeeded();
+            }
+          }
+        }, { threshold: 0.2 });
+        observer.observe(liveSection);
+      } else {
+        setTimeout(resumeLiveIfNeeded, 1500);
+      }
+    }
     box.addEventListener('click', function (event) {
       var button = event.target.closest ? event.target.closest('[data-live]') : null;
       if (!button) return;
       liveState.channel = button.getAttribute('data-live');
       storeSet('newsradar:liveChannel', liveState.channel);
+      storeDel('newsradar:livePlaying');
+      resumePending = false;
       renderLiveTabs();
       stopLivePlayback();
     });
