@@ -462,10 +462,8 @@
   // مدل رایگان اصلی و مدل‌های جایگزین سالم؛ اگر یکی خراب بود، بعدی امتحان می‌شود.
   var FREE_MODELS = ['openai', 'openai-fast', 'mistral', 'gemini'];
 
-  async function freeAiReply(messages, options) {
-    var opts = options || {};
-    var context = await siteContext();
-    var system = [
+  function freeAiSystemPrompt(context) {
+    return [
       'تو دستیار مدیر داشبورد «رصد خبر» هستی: سایت فارسی رصد خبر، قیمت طلا و دلار،',
       'خبرهای تلگرام و پخش زندهٔ شبکه‌ها.',
       'فقط از داده‌ای که در ادامه می‌آید حرف بزن و اگر داده‌ای نبود صادقانه بگو که در دسترس نیست.',
@@ -474,11 +472,16 @@
       'دادهٔ فعلی سایت:',
       context,
     ].join('\n');
+  }
+
+  async function freeAiReply(messages, options) {
+    var opts = options || {};
+    var system = freeAiSystemPrompt(await siteContext());
     var models = (Array.isArray(opts.models) && opts.models.length ? opts.models : FREE_MODELS).slice();
+    var waits = opts.waits || 0;
     var lastStatus = 0;
-    var waitSeconds = 0;
     while (models.length) {
-      var model = models.shift();
+      var model = models[0];
       var res = await fetch('https://text.pollinations.ai/openai/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -497,17 +500,22 @@
         return String(reply || '').trim() || '(پاسخی نبود)';
       }
       lastStatus = res ? res.status : 0;
+      models.shift();
       if (lastStatus === 402 || lastStatus === 429) {
-        // سهمیهٔ رایگان پر است: کمی صبر می‌کنیم و همین پرسش را از مدل سالم بعدی می‌پرسیم.
+        // سهمیهٔ رایگان هر ۴۵ ثانیه یک پاسخ است: صبر می‌کنیم و از مدل سالم بعدی می‌پرسیم.
+        var hint = 45;
         try {
           var info = await res.json();
           var match = /Retry after (\d+)\s*s/i.exec(String((info && info.error && info.error.message) || ''));
-          if (match) waitSeconds = Math.min(60, Number(match[1]) + 2);
-        } catch (error) { /* بدون زمان دقیق، پیش‌فرض */ }
-        if (!opts.waited && models.length) {
-          addMessage('bot', 'مدل ' + model + ' الان جواب نداد؛ ' + faNum(waitSeconds || 46) + ' ثانیه صبر می‌کنم و با مدل جایگزین می‌پرسم…');
-          await new Promise(function (resolve) { setTimeout(resolve, (waitSeconds || 46) * 1000); });
-          return freeAiReply(messages, { models: models, waited: true });
+          if (match) hint = Math.max(hint, Number(match[1]));
+        } catch (error) { /* بدون زمان دقیق */ }
+        if (waits < 2) {
+          waits += 1;
+          var waitSeconds = Math.min(75, hint + 2);
+          if (!models.length) models.push(model);
+          addMessage('bot', 'مدل ' + model + ' جواب نداد؛ ' + faNum(waitSeconds) + ' ثانیه صبر می‌کنم و با ' + (models[0] === model ? 'همان مدل' : 'مدل ' + models[0]) + ' دوباره می‌پرسم…');
+          await new Promise(function (resolve) { setTimeout(resolve, waitSeconds * 1000); });
+          continue;
         }
         throw new Error('سهمیهٔ رایگان پر است — هر ۴۵ ثانیه یک پاسخ. یک دقیقه بعد دوباره بفرست.');
       }
