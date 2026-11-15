@@ -167,6 +167,16 @@ a:hover { text-decoration: underline; }
 #sat-player.pseudo-fs .sat-fs { top: 12px; inset-inline-start: 12px; }
 body.sat-fs-lock { overflow: hidden; }
 .sat-empty { color: #64748b; font-size: 12.5px; padding: 10px 2px; }
+/* نمای درختی شبکه‌ها: هر دسته یک شاخهٔ بازشدنی است */
+.sat-branch { border: 1px solid #e6ecf3; border-radius: 12px; background: #fff; overflow: hidden; }
+.sat-branch[open] { box-shadow: 0 1px 2px rgba(15,23,42,.04); }
+.sat-branch > summary { display: flex; align-items: center; gap: 8px; padding: 9px 12px; cursor: pointer; font-size: 13px; font-weight: 600; color: #0f172a; list-style: none; }
+.sat-branch > summary::-webkit-details-marker { display: none; }
+.sat-branch > summary::before { content: '▸'; color: #0d9488; font-size: 11px; }
+.sat-branch[open] > summary::before { content: '▾'; }
+.sat-branch > summary:hover { background: #f8fafc; }
+.sat-branch .sat-count { margin-inline-start: auto; color: #64748b; font-size: 11.5px; font-weight: 500; background: #f1f5f9; border-radius: 999px; padding: 1px 8px; font-variant-numeric: tabular-nums; }
+.sat-branch .sat-sublist { list-style: none; margin: 0; padding: 0 8px 8px; display: grid; gap: 6px; }
 /* لایهٔ پیام پخش‌کننده نباید کلیک‌ها را بگیرد؛ وگرنه دکمهٔ تمام‌صفحه و کنترل‌ها کار نمی‌کنند */
 #sat-player-note { pointer-events: none; }
 /* پیام شکست بارگذاری hls.js روی قاب پخش */
@@ -2402,7 +2412,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     IE: 'ایرلند', UZ: 'ازبکستان', TM: 'ترکمنستان', KG: 'قرقیزستان', KZ: 'قزاقستان', CY: 'قبرس'
   };
 
-  var satState = { countryNames: {}, countryList: [], cache: {}, list: [], shown: [], query: '', token: 0, hls: null, retry: 0, onlyFree: false, showDead: false, dead: {}, verifying: 0 };
+  var satState = { countryNames: {}, countryList: [], cache: {}, list: [], shown: [], query: '', token: 0, hls: null, retry: 0, onlyFree: false, showDead: false, dead: {}, verifying: 0, openGroups: {} };
 
   // میزبان‌هایی که معمولاً از داخل ایران بدون VPN باز می‌شوند (CDNهای ایرانی و سرویس‌های IPTV فارسی)
   var SAT_IRAN_HOSTS = [
@@ -2674,6 +2684,47 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }
   }
 
+  // دسته‌های نمای درختی؛ برچسب گروه در فهرست iptv-org انگلیسی است و همین‌جا فارسی می‌شود.
+  var SAT_CATEGORIES = [
+    { key: 'kids', label: 'کودک', match: /\bkids?\b|child|cartoon|junior|baby|pogo|nick|toon/i },
+    { key: 'music', label: 'موزیک', match: /music|clip|mtv|song/i },
+    { key: 'movies', label: 'فیلم و سریال', match: /movie|film|cinema|series|drama|classic|action/i },
+    { key: 'news', label: 'خبر', match: /news|خبر/i },
+    { key: 'sports', label: 'ورزش', match: /sport|ورزش/i },
+    { key: 'docs', label: 'مستند', match: /document|nature|discovery|history/i },
+    { key: 'religious', label: 'مذهبی', match: /religio|quran|islam|قرآن|مذهبی/i },
+    { key: 'fun', label: 'سرگرمی', match: /entertain|comedy|variety|lifestyle|cooking|show|game/i },
+    { key: 'culture', label: 'فرهنگی و آموزشی', match: /educat|culture|business|science|learning/i },
+  ];
+  var SAT_OTHER = { key: 'general', label: 'عمومی و سایر' };
+
+  function satCategoryOf(entry) {
+    var text = String(entry.group || '') + ' ' + String(entry.name || '');
+    for (var i = 0; i < SAT_CATEGORIES.length; i++) {
+      if (SAT_CATEGORIES[i].match.test(text)) return SAT_CATEGORIES[i];
+    }
+    return SAT_OTHER;
+  }
+
+  function satBranchOpen(key) {
+    return satState.openGroups[key] !== false;
+  }
+
+  function satItemHtml(entry, index) {
+    var logo = entry.logo
+      ? '<img src="' + esc(entry.logo) + '" alt="" loading="lazy">'
+      : '<img alt="" src="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23e2e8f0%27/%3E%3C/svg%3E">';
+    var dead = Boolean(satState.dead[satEntryKey(entry)]);
+    var meta = [
+      satCountryName(entry.country),
+      entry.sources.length > 1 ? fmt(entry.sources.length) + ' مسیر' : '',
+      dead ? 'بی‌پخش' : ''
+    ].filter(Boolean).join(' · ');
+    return '<li data-key="' + esc(satEntryKey(entry)) + '"><button type="button" class="sat-item' + (dead ? ' is-dead' : '') + '" data-index="' + index + '">' +
+      logo + '<span class="sat-name">' + esc(entry.name) + '</span>' +
+      (entry.free ? '<span class="sat-free">بدون VPN</span>' : '') +
+      '<span class="sat-meta">' + esc(meta) + '</span></button></li>';
+  }
   function renderSat() {
     var box = $('sat-list');
     var hint = $('sat-hint');
@@ -2706,21 +2757,19 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       return;
     }
     satState.shown = list.slice(0, 300);
-    box.innerHTML = satState.shown.map(function (entry, index) {
-      var logo = entry.logo
-        ? '<img src="' + esc(entry.logo) + '" alt="" loading="lazy">'
-        : '<img alt="" src="data:image/svg+xml,%3Csvg xmlns=%27http://www.w3.org/2000/svg%27 viewBox=%270 0 32 32%27%3E%3Crect width=%2732%27 height=%2732%27 rx=%276%27 fill=%27%23e2e8f0%27/%3E%3C/svg%3E">';
-      var dead = Boolean(satState.dead[satEntryKey(entry)]);
-      var meta = [
-        entry.group,
-        satCountryName(entry.country),
-        entry.sources.length > 1 ? fmt(entry.sources.length) + ' مسیر' : '',
-        dead ? 'بی‌پخش' : ''
-      ].filter(Boolean).join(' · ');
-      return '<li data-key="' + esc(satEntryKey(entry)) + '"><button type="button" class="sat-item' + (dead ? ' is-dead' : '') + '" data-index="' + index + '">' +
-        logo + '<span class="sat-name">' + esc(entry.name) + '</span>' +
-        (entry.free ? '<span class="sat-free">بدون VPN</span>' : '') +
-        '<span class="sat-meta">' + esc(meta) + '</span></button></li>';
+    var buckets = {};
+    satState.shown.forEach(function (entry, index) {
+      var cat = satCategoryOf(entry);
+      if (!buckets[cat.key]) buckets[cat.key] = { cat: cat, items: [] };
+      buckets[cat.key].items.push({ entry: entry, index: index });
+    });
+    var branches = SAT_CATEGORIES.concat([SAT_OTHER]).filter(function (cat) { return buckets[cat.key]; });
+    box.innerHTML = branches.map(function (cat) {
+      var bucket = buckets[cat.key];
+      return '<li><details class="sat-branch" data-group="' + esc(cat.key) + '"' + (satBranchOpen(cat.key) ? ' open' : '') + '>' +
+        '<summary>' + esc(cat.label) + '<span class="sat-count">' + fmt(bucket.items.length) + '</span></summary>' +
+        '<ul class="sat-sublist">' + bucket.items.map(function (item) { return satItemHtml(item.entry, item.index); }).join('') + '</ul>' +
+        '</details></li>';
     }).join('');
     satVerifyChannels();
   }
@@ -3033,6 +3082,13 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var img = event.target;
       if (img && img.tagName === 'IMG') img.style.opacity = '0';
     }, true);
+    // باز/بسته‌شدن شاخه‌های دسته‌ها در همین مرورگر یادش می‌ماند
+    list.addEventListener('toggle', function (event) {
+      var branch = event.target;
+      if (!branch || branch.tagName !== 'DETAILS' || !branch.getAttribute('data-group')) return;
+      satState.openGroups[branch.getAttribute('data-group')] = Boolean(branch.open);
+      storeSet('newsradar:satGroups', satState.openGroups);
+    }, true);
     list.addEventListener('click', function (event) {
       var button = event.target.closest ? event.target.closest('[data-index]') : null;
       if (!button) return;
@@ -3041,6 +3097,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       playSat(entry, satAlternates(entry), 0);
     });
     satState.dead = satLoadDead();
+    satState.openGroups = storeGet('newsradar:satGroups', {}) || {};
     // تیک به‌معنای «پنهان بمانند» است؛ پیش‌فرض هم پنهان‌بودن شبکه‌های بی‌پخش است.
     var showDead = $('sat-show-dead');
     if (showDead) {
