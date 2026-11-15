@@ -1759,6 +1759,17 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     var closer = $('admin-close');
     if (!overlay || !frame || !openers.length || !closer) return;
     var lastOpener = openers[0];
+    // روی سرور محلی نشانی «admin» است؛ روی GitHub Pages همان admin.html
+    var adminReady = fetch('admin', { cache: 'no-store' })
+      .then(function (res) { return res && res.ok ? 'admin' : 'admin.html'; })
+      .catch(function () { return 'admin.html'; })
+      .then(function (path) {
+        var headerAdmin = $('header-admin');
+        if (headerAdmin) headerAdmin.hidden = false;
+        var openAdmin = $('open-admin');
+        if (openAdmin) openAdmin.setAttribute('href', path);
+        return path;
+      });
 
     function openPanel(event) {
       if (event) {
@@ -1766,7 +1777,9 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         if (event.currentTarget) lastOpener = event.currentTarget;
       }
       // فقط یک‌بار بارگذاری می‌شود و بعد همان نشست را نگه می‌دارد.
-      if (!frame.getAttribute('src') || frame.getAttribute('src') === 'about:blank') frame.src = 'admin';
+      adminReady.then(function (path) {
+        if (!frame.getAttribute('src') || frame.getAttribute('src') === 'about:blank') frame.src = path;
+      });
       overlay.hidden = false;
       document.body.style.overflow = 'hidden';
       closer.focus();
@@ -1779,14 +1792,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
     openers.forEach(function (item) { item.addEventListener('click', openPanel); });
 
-    // دکمهٔ سربرگ فقط وقتی دیده می‌شود که پنل مدیر واقعاً در دسترس باشد
-    // (در نسخهٔ استاتیک GitHub Pages چنین مسیری وجود ندارد).
-    var headerAdmin = $('header-admin');
-    if (headerAdmin) {
-      fetch('admin', { cache: 'no-store' })
-        .then(function (res) { if (res && res.ok) headerAdmin.hidden = false; })
-        .catch(function () { /* بدون دکمه هم داشبورد کامل است */ });
-    }
+
     closer.addEventListener('click', closePanel);
     overlay.addEventListener('click', function (event) {
       if (event.target === overlay) closePanel();
