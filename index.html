@@ -517,6 +517,12 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         <button class="route-recheck" id="route-recheck" type="button" title="همین حالا آینه‌ها را دوباره امتحان کن">بازبینی مسیر</button>
         <span class="route-detail" id="route-detail">این سایت خودش فیلترشکن اجرا نمی‌کند؛ اگر مسیر بسته بود، سایفون یا فیلترشکن دستگاه را روشن کن.</span>
       </div>
+      <div class="route-status" id="sat-resume" role="status" aria-live="polite" hidden>
+        <span class="route-title">پخش قبلی</span>
+        <span id="sat-resume-name"></span>
+        <button class="route-recheck" id="sat-resume-play" type="button">ادامهٔ پخش</button>
+        <button class="route-recheck" id="sat-resume-clear" type="button">فراموش کردن</button>
+      </div>
       <div class="live-wrap sat-player" id="sat-player" hidden>
         <video id="sat-video" class="live-video" controls playsinline hidden></video>
         <div class="sat-empty" id="sat-player-note" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#e2e8f0;text-align:center;padding:12px"></div>
@@ -2859,6 +2865,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   }
 
   // دسته‌های نمای درختی؛ برچسب گروه در فهرست iptv-org انگلیسی است و همین‌جا فارسی می‌شود.
+  var SAT_LAST_KEY = 'newsradar:satLast';
+
   var SAT_CATEGORIES = [
     { key: 'adult', label: '۱۸+', match: /\bxxx\b|adult|18\+|porn|эрот/i },
     { key: 'kids', label: 'کودک', match: /\bkids?\b|child|cartoon|junior|baby|pogo|nick|toon|animation/i },
@@ -2957,7 +2965,33 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         more.textContent = 'نمایش موردهای بعدی (' + fmt(satState.shown.length) + ' از ' + fmt(list.length) + ')';
       }
     }
+    updateSatResume();
     satVerifyChannels();
+  }
+
+  // شبکهٔ آخر: فقط پیشنهاد «ادامهٔ پخش» می‌شود، چون پخش خودکار در مرورگر بی‌صدا است
+  // و روی اتصال کند دادهٔ بی‌مورد مصرف می‌کند.
+  function satLastEntry() {
+    var saved = storeGet(SAT_LAST_KEY, null);
+    if (!saved || !saved.id) return null;
+    var pools = [satState.list || [], satState.shown || []];
+    for (var i = 0; i < pools.length; i++) {
+      for (var j = 0; j < pools[i].length; j++) {
+        if (pools[i][j] && pools[i][j].id === saved.id) return pools[i][j];
+      }
+    }
+    return null;
+  }
+
+  function updateSatResume() {
+    var bar = $('sat-resume');
+    var name = $('sat-resume-name');
+    if (!bar || !name) return;
+    var wrap = $('sat-player');
+    var entry = wrap && !wrap.hidden ? null : satLastEntry();
+    if (!entry) { bar.hidden = true; return; }
+    name.textContent = '«' + entry.name + '»';
+    bar.hidden = false;
   }
 
   function stopSatPlayback() {
@@ -3097,6 +3131,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (!index) {
       stopSatPlayback();
       wrap.hidden = false;
+      var resumeBar = $('sat-resume');
+      if (resumeBar) resumeBar.hidden = true;
       wrap.scrollIntoView({ block: 'nearest' });
     }
     note.style.display = 'flex';
@@ -3224,6 +3260,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     stopSatPlayback();
     var wrap = $('sat-player');
     if (wrap) wrap.hidden = true;
+    updateSatResume();
   }
 
   async function toggleSatFullscreen() {
@@ -3333,6 +3370,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       if (!button) return;
       var entry = (satState.shown || [])[Number(button.getAttribute('data-index'))];
       if (!entry) return;
+      // شبکهٔ آخر یاد می‌ماند تا در بازدید بعدی «ادامهٔ پخش» پیشنهاد شود
+      storeSet(SAT_LAST_KEY, { id: entry.id || '', name: entry.name || '', at: Date.now() });
       playSat(entry, satAlternates(entry), 0);
     });
     satState.dead = satLoadDead();
@@ -3342,6 +3381,17 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       storeSet('newsradar:satGroups', satState.openGroups);
       renderSat();
     }
+    var resumePlay = $('sat-resume-play');
+    if (resumePlay) resumePlay.addEventListener('click', function () {
+      var entry = satLastEntry();
+      if (!entry) { updateSatResume(); return; }
+      playSat(entry, satAlternates(entry), 0);
+    });
+    var resumeClear = $('sat-resume-clear');
+    if (resumeClear) resumeClear.addEventListener('click', function () {
+      try { localStorage.removeItem(SAT_LAST_KEY); } catch (e) { /* ignore */ }
+      updateSatResume();
+    });
     var expandAll = $('sat-expand-all');
     if (expandAll) expandAll.addEventListener('click', function () { satSetAllGroups(true); });
     var collapseAll = $('sat-collapse-all');
