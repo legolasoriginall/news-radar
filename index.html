@@ -485,7 +485,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
           <option value="">همهٔ کشورها</option>
         </select>
         <label class="sat-only"><input type="checkbox" id="sat-only-free"> فقط بدون فیلترشکن</label>
-        <label class="sat-only" title="شبکه‌هایی که هیچ‌کدام از مسیرهایشان پخش نمی‌شود"><input type="checkbox" id="sat-show-dead"> نمایش شبکه‌های بی‌پخش</label>
+        <label class="sat-only" title="شبکه‌هایی که هیچ‌کدام از مسیرهایشان پخش نمی‌شود"><input type="checkbox" id="sat-show-dead" checked> نمایش ندادن شبکه‌هایی که پخش نمی‌شوند</label>
       </div>
       <div class="route-status" id="route-status" role="status" aria-live="polite" hidden>
         <span class="route-title">مسیر شبکه</span>
@@ -3036,10 +3036,12 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       playSat(entry, satAlternates(entry), 0);
     });
     satState.dead = satLoadDead();
+    // تیک به‌معنای «پنهان بمانند» است؛ پیش‌فرض هم پنهان‌بودن شبکه‌های بی‌پخش است.
     var showDead = $('sat-show-dead');
     if (showDead) {
+      showDead.checked = !satState.showDead;
       showDead.addEventListener('change', function () {
-        satState.showDead = Boolean(showDead.checked);
+        satState.showDead = !showDead.checked;
         renderSat();
       });
     }
