@@ -102,6 +102,21 @@ jobs:
           cp AdultVod.m3u _site/
           cp data.json _site/
           cp news.xlsx _site/
+          # صفحهٔ اصلی به همهٔ ۱۴۰۰ خبر و همهٔ داستان‌ها نیاز ندارد؛ فایل سبک آن جدا
+          # ساخته می‌شود تا روی اتصال کند، بازشدن صفحه چند برابر سریع‌تر شود.
+          node - <<'NODE'
+          const fs = require('fs');
+          const data = JSON.parse(fs.readFileSync('_site/data.json', 'utf8'));
+          const keys = ['generated_at', 'next_update_at', 'update_interval_minutes', 'stats', 'markets',
+            'articles', 'stories', 'telegram', 'topics', 'translations', 'source_health', 'settings'];
+          const feed = {};
+          keys.forEach((key) => { if (key in data) feed[key] = data[key]; });
+          const byDate = (a, b) => new Date(b.published) - new Date(a.published);
+          feed.articles = (data.articles || []).slice().sort(byDate).slice(0, 500);
+          feed.stories = (data.stories || []).slice(0, 12);
+          fs.writeFileSync('_site/feed.json', JSON.stringify(feed));
+          NODE
+          ls -lh _site/feed.json
           # فهرست‌های پخش ماهواره به‌صورت محلی هم منتشر می‌شوند تا بازکردن این بخش به
           # میزبان‌های خارجی که از ایران کند یا بسته‌اند وابسته نباشد. اگر دانلود نشد،
           # سایت همان آینه‌های عمومی را امتحان می‌کند و چیزی نمی‌شکند.

@@ -798,6 +798,16 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   // روی میزبانی استاتیک (GitHub Pages) مسیرهای api پاسخ نمی‌دهند؛ همان اول رد می‌شوند
   // تا روی اتصال کند، چند رفت‌وبرگشت بی‌نتیجه پیش از نمایش خبرها انجام نشود.
   var STATIC_HOST = /\.github\.io$/i.test(location.hostname);
+  // نسخهٔ منتشرشده یک فایل سبک‌تر (feed.json) دارد؛ در اجرای محلی همان data.json به کار می‌رود.
+  var FEED_FILE = 'feed.json';
+  async function fetchFeed() {
+    var res = await fetch(FEED_FILE, { cache: 'no-cache' });
+    if (!res.ok && FEED_FILE !== 'data.json') {
+      FEED_FILE = 'data.json';
+      res = await fetch(FEED_FILE, { cache: 'no-cache' });
+    }
+    return res;
+  }
   async function fetchStatus() {
     if (statusAvailable === false || STATIC_HOST) { statusAvailable = false; return null; }
     try {
@@ -823,8 +833,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   async function loadData(force) {
     state.lastAttempt = Date.now();
     try {
-      // cache: no-cache یعنی بازپرسی از سرور؛ با ETag پاسخ ۳۰۴ می‌آید و ۸۵۰ کیلوبایت دوباره دانلود نمی‌شود.
-      var res = await fetch('data.json', { cache: 'no-cache' });
+      // cache: no-cache یعنی بازپرسی از سرور؛ با ETag پاسخ ۳۰۴ می‌آید و فایل دوباره دانلود نمی‌شود.
+      var res = await fetchFeed();
       if (!res.ok) throw new Error('دریافت داده ناموفق بود (HTTP ' + res.status + ')');
       var data = await res.json();
       // در نسخهٔ استاتیک (بدون API سرور) آستانه‌های پنل مدیر از خود data.json خوانده می‌شود.
@@ -884,7 +894,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
   async function poll() {
     if (!state.auto || document.hidden) return;
-    var res = await fetch('data.json', { cache: 'no-cache' }).catch(function () { return null; });
+    var res = await fetchFeed().catch(function () { return null; });
     if (!res || !res.ok) return;
     var data = await res.json().catch(function () { return null; });
     if (!data) return;
@@ -1491,7 +1501,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     $('counter').textContent = list.length
       ? 'نمایش ' + fmt(Math.min(state.page, list.length)) + ' از ' + fmt(list.length) + ' خبر'
       : '';
-    $('feed-hint').textContent = 'همهٔ خبرها بدون محدودیت زمانی · ' + fmt(data.articles.length) + ' خبر';
+    $('feed-hint').textContent = 'همهٔ خبرها بدون محدودیت زمانی · ' + fmt((data.stats && data.stats.total) || data.articles.length) + ' خبر';
   }
 
   /* ---------------- سلامت منابع ---------------- */
