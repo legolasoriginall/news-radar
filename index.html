@@ -292,8 +292,11 @@ body.sat-fs-lock { overflow: hidden; }
 .vpn-body li { margin: 4px 0; }
 .vpn-body code { background: #f1f5f9; border-radius: 5px; padding: 1px 5px; direction: ltr; display: inline-block; }
 .vpn-note { background: #fff7ed; border: 1px solid #fed7aa; color: #92400e; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; }
-.vpn-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 10px; background: #0f766e; color: #fff; text-decoration: none; font-weight: 700; font-size: 13px; }
+.vpn-actions { display: flex; flex-wrap: wrap; gap: 8px; margin: 10px 0 4px; }
+.vpn-link { display: inline-flex; align-items: center; justify-content: center; min-height: 44px; padding: 8px 16px; border-radius: 10px; background: #0f766e; color: #fff; text-decoration: none; font-weight: 700; font-size: 13px; text-align: center; }
 .vpn-link:hover { background: #115e59; }
+.vpn-link.alt { background: #fff; color: #0f766e; border: 1px solid #0f766e; }
+.vpn-link.alt:hover { background: #f0fdfa; }
 
 section { margin-top: 22px; }
 .panel { background: var(--panel); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); border: 1px solid rgba(16,24,40,.03); }
@@ -618,15 +621,18 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       <button type="button" id="vpn-close" aria-label="بستن راهنمای VPN">✕</button>
     </div>
     <div class="vpn-body">
-      <p>این دکمه VPN را روشن نمی‌کند؛ یک صفحهٔ وب نمی‌تواند اپ VPN روی دستگاه شما را کنترل کند. <b>ArcVeepn</b> یک اپلیکیشن اندرویدی متن‌باز است و باید جداگانه روی گوشی نصب و فعال شود.</p>
+      <p>اپ <b>ArcVeepn</b> یک برنامهٔ اندرویدی است؛ مرورگر نمی‌تواند فایل APK را داخل صفحهٔ وب اجرا کند. برای استفاده، APK را دانلود و روی گوشی نصب کن، بعد از روشن‌کردن VPN این صفحه را دوباره باز کن.</p>
+      <div class="vpn-actions">
+        <a class="vpn-link" href="https://github.com/ProxyArc/ArcVeePN/releases/download/v2.5/ArcVeePN-2.5.apk" rel="noopener noreferrer">دانلود مستقیم APK · نسخهٔ ۲.۵ (۱۵ مگابایت)</a>
+        <a class="vpn-link alt" href="https://github.com/ProxyArc/ArcVeePN/releases/latest" target="_blank" rel="noopener noreferrer">همهٔ نسخه‌ها در گیت‌هاب ↗</a>
+      </div>
       <ol>
-        <li>صفحهٔ پروژه را در گیت‌هاب باز کن.</li>
-        <li>طبق README با Android SDK بساز، یا نسخهٔ رسمی را روی گوشی نصب کن.</li>
-        <li>آدرس اشتراک خودت را در <code>SubscriptionApi.java</code> بگذار؛ فورک بدون اشتراک معتبر کار نمی‌کند.</li>
+        <li>روی «دانلود مستقیم APK» بزن و فایل را ذخیره کن.</li>
+        <li>اگر اندروید هشدار داد، اجازهٔ نصب از این منبع را فعال کن.</li>
+        <li>APK را نصب و اپ را باز کن.</li>
         <li>VPN را از داخل اپ روشن کن، بعد این صفحه را دوباره باز کن.</li>
       </ol>
-      <p class="vpn-note">این صفحه فقط راهنماست و وضعیت واقعی VPN گوشی را نمی‌خواند یا تغییر نمی‌دهد.</p>
-      <a class="vpn-link" href="https://github.com/ProxyArc/ArcVeePN" target="_blank" rel="noopener noreferrer">مشاهدهٔ ArcVeepn در گیت‌هاب ↗</a>
+      <p class="vpn-note">این صفحه فقط راهنما و لینک دانلود است؛ خود APK را اجرا نمی‌کند و وضعیت VPN گوشی را نمی‌خواند. فایل را فقط از همین مخزن رسمی بگیر.</p>
     </div>
   </div>
 </div>
