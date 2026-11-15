@@ -99,6 +99,10 @@
         <button id="gh-save">ذخیرهٔ توکن</button>
         <span class="muted" id="gh-msg"></span>
       </div>
+      <div class="row" style="margin-top:8px">
+        <button class="ghost" id="build-check">بررسی وضعیت بازسازی</button>
+        <span class="muted" id="build-status"></span>
+      </div>
       <p class="muted">توکن را از GitHub → Settings → Developer settings → Fine-grained tokens بساز و فقط دسترسی <strong>Contents: Read and write</strong> به همین مخزن بده. توکن در کد یا فایل پروژه ذخیره نمی‌شود.</p>
     </div>
     <div class="card" style="margin-bottom:14px">
@@ -271,6 +275,62 @@
     return api('/admin/api/settings', { method: 'POST', body: JSON.stringify(patch) });
   }
 
+  async function latestWorkflowRun() {
+    if (!REPO || !github.token) return null;
+    var url = 'https://api.github.com/repos/' + REPO.owner + '/' + REPO.repo +
+      '/actions/workflows/update.yml/runs?branch=' + REPO.branch + '&per_page=1&_=' + Date.now();
+    var res = await fetch(url, {
+      headers: { Authorization: 'Bearer ' + github.token, Accept: 'application/vnd.github+json' },
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error('HTTP ' + res.status);
+    var payload = await res.json();
+    return (payload.workflow_runs && payload.workflow_runs[0]) || null;
+  }
+
+  async function refreshBuildStatus() {
+    var node = el('build-status');
+    if (!node) return null;
+    if (!github.token) { node.textContent = 'برای دیدن وضعیت، توکن لازم است'; return null; }
+    try {
+      var run = await latestWorkflowRun();
+      if (!run) { node.textContent = 'هیچ اجرایی ثبت نشده'; return null; }
+      var text = run.status === 'completed'
+        ? (run.conclusion === 'success' ? '✅ آخرین بازسازی موفق بود' : '❌ آخرین بازسازی ناموفق (' + (run.conclusion || '') + ')')
+        : '⏳ در حال بازسازی… (' + run.status + ')';
+      node.textContent = text + ' · ' + formatDate(run.created_at);
+      return run;
+    } catch (error) {
+      node.textContent = 'خواندن وضعیت ناموفق: ' + (error.message || '');
+      return null;
+    }
+  }
+
+  function pollBuildStatus(msgNode, startedAt) {
+    if (!github.static) return;
+    var attempts = 0;
+    var timer = setInterval(async function () {
+      attempts++;
+      try {
+        var run = await latestWorkflowRun();
+        if (run && run.created_at && new Date(run.created_at).getTime() >= (startedAt - 60000)) {
+          if (run.status === 'completed') {
+            clearInterval(timer);
+            if (msgNode) {
+              msgNode.textContent = (run.conclusion === 'success'
+                ? '✅ ذخیره شد؛ سایت بازسازی و منتشر شد.'
+                : '⚠️ ذخیره شد ولی بازسازی ناموفق بود: ' + (run.conclusion || '')) ;
+            }
+            refreshBuildStatus();
+            return;
+          }
+          if (msgNode) msgNode.textContent = '⏳ ذخیره شد؛ در حال بازسازی سایت…';
+        }
+      } catch (e) { /* ignore */ }
+      if (attempts > 72) { clearInterval(timer); if (msgNode) msgNode.textContent += ' (پایان انتظار)'; }
+    }, 5000);
+  }
+
   async function startStaticMode() {
     github.static = true;
     github.token = loadToken();
@@ -288,6 +348,7 @@
       ? 'این صفحه روی گیت‌هاب نیست؛ ذخیرهٔ مخزنی فقط در GitHub Pages کار می‌کند'
       : REPO.owner + '/' + REPO.repo + (github.token ? ' · توکن ذخیره شده است' : ' · برای ذخیره، توکن لازم است');
     loadSettings();
+    if (github.token) refreshBuildStatus();
   }
   function formatDate(value) {
     if (!value) return '';
@@ -428,10 +489,15 @@
     el('silent-save').disabled = true;
     msg.textContent = 'در حال ذخیره…';
     try {
+      var startedAt = Date.now();
       var payload = await saveSettings({ silent_hours: hours });
-      var staticNote = github.static ? ' — سایت تا چند دقیقه با همین تنظیمات بازسازی می‌شود.' : '';
       el('silent-hours').value = String(payload.settings.silent_hours);
-      msg.textContent = 'ذخیره شد: ' + payload.settings.silent_hours + ' ساعت' + staticNote;
+      if (github.static) {
+        msg.textContent = '⏳ ذخیره شد؛ در حال بازسازی سایت…';
+        pollBuildStatus(msg, startedAt);
+      } else {
+        msg.textContent = 'ذخیره شد: ' + payload.settings.silent_hours + ' ساعت';
+      }
     } catch (error) {
       msg.textContent = 'خطا: ' + error.message;
     } finally {
@@ -449,10 +515,15 @@
     el('price-stale-save').disabled = true;
     msg.textContent = 'در حال ذخیره…';
     try {
+      var startedAt = Date.now();
       var payload = await saveSettings({ price_stale_hours: hours });
-      var staticNote = github.static ? ' — سایت تا چند دقیقه با همین تنظیمات بازسازی می‌شود.' : '';
       el('price-stale-hours').value = String(payload.settings.price_stale_hours);
-      msg.textContent = 'ذخیره شد: ' + payload.settings.price_stale_hours + ' ساعت' + staticNote;
+      if (github.static) {
+        msg.textContent = '⏳ ذخیره شد؛ در حال بازسازی سایت…';
+        pollBuildStatus(msg, startedAt);
+      } else {
+        msg.textContent = 'ذخیره شد: ' + payload.settings.price_stale_hours + ' ساعت';
+      }
     } catch (error) {
       msg.textContent = 'خطا: ' + error.message;
     } finally {
@@ -638,6 +709,7 @@
     }
   });
 
+  if (el('build-check')) el('build-check').addEventListener('click', function () { refreshBuildStatus(); });
   el('gh-save').addEventListener('click', async function () {
     var msg = el('gh-msg');
     var token = el('gh-token').value.trim();
