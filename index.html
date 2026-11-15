@@ -1740,8 +1740,13 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
   // دست نرود. سایر آینه‌های CDN حذف شدند.
   // نسخه در آدرس آمده تا کش یک‌سالهٔ فایل محلی با آپدیت hls.js باطل شود
   var HLS_LOCAL = 'vendor/hls.min.js?v=1.5.20';
+  // همان نسخه از چند CDN عمومی: jsDelivr، Fastly، Cloudflare (cdnjs) و unpkg.
+  // اولین پاسخ سالم برنده است؛ اگر یکی فیلتر یا خراب بود، بقیه امتحان می‌شوند.
   var HLS_CDNS = [
-    'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js'
+    'https://cdn.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js',
+    'https://fastly.jsdelivr.net/npm/hls.js@1.5.20/dist/hls.min.js',
+    'https://cdnjs.cloudflare.com/ajax/libs/hls.js/1.5.20/hls.min.js',
+    'https://unpkg.com/hls.js@1.5.20/dist/hls.min.js'
   ];
 
   function injectHlsScript(url, timeoutMs) {
@@ -1807,7 +1812,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     if (saved && saved.url) showHlsBadge(saved.url, saved.ms, saved.version);
   }
 
-  // پیام روشن وقتی فایل محلی و CDN پشتیبان هر دو جواب ندهند
+  // پیام روشن وقتی فایل محلی و همهٔ CDNهای پشتیبان جواب ندهند
   function hideHlsFailPanel(wrap) {
     if (!wrap) return;
     var old = wrap.querySelector('.hls-fail');
@@ -1838,7 +1843,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     return box;
   }
 
-  var HLS_FAIL_TEXT = 'بارگذاری پخش‌کننده (hls.js) از هیچ‌کدام از دو مسیر ممکن نشد: فایل خود سایت و CDN پشتیبان هر دو پاسخ ندادند. اتصال اینترنت یا فیلترشکن دستگاه را بررسی کن و دوباره تلاش کن.';
+  var HLS_FAIL_TEXT = 'بارگذاری پخش‌کننده (hls.js) از هیچ‌کدام از مسیرها ممکن نشد: فایل خود سایت و CDNهای پشتیبان (jsDelivr، Cloudflare، unpkg) پاسخ ندادند. اتصال اینترنت یا فیلترشکن دستگاه را بررسی کن و دوباره تلاش کن.';
 
   function showNativeBadge() {
     var el = $('live-cdn');
@@ -2119,12 +2124,17 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     'https://iptv-org.github.io/iptv',
     'https://cdn.jsdelivr.net/gh/iptv-org/iptv@gh-pages',
     'https://fastly.jsdelivr.net/gh/iptv-org/iptv@gh-pages',
+    'https://gcore.jsdelivr.net/gh/iptv-org/iptv@gh-pages',
+    'https://rawcdn.githack.com/iptv-org/iptv/gh-pages',
     'https://raw.githack.com/iptv-org/iptv/gh-pages',
     'https://raw.githubusercontent.com/iptv-org/iptv/gh-pages'
   ];
   var SAT_COUNTRIES_URLS = [
     'https://iptv-org.github.io/api/countries.json',
     'https://cdn.jsdelivr.net/gh/iptv-org/api@gh-pages/countries.json',
+    'https://fastly.jsdelivr.net/gh/iptv-org/api@gh-pages/countries.json',
+    'https://gcore.jsdelivr.net/gh/iptv-org/api@gh-pages/countries.json',
+    'https://rawcdn.githack.com/iptv-org/api/gh-pages/countries.json',
     'https://raw.githack.com/iptv-org/api/gh-pages/countries.json',
     'https://raw.githubusercontent.com/iptv-org/api/gh-pages/countries.json'
   ];
@@ -2141,6 +2151,8 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     'iptv-org.github.io': 'GitHub Pages',
     'cdn.jsdelivr.net': 'jsDelivr',
     'fastly.jsdelivr.net': 'jsDelivr (Fastly)',
+    'gcore.jsdelivr.net': 'jsDelivr (Gcore)',
+    'rawcdn.githack.com': 'raw.githack (CDN)',
     'raw.githack.com': 'raw.githack',
     'raw.githubusercontent.com': 'GitHub Raw'
   };
