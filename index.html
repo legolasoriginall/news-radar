@@ -1585,6 +1585,9 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     // کل آرشیو (stats.total) مبناست، نه خبرهای بارگذاری‌شده؛ وگرنه با خواندن
     // مرحله‌ای، شمارنده و دکمهٔ «نمایش بیشتر» زودتر از موعد متوقف می‌شدند.
     var totalKnown = Math.max(list.length, Number((data.stats && data.stats.total) || 0));
+    // با پایان آرشیو، مبنای شمارنده همان چیزی است که واقعاً بارگذاری شده؛ گاهی
+    // یک خبر تکراری حذف می‌شود و stats.total یکی بیشتر از فهرست نمایش‌دادنی است.
+    if (moreDone) totalKnown = list.length;
     $('empty').style.display = list.length ? 'none' : 'block';
     // دکمه تا وقتی خبر خوانده‌شدهٔ نمایش‌داده‌نشده هست یا قطعهٔ بعدی آرشیو باقی است می‌ماند.
     var hasHidden = state.page < list.length;
@@ -1592,7 +1595,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     $('counter').textContent = list.length
       ? 'نمایش ' + fmt(Math.min(state.page, list.length)) + ' از ' + fmt(totalKnown) + ' خبر'
       : '';
-    $('feed-hint').textContent = 'همهٔ خبرها بدون محدودیت زمانی · ' + fmt((data.stats && data.stats.total) || data.articles.length) + ' خبر';
+    $('feed-hint').textContent = 'همهٔ خبرها بدون محدودیت زمانی · ' + fmt(totalKnown) + ' خبر';
   }
 
   /* ---------------- سلامت منابع ---------------- */
