@@ -12,8 +12,19 @@
     "dev": "node server.mjs",
     "update": "node pipeline.mjs",
     "once": "node pipeline.mjs --once",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:save": "pm2 save",
+    "pm2:status": "pm2 list",
+    "pm2:logs": "pm2 logs news-radar --lines 60",
+    "pm2:stop": "pm2 stop news-radar",
+    "serve:persist": "bash scripts/keep-alive.sh start",
+    "serve:status": "bash scripts/keep-alive.sh status",
+    "serve:stop": "bash scripts/keep-alive.sh stop",
     "gateway": ".venv/bin/python gateway/serve.py",
     "gateway:check": "node scripts/gateway-smoke.mjs",
     "test": "node --test"
+  },
+  "devDependencies": {
+    "pm2": "^7.1.2"
   }
 }

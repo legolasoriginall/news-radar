@@ -8,7 +8,7 @@
 <meta property="og:title" content="رصد خبر — تحلیل خودکار اخبار">
 <meta property="og:description" content="ترجمهٔ خودکار اخبار انگلیسی، تحلیل موضوعی و احساسی، درصد اهمیت و به‌روزرسانی دوره‌ای خودکار">
 <meta name="color-scheme" content="light">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'%3E%3Ccircle cx='12' cy='12' r='10' fill='%230b1f3a'/%3E%3Ccircle cx='12' cy='12' r='5' fill='none' stroke='%235eead4' stroke-width='2'/%3E%3C/svg%3E">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1">
 <style>
 :root {
   --bg: #f4f6fa;
@@ -74,8 +74,8 @@ a:hover { text-decoration: underline; }
   display: inline-flex; align-items: center; gap: 7px; transition: background .15s;
 }
 .btn:hover { background: rgba(255,255,255,.18); }
-.btn.primary { background: #0d9488; border-color: #0d9488; }
-.btn.primary:hover { background: #0f766e; }
+.btn.primary { background: #0f766e; border-color: #0f766e; }
+.btn.primary:hover { background: #115e59; }
 .btn[aria-pressed="false"] { opacity: .6; }
 .btn .spin { display: none; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
 .btn.busy .spin { display: inline-block; }
@@ -129,6 +129,10 @@ a:hover { text-decoration: underline; }
 .route-pill.warn { background: #fffbeb; color: #b45309; border-color: #fde68a; }
 .route-pill.bad { background: #fef2f2; color: #b91c1c; border-color: #fecaca; }
 .route-detail { flex: 1 1 320px; min-width: 0; }
+.route-recheck { border: 1px solid #0d9488; background: #f0fdfa; color: #0f766e; border-radius: 999px; padding: 3px 11px; font: inherit; font-size: 11.5px; cursor: pointer; white-space: nowrap; }
+.route-recheck:hover { background: #ccfbf1; }
+.route-recheck:disabled { opacity: .65; cursor: progress; }
+.route-recheck:focus-visible { outline: 2px solid #0d9488; outline-offset: 2px; }
 .live-wrap { position: relative; width: 100%; aspect-ratio: 16 / 9; background: #0b1220; border-radius: 12px; overflow: hidden; }
 .live-wrap iframe { position: absolute; inset: 0; width: 100%; height: 100%; border: 0; }
 .live-video { position: absolute; inset: 0; width: 100%; height: 100%; background: #000; object-fit: contain; }
@@ -144,9 +148,30 @@ a:hover { text-decoration: underline; }
 .sat-item .sat-name { flex: 1 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .sat-item .sat-meta { color: #94a3b8; font-size: 11px; flex: 0 0 auto; }
 .sat-player { margin-top: 12px; }
+/* پخش‌کنندهٔ ماهواره‌ای بزرگ‌تر: تمام عرض پنل (لغو حاشیهٔ پنل) و ارتفاع بیشتر
+   بر اساس ارتفاع صفحه، تا تصویر در نمایشگرهای بلندتر واضح‌تر دیده شود */
+#sat-player { width: calc(100% + 44px); margin-inline: -22px; border-radius: 14px; }
+@media (min-width: 760px) {
+  #sat-player { aspect-ratio: auto; height: clamp(380px, 66vh, 760px); }
+}
+/* دکمهٔ تمام‌صفحهٔ اختصاصی پخش ماهواره: برای مرورگرهایی که کنترل بومی ندارند */
+.sat-fs { position: absolute; top: 8px; inset-inline-start: 8px; z-index: 3; width: 30px; height: 30px; border-radius: 9px; border: 1px solid rgba(255,255,255,.35); background: rgba(11,18,32,.72); color: #fff; font-size: 15px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; padding: 0; cursor: pointer; }
+.sat-fs:hover { background: rgba(11,18,32,.92); }
+.sat-fs:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; }
+/* حالت شبه‌تمام‌صفحه: وقتی API بومی مرورگر در دسترس نیست */
+#sat-player.pseudo-fs { position: fixed; inset: 0; z-index: 9999; margin: 0; width: 100vw; height: 100vh; height: 100dvh; aspect-ratio: auto; border-radius: 0; background: #000; }
+#sat-player.pseudo-fs .sat-fs { top: 12px; inset-inline-start: 12px; }
+body.sat-fs-lock { overflow: hidden; }
 .sat-empty { color: #64748b; font-size: 12.5px; padding: 10px 2px; }
 /* لایهٔ پیام پخش‌کننده نباید کلیک‌ها را بگیرد؛ وگرنه دکمهٔ تمام‌صفحه و کنترل‌ها کار نمی‌کنند */
 #sat-player-note { pointer-events: none; }
+/* پیام شکست بارگذاری hls.js روی قاب پخش */
+.hls-fail { position: absolute; inset: 0; z-index: 4; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 16px; text-align: center; background: rgba(11,18,32,.9); color: #e2e8f0; }
+.hls-fail p { margin: 0; font-size: 12.8px; line-height: 1.9; max-width: 440px; }
+.hls-fail-retry { border: 0; border-radius: 9px; background: #0f766e; color: #fff; font: inherit; font-size: 12.5px; font-weight: 700; padding: 8px 18px; cursor: pointer; }
+.hls-fail-retry:hover { background: #115e59; }
+.hls-fail-retry:disabled { opacity: .7; cursor: progress; }
+.hls-fail-retry:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; }
 .sat-only { display: flex; align-items: center; gap: 6px; font-size: 12.5px; color: #334155; flex: 0 0 auto; cursor: pointer; white-space: nowrap; }
 .sat-only input { accent-color: #0d9488; }
 .sat-free { font-size: 10.5px; color: #0f766e; background: #e6f7f3; border-radius: 999px; padding: 2px 7px; flex: 0 0 auto; }
@@ -155,7 +180,7 @@ a:hover { text-decoration: underline; }
 .live-play { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #dc2626; color: #fff; font-size: 20px; box-shadow: 0 0 0 8px rgba(220, 38, 38, 0.18); }
 .tg-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .tg-filter { border: 1px solid #dbe3ec; background: #f8fafc; color: #334155; border-radius: 999px; padding: 4px 11px; font-size: 11.5px; cursor: pointer; font-family: inherit; }
-.tg-filter.active { background: #0d9488; border-color: #0d9488; color: #fff; font-weight: 700; }
+.tg-filter.active { background: #0f766e; border-color: #0f766e; color: #fff; font-weight: 700; }
 .tg-filter small { opacity: 0.75; font-size: 10.5px; }
 .tg-feed { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
 .tg-item { border: 1px solid #e6eaf0; border-radius: 10px; padding: 10px 12px; background: #fcfdff; }
@@ -203,8 +228,9 @@ a:hover { text-decoration: underline; }
 .admin-overlay[hidden] { display: none; }
 .admin-frame-wrap { width: min(1180px, 100%); height: min(88vh, 900px); background: #fff; border-radius: 14px; overflow: hidden; box-shadow: 0 24px 60px rgba(15,23,42,.35); display: flex; flex-direction: column; }
 .admin-frame-bar { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 9px 14px; background: #0f766e; color: #fff; font-size: 13px; font-weight: 700; }
-.admin-frame-bar button { border: 0; background: rgba(255,255,255,.16); color: #fff; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 14px; line-height: 1; }
-.admin-frame-bar button:hover { background: rgba(255,255,255,.28); }
+/* دکمهٔ بستن قاب مدیر: زمینهٔ تیرهٔ یکدست تا ضربدر سفید کنتراست کافی داشته باشد */
+.admin-frame-bar button { border: 1px solid rgba(255,255,255,.35); background: #115e59; color: #fff; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 14px; line-height: 1; }
+.admin-frame-bar button:hover { background: #134e4a; }
 #admin-frame { flex: 1 1 auto; width: 100%; border: 0; background: #fff; }
 
 section { margin-top: 22px; }
@@ -442,11 +468,13 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       <div class="route-status" id="route-status" role="status" aria-live="polite">
         <span class="route-title">مسیر شبکه</span>
         <span class="route-pill" id="route-pill">در حال بررسی آینه‌ها…</span>
+        <button class="route-recheck" id="route-recheck" type="button" title="همین حالا آینه‌ها را دوباره امتحان کن">بازبینی مسیر</button>
         <span class="route-detail" id="route-detail">این سایت خودش فیلترشکن اجرا نمی‌کند؛ اگر مسیر بسته بود، سایفون یا فیلترشکن دستگاه را روشن کن.</span>
       </div>
       <div class="live-wrap sat-player" id="sat-player" hidden>
         <video id="sat-video" class="live-video" controls playsinline hidden></video>
         <div class="sat-empty" id="sat-player-note" style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;color:#e2e8f0;text-align:center;padding:12px"></div>
+        <button class="sat-fs" id="sat-fs" type="button" aria-label="تمام‌صفحه" title="تمام‌صفحه" aria-pressed="false">⛶</button>
       </div>
       <ul class="sat-list" id="sat-list"></ul>
       <div class="market-note">فهرست از بایگانی عمومی <span dir="ltr">iptv-org</span> خوانده می‌شود. هر شبکه با یک کلیک پخش می‌شود و اگر چند نشانی داشته باشد، مسیرهای بسته رد و مسیر باز انتخاب می‌شوند؛ اگر همه بسته بودند، هر ۲۰ ثانیه دوباره امتحان می‌شود.</div>
@@ -494,6 +522,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       <div class="panel-head">
         <h2><span class="ico">⚑</span> سلامت منابع خبری</h2>
         <span class="hint" id="sources-hint"></span>
+        <a class="hint" href="status.html" title="زمان پاسخ و موفقیت هر منبع و آینه">صفحهٔ وضعیت ↗</a>
       </div>
       <div class="src-summary" id="sources-summary"></div>
       <div class="src-grid">
@@ -560,6 +589,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
+<script src="src/hls-loader.js"></script>
 <script>
 (function () {
   'use strict';
@@ -827,8 +857,19 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     $('counter').textContent = '';
   }
 
+  // لینک دانلود اکسل نسخه‌دار می‌شود تا هر نسخهٔ داده آدرس تازه و کش طولانی داشته باشد
+  function syncDownloadLinks() {
+    var link = document.querySelector('a[href^="news.xlsx"]');
+    if (!link || !state.data || !state.data.generated_at) return;
+    var version = String(state.data.generated_at).replace(/[^0-9]/g, '').slice(0, 14);
+    if (!version) return;
+    var target = 'news.xlsx?v=' + version;
+    if (link.getAttribute('href') !== target) link.setAttribute('href', target);
+  }
+
   function renderAll() {
     if (!state.data) { renderSkeleton(); return; }
+    syncDownloadLinks();
     renderClockOnly();
     renderMarkets();
     renderTelegram();
@@ -1741,11 +1782,21 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
   function showHlsBadge(url, ms, version) {
     var el = $('live-cdn');
     if (!el) return;
-    var parts = ['hls.js'];
-    if (version) parts.push(String(version));
-    parts.push('از ' + hlsHostLabel(url));
-    if (isFinite(ms)) parts.push(fmt(ms) + ' میلی‌ثانیه');
+    var host = hlsHostLabel(url);
+    var parts = [version ? 'hls.js ' + String(version) : 'hls.js'];
+    parts.push(host === 'خود سایت' ? 'CDN: ندارد (مسیر محلی)' : 'CDN: ' + host);
+    if (isFinite(ms)) parts.push('بارگذاری ' + fmt(ms) + ' میلی‌ثانیه');
     el.textContent = parts.join(' · ');
+    el.title = String(url || '');
+    el.hidden = false;
+  }
+
+  // وضعیت میانی: تا پاسخ مسیر محلی/جایگزین برسد، نشانگر خالی نماند
+  function showHlsLoading(text) {
+    var el = $('live-cdn');
+    if (!el) return;
+    el.textContent = 'hls.js · ' + text;
+    el.title = '';
     el.hidden = false;
   }
 
@@ -1756,6 +1807,39 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     if (saved && saved.url) showHlsBadge(saved.url, saved.ms, saved.version);
   }
 
+  // پیام روشن وقتی فایل محلی و CDN پشتیبان هر دو جواب ندهند
+  function hideHlsFailPanel(wrap) {
+    if (!wrap) return;
+    var old = wrap.querySelector('.hls-fail');
+    if (old) old.remove();
+  }
+
+  function showHlsFailPanel(wrap, message, onRetry) {
+    if (!wrap) return null;
+    hideHlsFailPanel(wrap);
+    var box = document.createElement('div');
+    box.className = 'hls-fail';
+    box.setAttribute('role', 'alert');
+    var text = document.createElement('p');
+    text.textContent = message;
+    var button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'hls-fail-retry';
+    button.textContent = 'تلاش دوباره';
+    button.addEventListener('click', function () {
+      button.disabled = true;
+      button.textContent = 'در حال تلاش…';
+      hideHlsFailPanel(wrap);
+      try { onRetry(); } catch (e) { /* ignore */ }
+    });
+    box.appendChild(text);
+    box.appendChild(button);
+    wrap.appendChild(box);
+    return box;
+  }
+
+  var HLS_FAIL_TEXT = 'بارگذاری پخش‌کننده (hls.js) از هیچ‌کدام از دو مسیر ممکن نشد: فایل خود سایت و CDN پشتیبان هر دو پاسخ ندادند. اتصال اینترنت یا فیلترشکن دستگاه را بررسی کن و دوباره تلاش کن.';
+
   function showNativeBadge() {
     var el = $('live-cdn');
     if (!el) return;
@@ -1763,45 +1847,37 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     el.hidden = false;
   }
 
+  // خطای بارگذاری خود پخش‌کننده (نه خطای شبکه/کانال): هر دو مسیر رفته یا ماژول نیامده
+  function isHlsLoadFailure(error) {
+    var code = error && error.message;
+    return code === 'hls-all-sources-failed' || code === 'hls-loader-missing';
+  }
+
+  // انتخاب مسیر در src/hls-loader.js است تا تست خودکار داشته باشد؛ این‌جا فقط
+  // نشانگر، ذخیره‌سازی و دکمه‌های رابط به آن وصل می‌شوند.
   function loadHlsScript() {
     if (window.Hls) { showHlsInfoFromStore(); return Promise.resolve(window.Hls); }
     if (liveState.script) return liveState.script;
-    liveState.script = new Promise(function (resolve, reject) {
-      var startedAt = Date.now();
-      var settled = false;
-      function finish(url, Hls) {
-        if (settled) return;
-        settled = true;
-        var ms = Date.now() - startedAt;
-        storeSet('newsradar:hlsCdn', url);
-        storeSet('newsradar:hlsInfo', { url: url, ms: ms, version: String((Hls && Hls.version) || '') });
-        showHlsBadge(url, ms, Hls && Hls.version);
-        resolve(Hls);
-      }
-      // مسیر محلی همیشه اول و تنها مسیر عادی است؛ تا وقتی فایل vendor/hls.min.js
-      // از خود سایت می‌آید، هیچ درخواستی به CDN فرستاده نمی‌شود.
-      function loadLocal() {
-        injectHlsScript(HLS_LOCAL, 6000).then(function (Hls) {
-          if (Hls && typeof Hls.isSupported === 'function') { finish(HLS_LOCAL, Hls); return; }
-          loadFallback();
-        }).catch(loadFallback);
-      }
-      // آخرین گزینه: تنها اگر فایل محلی نبود یا خطا داد، همین یک CDN امتحان می‌شود
-      function loadFallback() {
-        if (settled) return;
-        var url = HLS_CDNS[0];
-        function giveUp() {
-          if (settled) return;
-          liveState.script = null;
-          reject(new Error('hls-all-sources-failed'));
-        }
-        if (!url) { giveUp(); return; }
-        injectHlsScript(url, 8000).then(function (Hls) {
-          if (Hls && typeof Hls.isSupported === 'function') { finish(url, Hls); return; }
-          giveUp();
-        }).catch(giveUp);
-      }
-      loadLocal();
+    var loader = window.HlsLoader;
+    if (!loader || typeof loader.loadHlsWithFallback !== 'function') {
+      return Promise.reject(new Error('hls-loader-missing'));
+    }
+    showHlsLoading('در حال بارگذاری از مسیر محلی…');
+    liveState.script = loader.loadHlsWithFallback({
+      localUrl: HLS_LOCAL,
+      cdnUrls: HLS_CDNS,
+      injectScript: injectHlsScript,
+      onFallback: function () {
+        showHlsLoading('مسیر محلی نبود؛ امتحان CDN جایگزین…');
+      },
+    }).then(function (result) {
+      storeSet('newsradar:hlsCdn', result.url);
+      storeSet('newsradar:hlsInfo', { url: result.url, ms: result.ms, version: String((result.Hls && result.Hls.version) || '') });
+      showHlsBadge(result.url, result.ms, result.Hls && result.Hls.version);
+      return result.Hls;
+    }).catch(function (error) {
+      liveState.script = null;
+      throw error;
     });
     return liveState.script;
   }
@@ -1849,6 +1925,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     var wrap = $('live-wrap');
     var start = $('live-start');
     stopLiveWatchdog();
+    hideHlsFailPanel($('live-wrap'));
     if (liveState && liveState.retry) { clearTimeout(liveState.retry); liveState.retry = 0; }
     if (liveState && liveState.hls) { try { liveState.hls.destroy(); } catch (e) { /* ignore */ } liveState.hls = null; }
     if (liveState && liveState.nativeErrorHandler && video) {
@@ -1975,8 +2052,28 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       var played = video.play();
       if (played && played.catch) played.catch(function () { /* autoplay blocked; controls remain */ });
     } catch (e) {
+      if (isHlsLoadFailure(e)) {
+        showLiveHlsFailure(channel, index);
+        return;
+      }
       startLiveSource(channel, index + 1);
     }
+  }
+
+  // هر دو مسیر hls.js شکست خورده‌اند؛ پیام روشن با دکمهٔ تلاش دوباره نشان می‌دهیم
+  function showLiveHlsFailure(channel, index) {
+    var wrap = $('live-wrap');
+    var start = $('live-start');
+    var hint = $('live-hint');
+    var label = $('live-start-label');
+    if (start) start.hidden = true;
+    if (label) label.textContent = 'پخش زنده را شروع کنید';
+    if (hint) hint.textContent = 'پخش‌کننده بارگذاری نشد';
+    if (liveState.retry) { clearTimeout(liveState.retry); liveState.retry = 0; }
+    showHlsFailPanel(wrap, HLS_FAIL_TEXT, function () {
+      if (hint) hint.textContent = 'پخش زنده · ' + channel.name;
+      startLiveSource(channel, index, true);
+    });
   }
 
   function playLive() {
@@ -2061,6 +2158,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     if (!pill) return;
     pill.className = 'route-pill';
     pill.textContent = 'در حال بررسی آینه‌ها…';
+    if (detail) detail.textContent = 'در حال امتحان آینه‌های عمومی فهرست؛ چند لحظه صبر کن…';
     var checks = await Promise.all(SAT_IPTV_MIRRORS.map(async function (base) {
       var started = Date.now();
       try {
@@ -2077,7 +2175,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     if (!open.length) {
       pill.className = 'route-pill bad';
       pill.textContent = 'همهٔ آینه‌ها بسته‌اند';
-      if (detail) detail.textContent = 'مسیر باز نشد؛ سایفون یا فیلترشکن دستگاه را روشن کن و صفحه را تازه کن.';
+      if (detail) detail.textContent = 'مسیر باز نشد؛ سایفون یا فیلترشکن دستگاه را روشن کن و بعد «بازبینی مسیر» را بزن.';
     } else if (open.length === checks.length) {
       pill.className = 'route-pill ok';
       pill.textContent = 'مسیر باز · ' + open.length + ' از ' + checks.length + ' آینه';
@@ -2088,6 +2186,24 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       if (detail) detail.textContent = 'در دسترس: ' + names.join('، ') + ' · بقیه بسته‌اند؛ اگر پخشی نیامد سایفون را روشن کن.';
     }
   }
+
+  // دکمهٔ «بازبینی مسیر»: همان آینه‌های فهرست را بدون تازه‌کردن صفحه دوباره امتحان می‌کند
+  (function setupRouteRecheck() {
+    var btn = $('route-recheck');
+    if (!btn) return;
+    btn.addEventListener('click', async function () {
+      if (btn.disabled) return;
+      var label = btn.textContent;
+      btn.disabled = true;
+      btn.textContent = 'در حال بازبینی…';
+      try {
+        await probeRouteStatus();
+      } finally {
+        btn.disabled = false;
+        btn.textContent = label;
+      }
+    });
+  })();
 
   // اولین آینه‌ای که پاسخ سالم بدهد استفاده می‌شود
   async function satFetchFirst(urls, options) {
@@ -2340,6 +2456,8 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
 
   function stopSatPlayback() {
     var video = $('sat-video');
+    if ($('sat-player') && $('sat-player').classList.contains('pseudo-fs')) exitPseudoFullscreen();
+    hideHlsFailPanel($('sat-player'));
     if (satState.retry) { clearTimeout(satState.retry); satState.retry = 0; }
     if (satState.hls) { try { satState.hls.destroy(); } catch (e) { /* ignore */ } satState.hls = null; }
     if (video) {
@@ -2443,9 +2561,114 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       hls.loadSource(current);
       hls.attachMedia(video);
     } catch (e) {
+      if (isHlsLoadFailure(e)) {
+        note.style.display = 'none';
+        showHlsFailPanel($('sat-player'), HLS_FAIL_TEXT, function () {
+          playSat(entry, urls, index);
+        });
+        return;
+      }
       playSat(entry, urls, index + 1);
     }
   }
+
+  /* ---------------- تمام‌صفحهٔ اختصاصی پخش ماهواره ---------------- */
+  // بعضی مرورگرها (مثل Safari روی iOS) دکمهٔ تمام‌صفحهٔ بومی روی <video> ندارند و
+  // requestFullscreen روی عنصر را هم قبول نمی‌کنند؛ این دکمه اول مسیر بومی را
+  // امتحان می‌کند و در نهایت حالت شبه‌تمام‌صفحه (چسبیده به کل صفحه) را اعمال می‌کند.
+  function satFullscreenElement() {
+    return document.fullscreenElement || document.webkitFullscreenElement ||
+      document.mozFullScreenElement || document.msFullscreenElement || null;
+  }
+
+  function satFsSupported(el) {
+    return Boolean(el && (el.requestFullscreen || el.webkitRequestFullscreen ||
+      el.mozRequestFullScreen || el.msRequestFullscreen));
+  }
+
+  function exitNativeFullscreen() {
+    var doc = document;
+    var fn = doc.exitFullscreen || doc.webkitExitFullscreen || doc.mozCancelFullScreen || doc.msExitFullscreen;
+    if (!fn) return Promise.resolve();
+    try {
+      var result = fn.call(doc);
+      return result && result.then ? result.catch(function () {}) : Promise.resolve();
+    } catch (e) {
+      return Promise.resolve();
+    }
+  }
+
+  function setSatFsUi(active) {
+    var btn = $('sat-fs');
+    if (!btn) return;
+    btn.setAttribute('aria-pressed', String(active));
+    btn.setAttribute('aria-label', active ? 'خروج از تمام‌صفحه' : 'تمام‌صفحه');
+    btn.setAttribute('title', active ? 'خروج از تمام‌صفحه' : 'تمام‌صفحه');
+    btn.textContent = active ? '✕' : '⛶';
+  }
+
+  function enterPseudoFullscreen() {
+    var wrap = $('sat-player');
+    if (!wrap) return;
+    wrap.classList.add('pseudo-fs');
+    document.body.classList.add('sat-fs-lock');
+    setSatFsUi(true);
+  }
+
+  function exitPseudoFullscreen() {
+    var wrap = $('sat-player');
+    if (wrap) wrap.classList.remove('pseudo-fs');
+    document.body.classList.remove('sat-fs-lock');
+    setSatFsUi(false);
+  }
+
+  async function toggleSatFullscreen() {
+    var wrap = $('sat-player');
+    var video = $('sat-video');
+    if (!wrap || !video) return;
+    if (wrap.classList.contains('pseudo-fs')) { exitPseudoFullscreen(); return; }
+    // اگر همین حالا در تمام‌صفحهٔ بومی هستیم، دکمه خارج می‌کند
+    if (satFullscreenElement()) { await exitNativeFullscreen(); setSatFsUi(false); return; }
+    // iOS: تنها راه تمام‌صفحهٔ واقعی، متد اختصاصی خود ویدیو است
+    if (typeof video.webkitEnterFullscreen === 'function') {
+      try { video.webkitEnterFullscreen(); setSatFsUi(true); return; } catch (e) { /* ادامه */ }
+    }
+    var target = satFsSupported(wrap) ? wrap : (satFsSupported(video) ? video : null);
+    if (target) {
+      try {
+        var request = target.requestFullscreen || target.webkitRequestFullscreen ||
+          target.mozRequestFullScreen || target.msRequestFullscreen;
+        var result = request.call(target);
+        if (result && result.then) await result;
+        setSatFsUi(true);
+        return;
+      } catch (e) { /* رد شدن اجازه: حالت شبه‌تمام‌صفحه */ }
+    }
+    enterPseudoFullscreen();
+  }
+
+  (function setupSatFullscreen() {
+    var btn = $('sat-fs');
+    if (!btn) return;
+    btn.addEventListener('click', function () { toggleSatFullscreen(); });
+    function syncSatFsUi() {
+      var wrap = $('sat-player');
+      if (!wrap) return;
+      var nativeEl = satFullscreenElement();
+      setSatFsUi(nativeEl === wrap || nativeEl === $('sat-video') || wrap.classList.contains('pseudo-fs'));
+    }
+    ['fullscreenchange', 'webkitfullscreenchange', 'mozfullscreenchange', 'MSFullscreenChange'].forEach(function (name) {
+      document.addEventListener(name, syncSatFsUi);
+    });
+    var video = $('sat-video');
+    // خروج با دکمهٔ بومی iOS (فقط رویداد وب‌کیت آن را داریم)
+    if (video && video.addEventListener) video.addEventListener('webkitendfullscreen', function () { setSatFsUi(false); });
+    document.addEventListener('keydown', function (event) {
+      if (event.key !== 'Escape' && event.key !== 'Esc') return;
+      var wrap = $('sat-player');
+      if (wrap && wrap.classList.contains('pseudo-fs')) exitPseudoFullscreen();
+    });
+  })();
 
   (function setupSatTv() {
     var input = $('sat-search');

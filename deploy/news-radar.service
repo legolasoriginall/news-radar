@@ -1,0 +1,25 @@
+[Unit]
+Description=News Radar dashboard server
+Documentation=https://github.com/legolasoriginall/news-radar
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+# مسیر پروژه را با محل واقعی خودت عوض کن
+WorkingDirectory=/opt/news-radar
+Environment=PORT=3001
+Environment=UPDATE_INTERVAL_MINUTES=30
+Environment=NODE_ENV=production
+# مسیر node را با خروجی `command -v node` عوض کن
+ExecStart=/usr/bin/node server.mjs
+Restart=always
+RestartSec=3
+# کاربر و گروه اختصاصی سرویس (قبلش: useradd --system --no-create-home newsradar)
+User=newsradar
+Group=newsradar
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

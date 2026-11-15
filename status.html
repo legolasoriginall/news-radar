@@ -1,0 +1,305 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>وضعیت سلامت منابع — رصد خبر</title>
+<meta name="robots" content="noindex">
+<meta name="color-scheme" content="light">
+<link rel="icon" type="image/svg+xml" href="favicon.svg?v=1">
+<style>
+:root {
+  --bg: #f4f6fa; --panel: #fff; --ink: #101828; --muted: #667085; --line: #e6e9f0;
+  --navy: #0b1f3a; --navy-2: #12325c; --teal: #0d9488; --amber: #d97706; --red: #dc2626;
+  --green: #059669; --shadow: 0 1px 2px rgba(16,24,40,.05), 0 8px 24px rgba(16,24,40,.06);
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--ink);
+  font-family: "Vazirmatn", "IRANSansX", "IRANSans", "Segoe UI", Tahoma, Arial, sans-serif;
+  font-size: 14.5px; line-height: 1.7;
+}
+a { color: inherit; }
+.wrap { max-width: 1120px; margin: 0 auto; padding: 0 20px; }
+header {
+  background: linear-gradient(160deg, var(--navy) 0%, var(--navy-2) 100%);
+  color: #fff; padding: 22px 0 24px;
+}
+.header-row { display: flex; align-items: center; justify-content: space-between; gap: 14px; flex-wrap: wrap; }
+h1 { font-size: 22px; margin: 0; }
+header p { margin: 5px 0 0; color: rgba(255,255,255,.75); font-size: 12.8px; }
+.back { font-size: 12.5px; border: 1px solid rgba(255,255,255,.25); background: rgba(255,255,255,.1); border-radius: 9px; padding: 6px 12px; text-decoration: none; }
+.back:hover { background: rgba(255,255,255,.18); text-decoration: none; }
+main { padding: 18px 0 46px; display: grid; gap: 14px; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 15px 16px; box-shadow: var(--shadow); }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 10px; }
+.stat { border: 1px solid var(--line); border-radius: 12px; padding: 9px 12px; background: #fcfdff; }
+.stat .label { font-size: 11.8px; color: var(--muted); }
+.stat .value { font-size: 20px; font-weight: 800; font-variant-numeric: tabular-nums; letter-spacing: -.3px; }
+.stat.ok .value { color: var(--green); }
+.stat.bad .value { color: var(--red); }
+.stat.slow .value { color: var(--amber); }
+.toolbar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; justify-content: space-between; }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; }
+.chip { border: 1px solid var(--line); background: #f8fafc; color: #475467; border-radius: 999px; padding: 4px 12px; font: inherit; font-size: 12px; cursor: pointer; }
+.chip[aria-pressed="true"] { background: var(--navy); border-color: var(--navy); color: #fff; font-weight: 700; }
+.hint { font-size: 11.8px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.table-wrap { overflow-x: auto; margin-top: 10px; }
+table { width: 100%; border-collapse: collapse; min-width: 760px; }
+th, td { text-align: right; padding: 8px 9px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+th { font-size: 11.6px; color: var(--muted); font-weight: 700; white-space: nowrap; background: #f8fafc; position: sticky; top: 0; }
+td { font-size: 13px; }
+tr:last-child td { border-bottom: 0; }
+.name { font-weight: 700; }
+.sub { font-size: 11.2px; color: var(--muted); direction: ltr; text-align: right; }
+.badge { display: inline-block; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 1px 9px; white-space: nowrap; }
+.badge.ok { background: #ecfdf5; color: #047857; border: 1px solid #a7f3d0; }
+.badge.bad { background: #fef2f2; color: #b91c1c; border: 1px solid #fecaca; }
+.badge.mirror { background: #eff6ff; color: #1d4ed8; border: 1px solid #bfdbfe; }
+.badge.arch { background: #fff7ed; color: #b45309; border: 1px solid #fed7aa; }
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bar { position: relative; width: 92px; height: 7px; border-radius: 999px; background: #eef2f7; overflow: hidden; }
+.bar > i { position: absolute; inset: 0 auto 0 0; display: block; border-radius: 999px; background: linear-gradient(90deg, #34d399, #059669); }
+.bar.low > i { background: linear-gradient(90deg, #fbbf24, #d97706); }
+.bar.crit > i { background: linear-gradient(90deg, #f87171, #dc2626); }
+.bar-cell { display: flex; align-items: center; gap: 7px; }
+.time-hot { color: var(--amber); font-weight: 700; }
+.time-bad { color: var(--red); font-weight: 700; }
+.error { color: #b91c1c; font-size: 11.6px; }
+.empty { padding: 26px 4px; color: var(--muted); font-size: 13px; text-align: center; }
+footer { color: var(--muted); font-size: 11.6px; padding: 0 0 26px; }
+@media (max-width: 620px) {
+  h1 { font-size: 19px; }
+  th, td { padding: 7px 7px; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="wrap header-row">
+    <div>
+      <h1>وضعیت سلامت منابع خبری</h1>
+      <p>زمان پاسخ و درصد موفقیت هر منبع و آینه، بر اساس آخرین به‌روزرسانی داده</p>
+    </div>
+    <a class="back" href="./">بازگشت به داشبورد ↗</a>
+  </div>
+</header>
+
+<main class="wrap">
+  <section class="panel summary" id="summary" aria-live="polite">
+    <div class="stat"><div class="label">در حال بارگذاری…</div><div class="value">—</div></div>
+  </section>
+
+  <section class="panel">
+    <div class="toolbar">
+      <div class="tools" role="group" aria-label="فیلتر منابع">
+        <button class="chip" type="button" data-filter="all" aria-pressed="true">همه</button>
+        <button class="chip" type="button" data-filter="bad" aria-pressed="false">خراب</button>
+        <button class="chip" type="button" data-filter="slow" aria-pressed="false">کند (بیش از ۱٫۵ ثانیه)</button>
+        <button class="chip" type="button" data-filter="mirror" aria-pressed="false">آینه و آرشیو</button>
+      </div>
+      <div class="tools" role="group" aria-label="ترتیب">
+        <button class="chip" type="button" data-sort="name" aria-pressed="true">نام</button>
+        <button class="chip" type="button" data-sort="slow" aria-pressed="false">کندترین</button>
+        <button class="chip" type="button" data-sort="fail" aria-pressed="false">کم‌موفقیت‌ترین</button>
+      </div>
+    </div>
+    <div class="hint" id="hint" style="margin-top:8px">در حال خواندن داده…</div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>#</th>
+            <th>منبع</th>
+            <th>وضعیت</th>
+            <th>زمان پاسخ</th>
+            <th>موفقیت</th>
+            <th>خبر در داده</th>
+            <th>مسیر</th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <div class="empty" id="empty" hidden>منبعی با این فیلتر پیدا نشد.</div>
+  </section>
+
+  <footer id="foot"></footer>
+</main>
+
+<script>
+(function () {
+  var SLOW_MS = 1500;
+  var state = { health: [], generated_at: '', filter: 'all', sort: 'name', status: null };
+
+  function $(id) { return document.getElementById(id); }
+
+  function esc(value) {
+    return String(value == null ? '' : value)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+  }
+
+  function num(value) {
+    var n = Number(value);
+    if (!isFinite(n)) return '—';
+    return n.toLocaleString('fa-IR', { maximumFractionDigits: 0 });
+  }
+
+  function clock(iso) {
+    var d = new Date(iso);
+    if (!iso || !isFinite(d.getTime())) return '—';
+    return d.toLocaleString('fa-IR', { dateStyle: 'short', timeStyle: 'short' });
+  }
+
+  function age(iso) {
+    var ts = Date.parse(iso);
+    if (!isFinite(ts)) return '—';
+    var min = Math.max(0, Math.round((Date.now() - ts) / 60000));
+    if (min < 60) return num(min) + ' دقیقه پیش';
+    var hours = Math.round(min / 60);
+    if (hours < 48) return num(hours) + ' ساعت پیش';
+    return num(Math.round(hours / 24)) + ' روز پیش';
+  }
+
+  function isMirror(source) {
+    return Boolean(source && (source.mirror || source.via));
+  }
+
+  function isArchive(source) {
+    return /web\.archive\.org/.test(String((source && source.via) || ''));
+  }
+
+  function pathText(source) {
+    if (isArchive(source)) return { kind: 'آرشیو', cls: 'arch' };
+    if (isMirror(source)) return { kind: 'مسیر جایگزین', cls: 'mirror' };
+    return null;
+  }
+
+  function successClass(percent) {
+    if (!isFinite(Number(percent))) return '';
+    if (Number(percent) < 60) return ' crit';
+    if (Number(percent) < 90) return ' low';
+    return '';
+  }
+
+  function sourceRow(source, index) {
+    var ok = Boolean(source.ok);
+    var elapsed = Number(source.elapsed_ms);
+    var success = Number(source.success_percent);
+    var timeCls = !isFinite(elapsed) ? '' : elapsed >= 3000 ? 'time-bad' : elapsed >= SLOW_MS ? 'time-hot' : '';
+    var path = pathText(source);
+    var percentText = isFinite(success) ? num(success) + '٪' : '—';
+    var barWidth = isFinite(success) ? Math.max(0, Math.min(100, success)) : 0;
+    return '<tr>' +
+      '<td class="num">' + num(index + 1) + '</td>' +
+      '<td>' +
+        '<div class="name">' + esc(source.name || source.id || 'منبع ناشناخته') + '</div>' +
+        '<div class="sub">' + esc(source.id || '') + (source.lang ? ' · ' + esc(source.lang === 'fa' ? 'فارسی' : 'انگلیسی') : '') + '</div>' +
+        (source.error ? '<div class="error">' + esc(source.error) + '</div>' : '') +
+      '</td>' +
+      '<td><span class="badge ' + (ok ? 'ok' : 'bad') + '">' + (ok ? 'پاسخ داد' : 'خراب') + '</span></td>' +
+      '<td class="num ' + timeCls + '">' + (isFinite(elapsed) ? num(elapsed) + ' ms' : '—') + '</td>' +
+      '<td><div class="bar-cell"><span class="bar' + successClass(success) + '"><i style="width:' + barWidth + '%"></i></span>' +
+        '<span class="num">' + percentText + '</span></div></td>' +
+      '<td class="num">' + (source.count === 0 ? '۰' : num(source.count)) + '</td>' +
+      '<td>' + (path ? '<span class="badge ' + path.cls + '">' + path.kind + '</span>' : '—') + '</td>' +
+      '</tr>';
+  }
+
+  function visible() {
+    var list = state.health.slice();
+    if (state.filter === 'bad') list = list.filter(function (s) { return !s.ok; });
+    if (state.filter === 'slow') list = list.filter(function (s) { return Number(s.elapsed_ms) >= SLOW_MS; });
+    if (state.filter === 'mirror') list = list.filter(isMirror);
+    if (state.sort === 'slow') {
+      list.sort(function (a, b) { return (Number(b.elapsed_ms) || 0) - (Number(a.elapsed_ms) || 0); });
+    } else if (state.sort === 'fail') {
+      list.sort(function (a, b) { return (Number(a.success_percent) || 0) - (Number(b.success_percent) || 0); });
+    } else {
+      list.sort(function (a, b) { return String(a.name || a.id || '').localeCompare(String(b.name || b.id || ''), 'fa'); });
+    }
+    return list;
+  }
+
+  function renderSummary() {
+    var health = state.health;
+    var okCount = health.filter(function (s) { return s.ok; }).length;
+    var badCount = health.length - okCount;
+    var slowCount = health.filter(function (s) { return Number(s.elapsed_ms) >= SLOW_MS; }).length;
+    var mirrorCount = health.filter(isMirror).length;
+    var times = health.map(function (s) { return Number(s.elapsed_ms); }).filter(function (n) { return isFinite(n); });
+    var avg = times.length ? Math.round(times.reduce(function (a, b) { return a + b; }, 0) / times.length) : NaN;
+    $('summary').innerHTML =
+      '<div class="stat"><div class="label">کل منابع</div><div class="value">' + num(health.length) + '</div></div>' +
+      '<div class="stat ok"><div class="label">پاسخ‌داده</div><div class="value">' + num(okCount) + '</div></div>' +
+      '<div class="stat bad"><div class="label">خراب</div><div class="value">' + num(badCount) + '</div></div>' +
+      '<div class="stat slow"><div class="label">کندتر از ۱٫۵ ثانیه</div><div class="value">' + num(slowCount) + '</div></div>' +
+      '<div class="stat"><div class="label">آینه و آرشیو</div><div class="value">' + num(mirrorCount) + '</div></div>' +
+      '<div class="stat"><div class="label">میانگین زمان پاسخ</div><div class="value">' + (isFinite(avg) ? num(avg) + ' ms' : '—') + '</div></div>';
+  }
+
+  function render() {
+    var list = visible();
+    $('rows').innerHTML = list.map(sourceRow).join('');
+    $('empty').hidden = list.length > 0;
+    var mirrorCount = state.health.filter(isMirror).length;
+    $('hint').textContent = num(state.health.length) + ' منبع · ' + num(list.length) + ' ردیف در این نما' +
+      (mirrorCount ? ' · ' + num(mirrorCount) + ' از آینه یا آرشیو' : '') +
+      (state.generated_at ? ' · دادهٔ ' + age(state.generated_at) : '');
+    $('foot').textContent = state.generated_at
+      ? 'آخرین تولید داده: ' + clock(state.generated_at) + ' · آستانهٔ سکوت خبری: ' + num(state.status && state.status.silent_hours) + ' ساعت'
+      : '';
+    renderSummary();
+  }
+
+  function setPressed(attr, value) {
+    var nodes = document.querySelectorAll('[data-' + attr + ']');
+    Array.prototype.forEach.call(nodes, function (node) {
+      node.setAttribute('aria-pressed', String(node.getAttribute('data-' + attr) === value));
+    });
+  }
+
+  async function load() {
+    try {
+      var results = await Promise.all([
+        fetch('data.json?_=' + Date.now(), { cache: 'no-store' }),
+        fetch('api/status?_=' + Date.now(), { cache: 'no-store' }).catch(function () { return null; })
+      ]);
+      var data = await results[0].json();
+      state.health = Array.isArray(data.source_health) ? data.source_health : [];
+      state.generated_at = data.generated_at || '';
+      if (results[1] && results[1].ok) {
+        try { state.status = await results[1].json(); } catch (e) { state.status = null; }
+      }
+      render();
+    } catch (error) {
+      $('hint').textContent = 'خواندن داده ممکن نشد: ' + String(error && error.message ? error.message : error);
+      $('rows').innerHTML = '';
+      $('empty').hidden = false;
+      $('empty').textContent = 'دادهٔ سلامت منابع در دسترس نیست.';
+    }
+  }
+
+  document.querySelector('.tools').addEventListener('click', function (event) {
+    var button = event.target.closest ? event.target.closest('[data-filter]') : null;
+    if (!button) return;
+    state.filter = button.getAttribute('data-filter');
+    setPressed('filter', state.filter);
+    render();
+  });
+
+  document.querySelectorAll('[data-sort]').forEach(function (button) {
+    button.addEventListener('click', function () {
+      state.sort = button.getAttribute('data-sort');
+      setPressed('sort', state.sort);
+      render();
+    });
+  });
+
+  load();
+  setInterval(load, 60000);
+})();
+</script>
+</body>
+</html>

@@ -231,9 +231,9 @@ function buildCsp(nonce, isAdminPage) {
 }
 
 // nonce را در همهٔ تگ‌های <script> بدون nonce می‌گذارد (درون‌خطی و دارای src)
-// nonce به همهٔ تگ‌های script بدون nonce اضافه می‌شود (حتی script با src) تا با
-// strict-dynamic اسکریپت‌های همین مبدا مثل src/hls-loader.js هم مجاز باشند.
 function withCspNonce(html, nonce) {
+  // nonce به همهٔ تگ‌های script بدون nonce اضافه می‌شود (حتی script با src) تا با
+  // strict-dynamic اسکریپت‌های همین مبدا مثل src/hls-loader.js هم مجاز باشند.
   return String(html).replace(/<script(?![^>]*\bnonce=)([^>]*)>/gi, (tag, attrs) => `<script nonce="${nonce}"${attrs}>`);
 }
 
@@ -489,29 +489,44 @@ function tooManyAttempts(ip) {
   return entry.count > 10;
 }
 
-async function serveAdminPage(res) {
+async function serveHtmlPage(res, file, missingText) {
   try {
-    const raw = await readFile(path.join(ROOT, 'admin.html'));
+    const raw = await readFile(path.join(ROOT, file));
     const body = res.cspNonce
       ? Buffer.from(withCspNonce(raw.toString('utf8'), res.cspNonce), 'utf8')
       : raw;
     res.writeHead(200, {
       'Content-Type': 'text/html; charset=utf-8',
       'Cache-Control': 'no-store',
-      'X-Frame-Options': 'SAMEORIGIN',
       'X-Robots-Tag': 'noindex',
       'Content-Length': body.length,
     });
     res.end(body);
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
-    res.end('صفحهٔ مدیر پیدا نشد');
+    res.end(missingText);
   }
+}
+
+function serveAdminPage(res) {
+  res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+  return serveHtmlPage(res, 'admin.html', 'صفحهٔ مدیر پیدا نشد');
+}
+
+function serveStatusPage(res) {
+  return serveHtmlPage(res, 'status.html', 'صفحهٔ وضعیت پیدا نشد');
 }
 
 // فقط همین فایل‌ها و پوشه‌ها عمومی‌اند؛ هر چیز دیگری (کد سرور، پیکربندی،
 // فایل‌های نقطه‌ای و پوشه‌های داخلی) حتی با آدرس مستقیم هم سرو نمی‌شود.
-const PUBLIC_FILES = new Set(['/index.html', '/data.json', '/news.xlsx', '/favicon.ico']);
+const PUBLIC_FILES = new Set(['/index.html', '/status.html', '/data.json', '/news.xlsx', '/favicon.svg', '/src/hls-loader.js']);
+
+// سیاست کش دارایی‌های ثابت: آدرسِ نسخه‌دار (?v=…) کش طولانی و immutable می‌گیرد؛
+// خود آدرس بدون نسخه کوتاه و قابل‌بازبینی می‌ماند تا لینک قدیمی محتوای کهنه ندهد.
+const VERSIONED_ASSETS = new Map([
+  ['/news.xlsx', { versioned: 315360000, plain: 'public, max-age=300, must-revalidate' }],
+  ['/favicon.svg', { versioned: 315360000, plain: 'public, max-age=86400' }],
+]);
 const PUBLIC_DIRS = ['/vendor/'];
 
 function isPublicAsset(relative) {
@@ -519,7 +534,7 @@ function isPublicAsset(relative) {
   return PUBLIC_DIRS.some((dir) => relative.startsWith(dir) && relative.length > dir.length);
 }
 
-async function serveStatic(req, res, pathname) {
+async function serveStatic(req, res, pathname, url) {
   if (req.method !== 'GET' && req.method !== 'HEAD') {
     res.setHeader('Allow', 'GET, HEAD');
     res.writeHead(405, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -559,19 +574,39 @@ async function serveStatic(req, res, pathname) {
       ? Buffer.from(withCspNonce(raw.toString('utf8'), res.cspNonce), 'utf8')
       : raw;
     const isVendorAsset = relative.startsWith('/vendor/');
-    const cacheControl = isHtml
-      ? 'no-store'
-      : ext === '.json'
-        ? 'no-store'
-        : isVendorAsset
-          ? 'public, max-age=31536000, immutable'
-          : 'public, max-age=60';
-    res.writeHead(200, {
+    const isVersioned = Boolean(url && url.searchParams.has('v'));
+    // کتابخانه‌های vendor با نسخه در آدرس لود می‌شوند (مثل hls.min.js?v=1.5.20)؛
+    // پس می‌توان با خیال راحت ده سال کش کرد: تا وقتی نسخه عوض نشود، هیچ
+    // بازدیدی دوباره فایل را نمی‌گیرد و آپدیت کتابخانه با تغییر ?v یک آدرس تازه می‌سازد.
+    const VENDOR_CACHE_SECONDS = 315360000; // ۱۰ سال
+    const assetRule = VERSIONED_ASSETS.get(relative);
+    let longCacheSeconds = 0;
+    let cacheControl;
+    if (isHtml || ext === '.json') {
+      cacheControl = 'no-store';
+    } else if (isVendorAsset) {
+      cacheControl = `public, max-age=${VENDOR_CACHE_SECONDS}, immutable`;
+      longCacheSeconds = VENDOR_CACHE_SECONDS;
+    } else if (assetRule && isVersioned) {
+      cacheControl = `public, max-age=${assetRule.versioned}, immutable`;
+      longCacheSeconds = assetRule.versioned;
+    } else if (assetRule) {
+      cacheControl = assetRule.plain;
+    } else {
+      cacheControl = 'public, max-age=60';
+    }
+    const headers = {
       'Content-Type': MIME[ext] || 'application/octet-stream',
       'Content-Length': body.length,
       'Cache-Control': cacheControl,
       'X-Content-Type-Options': 'nosniff',
-    });
+    };
+    // Expires هم فرستاده می‌شود تا کش‌های قدیمی‌تری که به max-age اعتماد نمی‌کنند،
+    // همین بازهٔ طولانی را ببینند.
+    if (longCacheSeconds) {
+      headers.Expires = new Date(Date.now() + longCacheSeconds * 1000).toUTCString();
+    }
+    res.writeHead(200, headers);
     res.end(body);
   } catch {
     res.writeHead(404, { 'Content-Type': 'text/plain; charset=utf-8' });
@@ -762,6 +797,21 @@ async function handleRequest(req, res) {
 
   if (pathname === '/admin' || pathname === '/admin/') {
     await serveAdminPage(res);
+    return;
+  }
+
+  // مسیر قدیمی favicon: مرورگرها خودشان /favicon.ico را می‌خواهند؛ به آیکون نسخه‌دار هدایت می‌شود.
+  if (pathname === '/favicon.ico') {
+    res.writeHead(301, {
+      Location: '/favicon.svg?v=1',
+      'Cache-Control': 'public, max-age=315360000, immutable',
+    });
+    res.end();
+    return;
+  }
+
+  if (pathname === '/status' || pathname === '/status/') {
+    await serveStatusPage(res);
     return;
   }
 
@@ -1227,7 +1277,7 @@ async function handleRequest(req, res) {
     return;
   }
 
-  await serveStatic(req, res, pathname);
+  await serveStatic(req, res, pathname, url);
 }
 
 const server = createServer((req, res) => {
