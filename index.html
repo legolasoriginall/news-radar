@@ -1643,6 +1643,11 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     // دکمه تا وقتی خبر خوانده‌شدهٔ نمایش‌داده‌نشده هست یا قطعهٔ بعدی آرشیو باقی است می‌ماند.
     var hasHidden = state.page < list.length;
     $('more').style.display = hasHidden || (!moreDone && totalKnown > state.page) ? 'inline-block' : 'none';
+    if ($('more').style.display !== 'none') {
+      var predictedStep = connectionStep();
+      var shownStep = Math.max(MORE_STEP_MIN, Math.min(MORE_STEP_MAX, predictedStep || moreStep));
+      $('more').textContent = 'نمایش بیشتر (' + fmt(shownStep) + ' خبر)';
+    }
     var archiveEnd = $('archive-end');
     if (archiveEnd) {
       var allLoaded = moreDone && list.length > 0 && list.length === (state.data.articles || []).length && state.page >= list.length;
