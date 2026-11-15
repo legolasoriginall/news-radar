@@ -519,7 +519,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         <button class="sat-fs" id="sat-fs" type="button" aria-label="تمام‌صفحه" title="تمام‌صفحه" aria-pressed="false">⛶</button>
       </div>
       <ul class="sat-list" id="sat-list"></ul>
-      <div class="market-note">فهرست از بایگانی عمومی <span dir="ltr">iptv-org</span> خوانده می‌شود. هر شبکه با یک کلیک پخش می‌شود و اگر چند نشانی داشته باشد، مسیرهای بسته رد و مسیر باز انتخاب می‌شوند؛ اگر همه بسته بودند، هر ۲۰ ثانیه دوباره امتحان می‌شود.</div>
+      <button type="button" class="sat-toggle-all" id="sat-more" hidden>نمایش شبکه‌های بیشتر</button>
+      <div class="market-note">فهرست از بایگانی عمومی <span dir="ltr">iptv-org</span> خوانده می‌شود. هر شبکه با یک کلیک پخش می‌شود و اگر چند نشانی داشته باشد، مسیرهای بسته رد و مسیر باز انتخاب می‌شوند؛ اگر همه بسته بودند، مسیر سالم همان شبکه از فهرست جهانی جایگزین می‌شود و هر ۲۰ ثانیه دوباره امتحان می‌شود.</div>
     </div>
   </section>
 
@@ -2422,7 +2423,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     IE: 'ایرلند', UZ: 'ازبکستان', TM: 'ترکمنستان', KG: 'قرقیزستان', KZ: 'قزاقستان', CY: 'قبرس'
   };
 
-  var satState = { countryNames: {}, countryList: [], cache: {}, list: [], shown: [], query: '', token: 0, hls: null, retry: 0, onlyFree: false, showDead: false, dead: {}, verifying: 0, openGroups: {} };
+  var satState = { countryNames: {}, countryList: [], cache: {}, list: [], shown: [], query: '', token: 0, hls: null, retry: 0, onlyFree: false, showDead: false, dead: {}, verifying: 0, openGroups: {}, limit: 300 };
 
   // میزبان‌هایی که معمولاً از داخل ایران بدون VPN باز می‌شوند (CDNهای ایرانی و سرویس‌های IPTV فارسی)
   var SAT_IRAN_HOSTS = [
@@ -2536,6 +2537,76 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     return Boolean(panel && panel.classList.contains("collapsed"));
   }
 
+  // نمایهٔ کانال‌های جهان (index.m3u): برای شبکه‌ای که هیچ مسیرش پاسخ نمی‌دهد
+  // یک مسیر سالم از همان شبکه در فهرست جهانی پیدا می‌شود تا شبکه از دست نرود.
+  var satWorld = null;
+  var satWorldLoading = null;
+
+  function satNameKey(name) {
+    return String(name || '').toLowerCase()
+      .replace(/\b(fhd|uhd|hd|sd|hq|4k|8k)\b/g, ' ')
+      .replace(/[^a-z0-9\u0600-\u06FF]+/g, ' ')
+      .trim();
+  }
+
+  function satWorldIndex() {
+    if (satWorld) return Promise.resolve(satWorld);
+    if (satWorldLoading) return satWorldLoading;
+    satWorldLoading = (async function () {
+      try {
+        var response = await satFetchFirst(SAT_ALL_URLS, { cache: 'force-cache' });
+        var text = await response.text();
+        var byId = {};
+        var byName = {};
+        parseM3uText(text).forEach(function (entry) {
+          var id = String(entry.id || '').split('@')[0].toLowerCase();
+          if (id) (byId[id] = byId[id] || []).push(entry.url);
+          var nameKey = satNameKey(entry.name);
+          if (nameKey) (byName[nameKey] = byName[nameKey] || []).push(entry.url);
+        });
+        satWorld = { byId: byId, byName: byName };
+        return satWorld;
+      } catch (e) {
+        satWorldLoading = null;
+        return null;
+      }
+    })();
+    return satWorldLoading;
+  }
+
+  // برای شبکهٔ بی‌پخش، مسیر سالم همان شبکه را از فهرست جهانی برمی‌گرداند.
+  async function satTryReplace(entry) {
+    if (!entry) return false;
+    var index = await satWorldIndex();
+    if (!index) return false;
+    var idKey = String(entry.id || '').split('@')[0].toLowerCase();
+    var candidates = [];
+    // فقط شناسهٔ یکسان (tvg-id) ملاک است؛ تطبیق نامی می‌تواند شبکهٔ دیگری را
+    // جای این شبکه بگذارد، پس تنها وقتی استفاده می‌شود که شناسه‌ای در کار نباشد.
+    if (idKey && index.byId[idKey]) candidates = candidates.concat(index.byId[idKey]);
+    if (!idKey) {
+      var nameKey = satNameKey(entry.name);
+      if (nameKey && nameKey.length >= 4 && index.byName[nameKey]) candidates = candidates.concat(index.byName[nameKey]);
+    }
+    if (!candidates.length) return false;
+    var seen = {};
+    (entry.sources || []).forEach(function (url) { seen[url] = true; });
+    var fresh = [];
+    candidates.forEach(function (url) {
+      if (url && !seen[url]) { seen[url] = true; fresh.push(url); }
+    });
+    for (var i = 0; i < fresh.length && i < 4; i++) {
+      // eslint-disable-next-line no-await-in-loop
+      var verdict = await satProbeSource(fresh[i]);
+      if (verdict !== 'ok') continue;
+      entry.sources = [fresh[i]].concat(entry.sources || []);
+      satClearDead(entry);
+      try { storeSet(satSourceKey(entry), fresh[i]); } catch (e) { /* ignore */ }
+      return true;
+    }
+    return false;
+  }
+
   async function satVerifyChannels() {
     var token = satState.token;
     if (!satState.list.length || satState.verifying === token) return;
@@ -2552,7 +2623,10 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       // eslint-disable-next-line no-await-in-loop
       var probe = await satProbeEntry(entry);
       if (token !== satState.token) break;
-      if (probe === 'dead') satMarkDead(entry);
+      if (probe === 'dead') {
+        var replaced = await satTryReplace(entry);
+        if (!replaced) satMarkDead(entry);
+      }
       // eslint-disable-next-line no-await-in-loop
       await new Promise(function (resolve) { setTimeout(resolve, 120); });
     }
@@ -2671,16 +2745,11 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   }
 
   async function loadSatList(code) {
+    satState.limit = 300;
     // در دستهٔ ۱۸+ همهٔ شبکه‌ها حتی بی‌پخش‌ها نمایش داده می‌شوند تا فهرست خالی نماند.
-    if (code === 'ADULT' || code === 'ADULTVOD') {
-      satState.showDead = true;
-      var sd = $('sat-show-dead');
-      if (sd) sd.checked = false;
-    } else {
-      satState.showDead = false;
-      var sd2 = $('sat-show-dead');
-      if (sd2) sd2.checked = true;
-    }
+    satState.showDead = true;
+    var sd = $('sat-show-dead');
+    if (sd) sd.checked = false;
     var key = code || 'all';
     var token = ++satState.token;
     if (satState.cache[key]) {
@@ -2811,14 +2880,14 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       hint.textContent = list.length
         ? fmt(list.length) + ' شبکه' + (query ? ' برای «' + satState.query.trim() + '»' : '') +
           ' · ' + fmt(freeTotal) + ' بدون فیلترشکن' +
-          (deadTotal ? ' · ' + fmt(deadTotal) + ' بی‌پخش پنهان' : '')
+          (deadTotal ? ' · ' + fmt(deadTotal) + ' بی‌پخش' + (satState.showDead ? '' : ' پنهان') : '')
         : 'شبکه‌ای پیدا نشد';
     }
     if (!list.length) {
       box.innerHTML = '<li class="sat-empty">شبکه‌ای با این مشخصات در این فهرست نیست.</li>';
       return;
     }
-    satState.shown = list.slice(0, 300);
+    satState.shown = list.slice(0, satState.limit || 300);
     var buckets = {};
     satState.shown.forEach(function (entry, index) {
       var cat = satCategoryOf(entry);
@@ -2834,6 +2903,14 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         body +
         '</details></li>';
     }).join('');
+    var more = $('sat-more');
+    if (more) {
+      var remaining = list.length - satState.shown.length;
+      more.hidden = remaining <= 0;
+      if (remaining > 0) {
+        more.textContent = 'نمایش موردهای بعدی (' + fmt(satState.shown.length) + ' از ' + fmt(list.length) + ')';
+      }
+    }
     satVerifyChannels();
   }
 
@@ -3176,6 +3253,13 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       showDead.checked = !satState.showDead;
       showDead.addEventListener('change', function () {
         satState.showDead = !showDead.checked;
+        renderSat();
+      });
+    }
+    var satMore = $('sat-more');
+    if (satMore) {
+      satMore.addEventListener('click', function () {
+        satState.limit = (satState.limit || 300) + 300;
         renderSat();
       });
     }
