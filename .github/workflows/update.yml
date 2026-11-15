@@ -19,6 +19,7 @@ on:
       - 'index.html'
       - 'admin.html'
       - 'status.html'
+      - 'sw.js'
       - 'Adult.m3u'
       - 'AdultVod.m3u'
       - 'settings.json'
