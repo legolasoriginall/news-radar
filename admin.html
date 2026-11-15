@@ -405,11 +405,25 @@
   // آمار زنجیره: نسخهٔ منتشرشده یک اجرا عقب‌تر از مخزن است، پس تازه‌ترِ آن دو خوانده می‌شود.
   var CHAIN_REMOTE = 'https://raw.githubusercontent.com/legolasoriginall/news-radar/main/chain-log.json';
 
-  async function chainFile(url) {
-    var res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(8000) });
+  async function chainFile(url, headers) {
+    var res = await fetch(url, { cache: 'no-store', headers: headers || {}, signal: AbortSignal.timeout(8000) });
     if (!res.ok) throw new Error('HTTP ' + res.status);
     var list = await res.json();
     return Array.isArray(list) ? list : [];
+  }
+
+  // raw.githubusercontent تا چند دقیقه نسخهٔ کهنه می‌دهد؛ API گیت‌هاب بی‌کش است و با توکن سقف بالاتری دارد.
+  async function chainRepoApi() {
+    if (!REPO || !github.token) return null;
+    try {
+      return await chainFile('https://api.github.com/repos/' + REPO.owner + '/' + REPO.repo +
+        '/contents/chain-log.json?ref=' + REPO.branch + '&_=' + Date.now(), {
+        Authorization: 'Bearer ' + github.token,
+        Accept: 'application/vnd.github.raw+json',
+      });
+    } catch (error) {
+      return null;
+    }
   }
 
   function chainStamp(list) {
@@ -426,17 +440,37 @@
     var box = el('chain-stats');
     if (!hint || !box) return;
     try {
-      var both = await Promise.all([
+      var files = await Promise.all([
         chainFile('chain-log.json?_=' + Date.now()).catch(function () { return null; }),
-        chainFile(CHAIN_REMOTE + '?t=' + Date.now()).catch(function () { return null; })
+        chainFile(CHAIN_REMOTE + '?t=' + Date.now()).catch(function () { return null; }),
+        chainRepoApi()
       ]);
-      var log = both[0];
-      var fromRepo = false;
-      if (both[1] && (!log || chainStamp(both[1]) > chainStamp(log))) {
-        log = both[1];
-        fromRepo = true;
+      var candidates = [
+        { list: files[0], label: 'از نسخهٔ منتشرشده' },
+        { list: files[1], label: 'تازه‌ترین از مخزن' },
+        { list: files[2], label: 'تازه‌ترین از مخزن (API)' }
+      ].filter(function (item) { return item.list; });
+      if (!candidates.length) throw new Error('chain-log unavailable');
+      var best = candidates[0];
+      candidates.forEach(function (item) {
+        if (chainStamp(item.list) > chainStamp(best.list)) best = item;
+      });
+      var log = best.list;
+      var sourceLabel = best.label;
+      // اگر اجرای تازه‌ای شروع شده که هنوز در لاگ ثبت نشده، از فهرست اجراها تکمیل می‌شود.
+      var fromRunApi = false;
+      if (github.token) {
+        var newestRun = await latestWorkflowRun().catch(function () { return null; });
+        if (newestRun && Date.parse(newestRun.created_at) > chainStamp(log)) {
+          log = log.concat([{
+            at: newestRun.created_at,
+            commit: String(newestRun.head_sha || '').slice(0, 7),
+            data: {}, artifact: {}, deploy: {},
+            pending: newestRun.status !== 'completed'
+          }]);
+          fromRunApi = true;
+        }
       }
-      if (!log) throw new Error('chain-log unavailable');
       var stats = { runs: log.length, dataFail: 0, artFail: 0, deployFail: 0, rescued: 0 };
       log.forEach(function (run) {
         ['data', 'artifact', 'deploy'].forEach(function (key) {
@@ -454,7 +488,7 @@
         ' · شکست بارگذاری ' + fa(stats.artFail) + ' · شکست انتشار ' + fa(stats.deployFail) +
         ' · نجات با تلاش دوباره ' + fa(stats.rescued);
       var last = log[log.length - 1];
-      hint.textContent = (fromRepo ? 'تازه‌ترین از مخزن' : 'از نسخهٔ منتشرشده') +
+      hint.textContent = (fromRunApi ? 'تازه‌ترین از اجراهای گیت‌هاب' : sourceLabel) +
         (last && last.at ? ' · آخرین اجرا ' + formatDate(last.at) : '');
     } catch (error) {
       hint.textContent = 'وضعیت زنجیره در دسترس نیست';
