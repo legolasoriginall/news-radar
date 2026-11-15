@@ -1958,7 +1958,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       sources: [
         'https://hlspackager.akamaized.net/live/DB/IRAN_INTERNATIONAL/HLS/IRAN_INTERNATIONAL.m3u8',
         'https://live.livetvstream.co.uk/LS-63503-4/index.m3u8',
-        'https://dev-live.livetvstream.co.uk/LS-63503-4/index.m3u8'
+        'https://dev-live.livetvstream.co.uk/LS-63503-4/index.m3u8',
+        'https://dev-live.livetvstream.co.uk/LS-63503-4/chunklist_b1196000.m3u8'
       ],
       watch: 'https://www.iranintl.com/live'
     },
@@ -1966,7 +1967,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       id: 'voa',
       name: 'صدای آمریکا',
       sources: [
-        'https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07/playlist.m3u8'
+        'https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07/playlist.m3u8',
+        'https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07/playlist_1080.m3u8'
       ],
       watch: ''
     },
@@ -1974,7 +1976,9 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       id: 'radiofarda',
       name: 'رادیو فردا',
       sources: [
-        'https://rfe-ingest.akamaized.net/hls/live/2033042/tvmc01/playlist.m3u8'
+        'https://rferl-ingest.akamaized.net/hls/live/2121768/tvmc01/playlist.m3u8',
+        'https://rfe-ingest.akamaized.net/hls/live/2033042/tvmc01/playlist.m3u8',
+        'https://rfe-ingest.akamaized.net/hls/live/2035292/axia21/playlist.m3u8'
       ],
       watch: 'https://www.radiofarda.com/live'
     }
@@ -2444,6 +2448,18 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
   var SAT_ALL_URLS = satIptvUrls('index.m3u');
 
+  // iptv-org تنها منبع کاتالوگ نیست؛ این فهرست‌ها از ارائه‌دهنده‌های مستقل می‌آیند و
+  // به فهرست کشورهای فارسی‌زبان افزوده می‌شوند. نسخهٔ محلی (sat/extra) اول امتحان
+  // می‌شود تا همان‌جا از سایت خوانده شود و به میزبان خارجی وابسته نباشد.
+  var SAT_EXTRA_SOURCES = [
+    { id: 'shayanline', local: 'sat/extra/shayanline.m3u', remote: 'https://raw.githubusercontent.com/shayanline/iptv-iran/main/playlists/en/iran.m3u' },
+    { id: 'shahram7', local: 'sat/extra/shahram7.m3u', remote: 'https://raw.githubusercontent.com/shahram7/iranianiptv/main/playlist.m3u' },
+    { id: 'myiptv', local: 'sat/extra/myiptv.m3u', remote: 'https://raw.githubusercontent.com/mehrdad-dd/myiptv/main/core.m3u' },
+    { id: 'freetv', local: 'sat/extra/freetv-iran.m3u', remote: 'https://raw.githubusercontent.com/Free-TV/IPTV/master/playlists/playlist_iran.m3u8' }
+  ];
+  var SAT_EXTRA_COUNTRIES = { '': 1, IR: 1, AF: 1 };
+  var SAT_ADULT_RE = /\bxxx\b|adult|18\+|porn/i;
+
   // وضعیت مسیر شبکه: کدام آینه‌های iptv-org از این دستگاه در دسترس‌اند.
   // سایت خودش VPN اجرا نمی‌کند؛ این نشانگر فقط می‌گوید مسیر باز است یا نه.
   var SAT_MIRROR_LABELS = {
@@ -2583,6 +2599,71 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       channel.freeSources = channel.sources.filter(satIranFriendly);
     });
     return out;
+  }
+
+  // رکوردهای فهرست‌های مکمل را در همان ردیف شبکهٔ موجود ادغام می‌کند (با شناسه یا
+  // نام یکسان) تا مسیرهای بیشتر کنار هم بمانند؛ شبکهٔ تازه هم افزوده می‌شود.
+  function mergeSatChannels(list, entries) {
+    var byKey = {};
+    // کلید دوم فقط برای همین ادغام: «1080p»، «HD» و پسوندهای تبلیغاتی نام را یکی می‌کند
+    // تا یک شبکه با دو نوشتار متفاوت، دو ردیف نشود.
+    function looseKey(name) {
+      return satNameKey(name)
+        .replace(/\b\d{3,4}p\b/g, ' ')
+        .replace(/\biptv\b|\blive\b|\bchannel\b/g, ' ')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+    list.forEach(function (channel) {
+      var id = String(channel.id || '').split('@')[0].trim().toLowerCase();
+      if (id) byKey['id:' + id] = channel;
+      var nameKey = satNameKey(channel.name);
+      if (nameKey) byKey['name:' + nameKey] = byKey['name:' + nameKey] || channel;
+      var loose = looseKey(channel.name);
+      if (loose) byKey['loose:' + loose] = byKey['loose:' + loose] || channel;
+    });
+    var added = 0;
+    entries.forEach(function (entry) {
+      if (!entry || !entry.url) return;
+      if (SAT_ADULT_RE.test(String(entry.name) + ' ' + String(entry.group || ''))) return;
+      var id = String(entry.id || '').split('@')[0].trim().toLowerCase();
+      var nameKey = satNameKey(entry.name);
+      var loose = looseKey(entry.name);
+      var target = (id && byKey['id:' + id]) || (nameKey && byKey['name:' + nameKey]) || (loose && byKey['loose:' + loose]) || null;
+      if (!target) {
+        target = { id: entry.id || '', name: entry.name, logo: entry.logo, group: entry.group, country: entry.country, sources: [], freeSources: [], free: false };
+        list.push(target);
+        added += 1;
+        if (nameKey) byKey['name:' + nameKey] = target;
+        if (loose) byKey['loose:' + loose] = target;
+      }
+      if (id) byKey['id:' + id] = target;
+      if (target.sources.indexOf(entry.url) < 0) target.sources.push(entry.url);
+      if (satIranFriendly(entry.url)) {
+        target.free = true;
+        if (target.freeSources.indexOf(entry.url) < 0) target.freeSources.push(entry.url);
+      }
+    });
+    return added;
+  }
+
+  // فهرست‌های مکمل موازی خوانده می‌شوند؛ هر کدام نیامد بقیه ادامه می‌دهند.
+  async function satMergeExtras(list, token) {
+    var results = await Promise.all(SAT_EXTRA_SOURCES.map(async function (source) {
+      var urls = source.local ? [source.local, source.remote] : [source.remote];
+      try {
+        var response = await satFetchFirst(urls, { cache: 'force-cache', signal: AbortSignal.timeout(9000) });
+        var body = await response.text();
+        if (body.indexOf('#EXTM3U') < 0) return null;
+        return parseM3uText(body);
+      } catch (e) { return null; }
+    }));
+    if (token !== satState.token) return 0;
+    var added = 0;
+    results.forEach(function (entries) {
+      if (entries && entries.length) added += mergeSatChannels(list, entries);
+    });
+    return added;
   }
 
   function satSourceKey(entry) {
@@ -2871,6 +2952,14 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     });
   }
 
+  function satSortChannels(list) {
+    list.sort(function (a, b) {
+      if (Boolean(a.free) !== Boolean(b.free)) return a.free ? -1 : 1;
+      return String(a.name).localeCompare(String(b.name));
+    });
+    return list;
+  }
+
   async function loadSatList(code) {
     satState.limit = 300;
     // در دستهٔ ۱۸+ همهٔ شبکه‌ها حتی بی‌پخش‌ها نمایش داده می‌شوند تا فهرست خالی نماند.
@@ -2924,13 +3013,20 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         }
       } catch (e) { /* ignore */ }
       }
-      list.sort(function (a, b) {
-        if (Boolean(a.free) !== Boolean(b.free)) return a.free ? -1 : 1;
-        return String(a.name).localeCompare(String(b.name));
-      });
+      satSortChannels(list);
       satState.cache[key] = list;
       satState.list = list;
       renderSat();
+      // فهرست اصلی زودتر نمایش داده می‌شود؛ منابع دیگر در پس‌زمینه افزوده می‌شوند.
+      if (!adultFile && SAT_EXTRA_COUNTRIES[code]) {
+        satMergeExtras(list, token).then(function (added) {
+          if (!added || token !== satState.token) return;
+          satSortChannels(list);
+          satState.cache[key] = list;
+          satState.list = list;
+          renderSat();
+        });
+      }
     } catch (e) {
       if (token !== satState.token) return;
       satState.list = [];

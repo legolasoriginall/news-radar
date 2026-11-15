@@ -12,26 +12,37 @@ export const LIVE_CHANNELS = [
     id: 'iranintl',
     name: 'ایران اینترنشنال',
     tvg_ids: ['iraninternational.uk', 'iraninternational.us'],
+    name_match: ['iran international', 'iranintl'],
     watch: 'https://www.iranintl.com/live',
     fallbacks: [
       'https://hlspackager.akamaized.net/live/DB/IRAN_INTERNATIONAL/HLS/IRAN_INTERNATIONAL.m3u8',
       'https://live.livetvstream.co.uk/LS-63503-4/index.m3u8',
       'https://dev-live.livetvstream.co.uk/LS-63503-4/index.m3u8',
+      'https://dev-live.livetvstream.co.uk/LS-63503-4/chunklist_b1196000.m3u8',
     ],
   },
   {
     id: 'voa',
     name: 'صدای آمریکا',
     tvg_ids: ['voatvpersian.us', 'voapersian.us'],
+    name_match: ['voa persian', 'voa tv persian'],
     watch: '',
-    fallbacks: ['https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07/playlist.m3u8'],
+    fallbacks: [
+      'https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07/playlist.m3u8',
+      'https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07/playlist_1080.m3u8',
+    ],
   },
   {
     id: 'radiofarda',
     name: 'رادیو فردا',
     tvg_ids: ['radiofarda.us', 'radiofardatv.us'],
+    name_match: ['radio farda', 'radio farda tv'],
     watch: 'https://www.radiofarda.com/live',
-    fallbacks: ['https://rfe-ingest.akamaized.net/hls/live/2033042/tvmc01/playlist.m3u8'],
+    fallbacks: [
+      'https://rferl-ingest.akamaized.net/hls/live/2121768/tvmc01/playlist.m3u8',
+      'https://rfe-ingest.akamaized.net/hls/live/2033042/tvmc01/playlist.m3u8',
+      'https://rfe-ingest.akamaized.net/hls/live/2035292/axia21/playlist.m3u8',
+    ],
   },
 ];
 
@@ -52,8 +63,13 @@ export function iptvMirrors(playlistPath) {
   return IPTV_MIRROR_BASES.map((base) => `${base}/${relative}`);
 }
 
+// جدا از iptv-org، فهرست‌های مستقل فارسی هم خوانده می‌شوند تا فقط به یک ارائه‌دهنده
+// وابسته نباشیم؛ هر کدام نبود، بقیه ادامه می‌دهند.
 export const LIVE_PLAYLISTS = [
   iptvMirrors('languages/fas.m3u'),
+  ['https://raw.githubusercontent.com/shayanline/iptv-iran/main/playlists/en/iran.m3u'],
+  ['https://raw.githubusercontent.com/shahram7/iranianiptv/main/playlist.m3u'],
+  ['https://raw.githubusercontent.com/mehrdad-dd/myiptv/main/core.m3u'],
   ['https://raw.githubusercontent.com/Siamakeo/IPTV/master/Playlist.m3u'],
   iptvMirrors('index.m3u'),
 ];
@@ -87,12 +103,23 @@ function normalizeId(value) {
   return String(value ?? '').split('@')[0].trim().toLowerCase();
 }
 
+// فهرست‌های مستقل اغلب tvg-id ندارند؛ نام هم برای تطبیق به کار می‌رود.
+function normalizeName(value) {
+  return String(value ?? '').toLowerCase()
+    .replace(/\b(fhd|uhd|hd|sd|hq|4k|8k)\b/g, ' ')
+    .replace(/[^a-z0-9\u0600-\u06FF]+/g, ' ')
+    .trim();
+}
+
 /** نشانی‌های HLS یک کانال را از رکوردهای فهرست بیرون می‌کشد (بدون تکرار، بدون DASH). */
 export function selectSources(entries, channel) {
   const wanted = new Set((channel.tvg_ids || []).map(normalizeId));
+  const wantedNames = new Set((channel.name_match || [channel.name]).map(normalizeName));
   const urls = [];
   for (const entry of entries) {
-    if (!wanted.has(normalizeId(entry.tvgId))) continue;
+    const byId = wanted.has(normalizeId(entry.tvgId));
+    const byName = !byId && wantedNames.has(normalizeName(entry.name));
+    if (!byId && !byName) continue;
     if (!/^https?:\/\//i.test(entry.url)) continue;
     if (!/\.m3u8(\?|$)/i.test(entry.url)) continue;
     if (!urls.includes(entry.url)) urls.push(entry.url);

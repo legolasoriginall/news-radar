@@ -43,6 +43,19 @@ test('selectSources فقط HLS همان کانال را بدون تکرار بر
   ]);
 });
 
+test('selectSources فهرست‌های بدون tvg-id را با نام تطبیق می‌دهد', () => {
+  const named = { ...channel, name_match: ['iran international'] };
+  const entries = [
+    { tvgId: '', name: 'Iran International', url: 'https://cdn.example/named.m3u8' },
+    { tvgId: '', name: 'Iran International HD', url: 'https://cdn.example/named-hd.m3u8' },
+    { tvgId: '', name: 'Radio Farda', url: 'https://cdn.example/farda.m3u8' },
+  ];
+  assert.deepEqual(selectSources(entries, named), [
+    'https://cdn.example/named.m3u8',
+    'https://cdn.example/named-hd.m3u8',
+  ]);
+});
+
 test('probeStream فقط پاسخ سالم HLS را قبول می‌کند', async () => {
   const okFetcher = async () => ({ ok: true, text: async () => '#EXTM3U\n#EXT-X-VERSION:3' });
   const badStatus = async () => ({ ok: false, text: async () => '#EXTM3U' });
