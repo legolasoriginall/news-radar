@@ -28,6 +28,10 @@
   .custom-list li > span { min-width: 0; overflow-wrap: anywhere; line-height: 1.7; }
   .custom-list a, .alerts a, .msg a { display: inline-flex; align-items: center; min-height: 44px; }
 a.muted { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+main a { display: inline-flex; align-items: center; min-height: 44px; min-width: 44px; }
+#local-admin-url { min-height: 44px; }
+#gh-remember { width: 20px; height: 20px; }
+label.muted { min-height: 44px; }
 #live-current { overflow-wrap: anywhere; word-break: break-word; }
 .custom-list .del { white-space: nowrap; flex: 0 0 auto; }
   .custom-list .del { background: #fee2e2; color: #991b1b; font-weight: 500; font-size: 12px; padding: 4px 10px; min-height: 44px; min-width: 44px; }
@@ -177,7 +181,7 @@ a.muted { display: inline-flex; align-items: center; min-height: 44px; min-width
       <p class="muted">چت هوش مصنوعی فقط روی سرور محلی کار می‌کند. آدرس پنل مدیر محلی خود را بگذار و وارد شو.</p>
       <input type="url" id="local-admin-url" placeholder="http://localhost:3000/admin" autocomplete="off" dir="ltr">
       <div class="row" style="margin-top:8px">
-        <a id="local-admin-open" href="http://localhost:3000/admin" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none;border:0;border-radius:10px;padding:9px 16px;background:var(--teal);color:#fff;cursor:pointer;font-weight:600">ورود به پنل مدیر محلی</a>
+        <a id="local-admin-open" href="http://localhost:3000/admin" target="_blank" rel="noopener" style="display:inline-flex;align-items:center;min-height:44px;text-decoration:none;border:0;border-radius:10px;padding:9px 16px;background:var(--teal);color:#fff;cursor:pointer;font-weight:600">ورود به پنل مدیر محلی</a>
         <span class="muted" id="local-admin-msg"></span>
       </div>
     </div>
