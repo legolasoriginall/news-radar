@@ -524,6 +524,77 @@
     throw new Error('هیچ مدل رایگانی پاسخ نداد' + (lastStatus ? ' (HTTP ' + lastStatus + ')' : ' (اتصال برقرار نشد)'));
   }
 
+  var tgState = { channel: 'all', posts: [], channels: [], timer: 0 };
+
+  function tgEscape(value) {
+    return String(value == null ? '' : value).replace(/[&<>"']/g, function (ch) {
+      return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[ch];
+    });
+  }
+
+  function tgAgo(value) {
+    var time = new Date(value).getTime();
+    if (!Number.isFinite(time)) return '';
+    var minutes = Math.round((Date.now() - time) / 60000);
+    if (minutes < 1) return 'همین حالا';
+    if (minutes < 60) return minutes.toLocaleString('fa-IR') + ' دقیقه پیش';
+    var hours = Math.round(minutes / 60);
+    if (hours < 24) return hours.toLocaleString('fa-IR') + ' ساعت پیش';
+    return Math.round(hours / 24).toLocaleString('fa-IR') + ' روز پیش';
+  }
+
+  function renderTelegramCard() {
+    var list = el('tg-list');
+    var info = el('tg-info');
+    if (!list) return;
+    var posts = tgState.posts.slice().sort(function (a, b) {
+      return new Date(b.published || 0) - new Date(a.published || 0);
+    });
+    if (tgState.channel !== 'all') {
+      posts = posts.filter(function (post) { return post.channel_id === tgState.channel; });
+    }
+    posts = posts.slice(0, 30);
+    list.innerHTML = posts.map(function (post) {
+      var text = String(post.text || '').replace(/\s+/g, ' ').trim();
+      if (text.length > 260) text = text.slice(0, 260) + '…';
+      return '<li><span><b>' + tgEscape(post.channel_name || 'تلگرام') + '</b> · ' + tgEscape(tgAgo(post.published)) +
+        (text ? '<br>' + tgEscape(text) : '') +
+        (post.url ? '<br><a href="' + tgEscape(post.url) + '" target="_blank" rel="noopener noreferrer nofollow">در تلگرام ↗</a>' : '') +
+        '</span></li>';
+    }).join('') || '<li><span class="muted">هنوز پستی خوانده نشده؛ در به‌روزرسانی بعدی سایت خودکار می‌آید.</span></li>';
+    if (info) {
+      info.textContent = tgState.posts.length
+        ? tgState.posts.length.toLocaleString('fa-IR') + ' پست از ' + tgState.channels.length.toLocaleString('fa-IR') + ' کانال · خودکار و بدون توکن'
+        : 'هنوز پستی خوانده نشده است';
+    }
+  }
+
+  async function loadTelegramCard(manual) {
+    var info = el('tg-info');
+    if (info && manual) info.textContent = 'در حال خواندن…';
+    try {
+      var res = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var data = await res.json();
+      var feed = (data && data.telegram) || {};
+      tgState.posts = Array.isArray(feed.posts) ? feed.posts : [];
+      tgState.channels = Array.isArray(feed.channels) ? feed.channels : [];
+      var select = el('tg-channel');
+      if (select) {
+        select.innerHTML = '<option value="all">همهٔ کانال‌ها</option>' + tgState.channels.map(function (channel) {
+          return '<option value="' + tgEscape(channel.id) + '">' + tgEscape(channel.name) + '</option>';
+        }).join('');
+        select.value = tgState.channel;
+      }
+      renderTelegramCard();
+    } catch (error) {
+      if (info) info.textContent = 'خواندن خبرهای تلگرام ممکن نشد: ' + error.message;
+    }
+    if (!tgState.timer) {
+      tgState.timer = setInterval(function () { loadTelegramCard(false); }, 60000);
+    }
+  }
+
   async function startStaticMode() {
     github.static = true;
     github.token = loadToken();
