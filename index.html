@@ -2201,6 +2201,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   }
 
   function showLiveError() {
+    var video = $('live-video');
+    if (video) { try { video.pause(); } catch (e) { /* ignore */ } video.hidden = true; }
     var start = $('live-start');
     var label = $('live-start-label');
     var hint = $('live-hint');
