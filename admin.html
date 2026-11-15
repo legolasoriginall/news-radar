@@ -414,13 +414,12 @@
 
   // raw.githubusercontent تا چند دقیقه نسخهٔ کهنه می‌دهد؛ API گیت‌هاب بی‌کش است و با توکن سقف بالاتری دارد.
   async function chainRepoApi() {
-    if (!REPO || !github.token) return null;
+    if (!REPO) return null;
+    var headers = { Accept: 'application/vnd.github.raw+json' };
+    if (github.token) headers.Authorization = 'Bearer ' + github.token;
     try {
       return await chainFile('https://api.github.com/repos/' + REPO.owner + '/' + REPO.repo +
-        '/contents/chain-log.json?ref=' + REPO.branch + '&_=' + Date.now(), {
-        Authorization: 'Bearer ' + github.token,
-        Accept: 'application/vnd.github.raw+json',
-      });
+        '/contents/chain-log.json?ref=' + REPO.branch + '&_=' + Date.now(), headers);
     } catch (error) {
       return null;
     }
