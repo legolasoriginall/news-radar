@@ -48,6 +48,9 @@ jobs:
       - name: دریافت مخزن
         uses: actions/checkout@v4
 
+      - name: ثبت زمان شروع اجرا
+        run: date -u +%Y-%m-%dT%H:%M:%SZ > .chain-start
+
       - name: نصب Node.js
         uses: actions/setup-node@v4
         with:
@@ -316,8 +319,11 @@ jobs:
           const dataAttempts = readAttempts() || (env.DATA_OUTCOME === 'success' ? 1 : 0);
           const artifactAttempts = attempts([env.ARTIFACT_1, env.ARTIFACT_2]);
           const deployAttempts = attempts([env.DEPLOY_1, env.DEPLOY_2, env.DEPLOY_3]);
+          const chainStart = (() => { try { return fs.readFileSync('.chain-start', 'utf8').trim(); } catch (e) { return ''; } })();
           const entry = {
             at: new Date().toISOString(),
+            started_at: chainStart || '',
+            duration_ms: chainStart ? (Date.now() - Date.parse(chainStart)) : 0,
             commit: String(env.SHA || '').slice(0, 7),
             run: env.RUN_ID || '',
             data: { attempts: dataAttempts, ok: ok(env.DATA_OUTCOME) || env.DATA_OUTCOME === 'skipped' },

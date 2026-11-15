@@ -471,6 +471,44 @@
     return allOk ? [] : ['نامشخص'];
   }
 
+  function chainDurationText(run) {
+    var ms = Number(run && run.duration_ms);
+    if (!isFinite(ms) || ms <= 0) {
+      if (run && run.started_at && run.at) {
+        var parsed = Date.parse(run.at) - Date.parse(run.started_at);
+        if (isFinite(parsed) && parsed > 0) ms = parsed;
+      }
+    }
+    if (!isFinite(ms) || ms <= 0) return '';
+    var sec = Math.round(ms / 1000);
+    if (sec < 60) return sec.toLocaleString('fa-IR') + ' ثانیه';
+    var min = Math.floor(sec / 60);
+    var rem = sec % 60;
+    if (min < 60) return min.toLocaleString('fa-IR') + ' دقیقه' + (rem ? ' و ' + rem.toLocaleString('fa-IR') + ' ثانیه' : '');
+    var hr = Math.floor(min / 60);
+    return hr.toLocaleString('fa-IR') + ' ساعت' + (min % 60 ? ' و ' + (min % 60).toLocaleString('fa-IR') + ' دقیقه' : '');
+  }
+
+  async function chainRunDurations(tail) {
+    if (!github.token) return;
+    await Promise.all((tail || []).map(async function (run) {
+      if (!run || !run.run || run.duration_ms) return;
+      try {
+        var res = await fetch('https://api.github.com/repos/' + REPO.owner + '/' + REPO.repo +
+          '/actions/runs/' + encodeURIComponent(run.run), {
+          headers: { Authorization: 'Bearer ' + github.token, Accept: 'application/vnd.github+json' },
+          cache: 'no-store',
+        });
+        if (!res.ok) return;
+        var payload = await res.json();
+        if (payload.run_started_at && payload.updated_at) {
+          run.duration_ms = Date.parse(payload.updated_at) - Date.parse(payload.run_started_at);
+          if (payload.run_started_at) run.started_at = payload.run_started_at;
+        }
+      } catch (e) { /* بی‌اثر */ }
+    }));
+  }
+
   function chainRunRow(run) {
     var failed = chainFailures(run);
     var status = failed === null
@@ -482,7 +520,9 @@
     var link = run.run && REPO
       ? ' · <a href="' + repoPath('/actions/runs/' + encodeURIComponent(run.run)) + '" target="_blank" rel="noopener">اجرا ↗</a>'
       : '';
-    return '<li>' + status + ' <span>' + (run.at ? formatDate(run.at) : '—') + commit + link + '</span></li>';
+    var duration = chainDurationText(run);
+    var durationText = duration ? ' · مدت ' + duration : '';
+    return '<li>' + status + ' <span>' + (run.at ? formatDate(run.at) : '—') + commit + durationText + link + '</span></li>';
   }
 
   function chainStamp(list) {
@@ -553,6 +593,7 @@
       var recent = el('chain-recent');
       if (recent) {
         var tail = log.slice(-3).reverse();
+        await chainRunDurations(tail);
         recent.innerHTML = tail.map(chainRunRow).join('');
         recent.hidden = !tail.length;
       }
