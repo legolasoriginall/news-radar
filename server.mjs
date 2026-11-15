@@ -633,26 +633,48 @@ async function serveStatic(req, res, pathname, url) {
 }
 
 // وضعیت مدل: کلید ابری، یا مدل محلی رایگان (Ollama)؛ بدون هیچ‌کدام هم «حالت بدون مدل» کار می‌کند.
-let modelCache = { at: 0, info: null };
+let modelCache = { at: 0, info: null, config: null };
+
+function pollinationsConfig() {
+  return {
+    apiKey: 'anonymous',
+    baseUrl: process.env.POLLINATIONS_URL || 'https://text.pollinations.ai/openai',
+    model: process.env.POLLINATIONS_MODEL || 'openai',
+    provider: 'pollinations',
+  };
+}
 
 async function getModelInfo() {
   if (modelCache.info && Date.now() - modelCache.at < 30000) return modelCache.info;
   const config = llmConfig();
   let info;
+  let resolvedConfig = config;
   if (config.apiKey) {
     info = { provider: config.provider, model: config.model, hasKey: true, available: true, models: [] };
   } else {
     const probe = await detectOllama({ baseUrl: config.baseUrl });
-    info = {
-      provider: 'ollama',
-      model: probe.models[0] || config.model,
-      hasKey: false,
-      available: probe.available,
-      models: probe.models,
-    };
+    if (probe.available) {
+      info = {
+        provider: 'ollama',
+        model: probe.models[0] || config.model,
+        hasKey: false,
+        available: true,
+        models: probe.models,
+      };
+      resolvedConfig = { ...config, model: probe.models[0] || config.model };
+    } else {
+      // بدون Ollama: استفاده از هوش مصنوعی رایگان Pollinations (بدون کلید)
+      const pc = pollinationsConfig();
+      info = { provider: 'pollinations', model: pc.model, hasKey: false, available: true, models: [] };
+      resolvedConfig = pc;
+    }
   }
-  modelCache = { at: Date.now(), info };
+  modelCache = { at: Date.now(), info, config: resolvedConfig };
   return info;
+}
+
+function getModelConfig() {
+  return modelCache.config || llmConfig();
 }
 
 function adminToolContext() {
@@ -1260,18 +1282,22 @@ async function handleRequest(req, res) {
     try {
       const info = await getModelInfo();
       const lastUser = [...(Array.isArray(body.messages) ? body.messages : [])].reverse().find((m) => m.role === 'user');
+      const text = lastUser?.content;
+      const intent = intentOf(text);
+      const args = intent === 'news_search' || intent === 'web_search'
+        ? { query: queryOf(text), limit: 5 }
+        : intent === 'read_url'
+          ? { url: firstUrlIn(text) }
+          : {};
+      const missing = (intent === 'news_search' || intent === 'web_search') && !args.query
+        || intent === 'read_url' && !args.url;
+      // دستورهای شناخته‌شده همیشه مستقیم اجرا می‌شوند (حتی با مدل رایگان).
+      if (intent && !missing) {
+        const result = await runTool(intent, args, adminToolContext());
+        sendJson(res, 200, { reply: describeToolResult(intent, result), used: [intent], keyless: !info.available });
+        return;
+      }
       if (!info.available) {
-        // بدون هیچ مدلی: پیام مدیر به یکی از دستورهای آماده تبدیل می‌شود
-        const text = lastUser?.content;
-        const intent = intentOf(text);
-        const args = intent === 'news_search' || intent === 'web_search'
-          ? { query: queryOf(text), limit: 5 }
-          : intent === 'read_url'
-            ? { url: firstUrlIn(text) }
-            : {};
-        const missing = (intent === 'news_search' || intent === 'web_search') && !args.query
-          || intent === 'read_url' && !args.url;
-        if (!intent || missing) {
           sendJson(res, 200, {
             reply: [
               'بدون مدل کار می‌کنم. این دستورها را می‌شناسم:',
@@ -1284,13 +1310,9 @@ async function handleRequest(req, res) {
           });
           return;
         }
-        const result = await runTool(intent, args, adminToolContext());
-        sendJson(res, 200, { reply: describeToolResult(intent, result), used: [intent], keyless: true });
-        return;
-      }
       const result = await runAssistant({
         messages: body.messages,
-        config: { ...llmConfig(), model: info.model },
+        config: { ...getModelConfig(), model: info.model },
         context: adminToolContext(),
       });
       sendJson(res, 200, { ...result, keyless: false });

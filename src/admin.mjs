@@ -77,6 +77,15 @@ export function parseCookies(header) {
 export function llmConfig(env = process.env) {
   const zaiKey = env.ZAI_API_KEY || '';
   const openaiKey = env.OPENAI_API_KEY || '';
+  const explicit = String(env.NEWS_RADAR_LLM_PROVIDER || '').toLowerCase();
+  if (explicit === 'pollinations') {
+    return {
+      apiKey: 'anonymous',
+      baseUrl: env.POLLINATIONS_URL || 'https://text.pollinations.ai/openai',
+      model: env.POLLINATIONS_MODEL || 'openai',
+      provider: 'pollinations',
+    };
+  }
   // درگاه محلی Respan: با RESPAN_GATEWAY_URL روشن می‌شود و کلید تأمین‌کننده سمت درگاه می‌ماند.
   const gatewayUrl = String(env.RESPAN_GATEWAY_URL || '').trim().replace(/\/+$/, '');
   if (gatewayUrl) {
