@@ -795,8 +795,11 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   /* ---------------- data loading ---------------- */
 
   var statusAvailable = null; // null = نامشخص، false = سرور محلی در دسترس نیست (میزبانی استاتیک)
+  // روی میزبانی استاتیک (GitHub Pages) مسیرهای api پاسخ نمی‌دهند؛ همان اول رد می‌شوند
+  // تا روی اتصال کند، چند رفت‌وبرگشت بی‌نتیجه پیش از نمایش خبرها انجام نشود.
+  var STATIC_HOST = /\.github\.io$/i.test(location.hostname);
   async function fetchStatus() {
-    if (statusAvailable === false) return null;
+    if (statusAvailable === false || STATIC_HOST) { statusAvailable = false; return null; }
     try {
       var res = await fetch('api/status?_=' + Date.now(), { cache: 'no-store' });
       if (!res.ok) { statusAvailable = false; return null; }
@@ -1114,7 +1117,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var seconds = Math.max(0, Math.round((Date.now() - telegramLive.at) / 1000));
       el.className = 'live-pill';
       el.innerHTML = '<span class="live-dot"></span> لحظه‌ای · ' + faDigits(String(seconds)) + ' ثانیه پیش';
-    } else if (telegramLive.failures > 0) {
+    } else if (telegramLive.mode === 'static' || telegramLive.failures > 0) {
       el.className = 'live-pill off';
       el.textContent = 'به‌روزرسانی با دادهٔ منتشرشده';
     } else {
@@ -1201,6 +1204,10 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
   async function pollTelegram() {
     var delay = 15000;
+    if (STATIC_HOST) {
+      if (telegramLive.mode !== 'static') { telegramLive.mode = 'static'; renderTelegramBadge(); }
+      return;
+    }
     try {
       var res = await fetch('api/telegram?_=' + Date.now(), { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1249,7 +1256,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var seconds = Math.max(0, Math.round((Date.now() - live.at) / 1000));
       el.className = 'live-pill';
       el.innerHTML = '<span class="live-dot"></span> زنده · ' + faDigits(String(seconds)) + ' ثانیه پیش';
-    } else if (live.failures > 0) {
+    } else if (live.mode === 'static' || live.failures > 0) {
       el.className = 'live-pill off';
       el.textContent = 'میزبان ایستا · نرخ‌ها با هر به‌روزرسانی داده تازه می‌شوند';
     } else {
@@ -1289,6 +1296,10 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
   async function pollLiveMarkets() {
     var delay = 20000;
+    if (STATIC_HOST) {
+      if (live.mode !== 'static') { live.mode = 'static'; renderLiveBadge(); }
+      return;
+    }
     try {
       var res = await fetch('api/markets?_=' + Date.now(), { cache: 'no-store' });
       if (!res.ok) throw new Error('HTTP ' + res.status);
@@ -1689,6 +1700,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }
 
     async function load() {
+      if (STATIC_HOST) return; // پنل مدیر روی میزبان ایستا نیست
       try {
         var sessionRes = await fetch('admin/api/session?_=' + Date.now(), { cache: 'no-store' });
         if (!sessionRes.ok) return;
@@ -1893,6 +1905,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
   // فهرست مسیرها از سرور تازه می‌شود؛ در میزبان ایستا همان فهرست پیش‌فرض می‌ماند
   async function loadLiveChannels() {
+    if (STATIC_HOST) return; // میزبان ایستا: همان فهرست پیش‌فرض کافی است
     try {
       var response = await fetch('/api/live', { cache: 'no-store' });
       if (!response.ok) return;
