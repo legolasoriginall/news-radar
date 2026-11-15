@@ -74,6 +74,7 @@ label.muted { min-height: 44px; }
   .vpn-link:hover { background: #115e59; }
   .vpn-link.alt { background: #fff; color: #0f766e; border: 1px solid #0f766e; }
   .vpn-link.alt:hover { background: #f0fdfa; }
+  .vpn-link[hidden] { display: none; }
   .vpn-note { background: #fff7ed; border: 1px solid #fed7aa; color: #92400e; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; margin-top: 10px; }
 </style>
 </head>
@@ -309,6 +310,7 @@ label.muted { min-height: 44px; }
     <div class="vpn-body">
       <p>اپ <b>ArcVeepn</b> یک برنامهٔ اندرویدی است؛ مرورگر نمی‌تواند فایل APK را داخل صفحهٔ وب اجرا کند. برای استفاده، APK را دانلود و روی گوشی نصب کن، بعد از روشن‌کردن VPN این صفحه را دوباره باز کن.</p>
       <div class="vpn-actions">
+        <a class="vpn-link alt" id="vpn-open-app" href="intent://#Intent;package=com.vpeen.android;S.browser_fallback_url=https%3A%2F%2Fgithub.com%2FProxyArc%2FArcVeePN%2Freleases%2Fdownload%2Fv2.5%2FArcVeePN-2.5.apk;end" rel="noopener noreferrer" hidden>باز کردن اپ ArcVeepn ↗</a>
         <a class="vpn-link" href="https://github.com/ProxyArc/ArcVeePN/releases/download/v2.5/ArcVeePN-2.5.apk" rel="noopener noreferrer">دانلود مستقیم APK · نسخهٔ ۲.۵ (۱۵ مگابایت)</a>
         <a class="vpn-link alt" href="https://github.com/ProxyArc/ArcVeePN/releases/latest" target="_blank" rel="noopener noreferrer">همهٔ نسخه‌ها در گیت‌هاب ↗</a>
       </div>
@@ -1994,6 +1996,8 @@ label.muted { min-height: 44px; }
     document.addEventListener('keydown', function (event) {
       if (event.key === 'Escape' && !overlay.hidden) shut();
     });
+    var openApp = document.getElementById('vpn-open-app');
+    if (openApp && /Android/i.test(navigator.userAgent)) openApp.hidden = false;
   })();
 
   boot();
