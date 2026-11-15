@@ -186,6 +186,8 @@ a:hover { text-decoration: underline; }
 .src-item-head a:hover { text-decoration: underline; }
 .src-item-meta { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
 .src-item-err { margin-top: 4px; color: #b91c1c; font-size: 12px; word-break: break-word; }
+.src-age { font-weight: 600; color: #475467; }
+.src-age.old { color: #b45309; }
 .src-empty { color: var(--muted); font-size: 12.3px; padding: 4px 2px 8px; }
 /* دکمهٔ بررسی مجدد هر فید خراب و نتیجهٔ همان لحظه */
 .src-recheck { margin-top: 7px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #0d9488; background: #f0fdfa; color: #0f766e; border-radius: 8px; padding: 4px 11px; font-size: 11.8px; font-family: inherit; cursor: pointer; }
@@ -1467,12 +1469,21 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     $('sources-mirrors').innerHTML = mirrored.map(function (source) {
       var name = source.name || source.id || 'منبع ناشناخته';
       var isArchive = /web\.archive\.org/.test(source.via || '');
-      var kind = isArchive ? 'آرشیو اینترنتی — ممکن است محتوا قدیمی باشد' : 'مسیر جایگزین';
+      var kind = isArchive ? 'آرشیو اینترنتی' : 'مسیر جایگزین';
+      var ts = latest[source.id];
+      var days = ts ? Math.max(0, Math.floor((Date.now() - ts) / 86400000)) : null;
+      var ageText = days === null
+        ? 'قدمت خبر: نامعلوم'
+        : 'قدمت خبر: ' + (days === 0 ? 'امروز' : days === 1 ? '۱ روز' : fmt(days) + ' روز');
       return '<li class="src-item">' +
         '<div class="src-item-head"><span>' + esc(name) + '</span>' +
           (source.url ? '<a href="' + safeUrl(source.url) + '" target="_blank" rel="noopener noreferrer nofollow" dir="ltr">' + esc(source.url) + '</a>' : '') +
         '</div>' +
-        '<div class="src-item-meta"><span>خوانده‌شده از: ' + esc(kind) + '</span></div>' +
+        '<div class="src-item-meta">' +
+          '<span>خوانده‌شده از: ' + esc(kind) + '</span>' +
+          '<span class="src-age' + (days !== null && days >= 3 ? ' old' : '') + '"' +
+            (ts ? ' title="' + esc(dateTime(new Date(ts).toISOString())) + '"' : '') + '>' + esc(ageText) + '</span>' +
+        '</div>' +
         '</li>';
     }).join('');
     $('sources-mirror-block').hidden = !mirrored.length;
@@ -1485,7 +1496,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       : 'دادهٔ سلامت منابع در این به‌روزرسانی نیست';
     $('sources-note').textContent = 'سکوت خبری یعنی فید پاسخ می‌دهد ولی در ' + fmt(SILENT_HOURS) +
       ' ساعت گذشته خبر تازه‌ای نداشته است؛ منابعی که هیچ خبر تاریخ‌داری در داده ندارند (معمولاً ردشده در فیلترها) در این فهرست نمی‌آیند.' +
-      (mirrored.length ? ' ' + fmt(mirrored.length) + ' منبع از مسیر جایگزین یا آرشیو خوانده شد.' : '');
+      (mirrored.length ? ' ' + fmt(mirrored.length) + ' منبع از مسیر جایگزین یا آرشیو خوانده شد؛ قدمت هر کدام از تاریخ تازه‌ترین خبر همان منبع در داده حساب می‌شود.' : '');
   }
 
   // دکمهٔ «بررسی مجدد»: همان لحظه فید را از سرور دوباره می‌خواند و نتیجه را زیر همان ردیف می‌نویسد

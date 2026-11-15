@@ -108,6 +108,12 @@ export async function readPage({ url, fetcher = fetch, timeoutMs = 15000, maxCha
       signal: AbortSignal.timeout(timeoutMs),
     });
     if (!response.ok) return { ok: false, error: `صفحه پاسخ نداد (HTTP ${response.status})` };
+    // تغییرمسیر هم باید به آدرس عمومی بماند؛ وگرنه یک نشانی عمومی می‌تواند
+    // درخواست را به سرویس داخلی همین سرور هدایت کند.
+    const finalUrl = String(response.url || target);
+    if (!isPublicUrl(finalUrl)) {
+      return { ok: false, error: 'تغییرمسیر به آدرس غیرعمومی مسدود شد' };
+    }
     const type = String(response.headers?.get?.('content-type') || '');
     const body = await response.text();
     if (type && !/text\/|xml|json/i.test(type)) {
