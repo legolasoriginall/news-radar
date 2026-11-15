@@ -281,6 +281,19 @@ body.sat-fs-lock { overflow: hidden; }
 .admin-frame-bar button { border: 1px solid rgba(255,255,255,.35); background: #115e59; color: #fff; width: 28px; height: 28px; border-radius: 8px; cursor: pointer; font-size: 14px; line-height: 1; }
 .admin-frame-bar button:hover { background: #134e4a; }
 #admin-frame { flex: 1 1 auto; width: 100%; border: 0; background: #fff; }
+.vpn-dialog { width: min(480px, 100%); background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 60px rgba(15,23,42,.35); }
+.vpn-head { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 12px 16px; background: #0f172a; color: #fff; }
+.vpn-head h2 { font-size: 15px; margin: 0; }
+.vpn-head button { border: 1px solid rgba(255,255,255,.35); background: #1e293b; color: #fff; width: 34px; height: 34px; border-radius: 9px; cursor: pointer; font-size: 14px; line-height: 1; }
+.vpn-head button:hover { background: #334155; }
+.vpn-body { padding: 16px; font-size: 13.5px; line-height: 1.9; color: #1e293b; }
+.vpn-body p { margin: 0 0 8px; }
+.vpn-body ol { margin: 8px 0 12px; padding-inline-start: 20px; }
+.vpn-body li { margin: 4px 0; }
+.vpn-body code { background: #f1f5f9; border-radius: 5px; padding: 1px 5px; direction: ltr; display: inline-block; }
+.vpn-note { background: #fff7ed; border: 1px solid #fed7aa; color: #92400e; border-radius: 10px; padding: 8px 10px; font-size: 12.5px; }
+.vpn-link { display: inline-flex; align-items: center; min-height: 40px; padding: 0 16px; border-radius: 10px; background: #0f766e; color: #fff; text-decoration: none; font-weight: 700; font-size: 13px; }
+.vpn-link:hover { background: #115e59; }
 
 section { margin-top: 22px; }
 .panel { background: var(--panel); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); border: 1px solid rgba(16,24,40,.03); }
@@ -457,6 +470,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       <button class="btn primary" id="refresh-btn" type="button"><span class="spin"></span><span id="refresh-label">به‌روزرسانی فوری</span></button>
       <button class="btn" id="auto-btn" type="button" aria-pressed="true">توقف به‌روزرسانی خودکار</button>
       <button class="btn" id="header-admin" type="button" data-admin-open hidden>داشبورد مدیر</button>
+      <button class="btn" id="vpn-btn" type="button">VPN</button>
     </div>
   </div>
 </header>
@@ -594,6 +608,26 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       <button type="button" id="admin-close" aria-label="بستن پنل مدیر">✕</button>
     </div>
     <iframe id="admin-frame" title="داشبورد مدیر" src="about:blank"></iframe>
+  </div>
+</div>
+
+<div class="admin-overlay" id="vpn-overlay" hidden>
+  <div class="vpn-dialog" role="dialog" aria-modal="true" aria-labelledby="vpn-title">
+    <div class="vpn-head">
+      <h2 id="vpn-title">VPN — ArcVeepn</h2>
+      <button type="button" id="vpn-close" aria-label="بستن راهنمای VPN">✕</button>
+    </div>
+    <div class="vpn-body">
+      <p>این دکمه VPN را روشن نمی‌کند؛ یک صفحهٔ وب نمی‌تواند اپ VPN روی دستگاه شما را کنترل کند. <b>ArcVeepn</b> یک اپلیکیشن اندرویدی متن‌باز است و باید جداگانه روی گوشی نصب و فعال شود.</p>
+      <ol>
+        <li>صفحهٔ پروژه را در گیت‌هاب باز کن.</li>
+        <li>طبق README با Android SDK بساز، یا نسخهٔ رسمی را روی گوشی نصب کن.</li>
+        <li>آدرس اشتراک خودت را در <code>SubscriptionApi.java</code> بگذار؛ فورک بدون اشتراک معتبر کار نمی‌کند.</li>
+        <li>VPN را از داخل اپ روشن کن، بعد این صفحه را دوباره باز کن.</li>
+      </ol>
+      <p class="vpn-note">این صفحه فقط راهنماست و وضعیت واقعی VPN گوشی را نمی‌خواند یا تغییر نمی‌دهد.</p>
+      <a class="vpn-link" href="https://github.com/ProxyArc/ArcVeePN" target="_blank" rel="noopener noreferrer">مشاهدهٔ ArcVeepn در گیت‌هاب ↗</a>
+    </div>
   </div>
 </div>
 
@@ -1586,6 +1620,30 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       : '';
     $('feed-hint').textContent = 'همهٔ خبرها بدون محدودیت زمانی · ' + fmt(totalKnown) + ' خبر';
   }
+
+  /* ---------------- راهنمای VPN (ArcVeepn) ---------------- */
+  (function initVpnDialog() {
+    var overlay = $('vpn-overlay');
+    var opener = $('vpn-btn');
+    var closer = $('vpn-close');
+    if (!overlay || !opener || !closer) return;
+    function open() {
+      overlay.hidden = false;
+      document.body.style.overflow = 'hidden';
+      closer.focus();
+    }
+    function shut() {
+      overlay.hidden = true;
+      document.body.style.overflow = '';
+      opener.focus();
+    }
+    opener.addEventListener('click', open);
+    closer.addEventListener('click', shut);
+    overlay.addEventListener('click', function (event) { if (event.target === overlay) shut(); });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !overlay.hidden) shut();
+    });
+  })();
 
   /* ---------------- پنل مدیر (قاب هم‌مبدأ) ---------------- */
 
