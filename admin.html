@@ -407,7 +407,14 @@
     if (localOpen) localOpen.addEventListener('click', function () {
       var url = (el('local-admin-url').value || '').trim() || 'http://localhost:3000/admin';
       localStorage.setItem('newsradar:localAdminUrl', url);
-      window.open(url, '_blank', 'noopener');
+      // استفاده از تگ <a> به‌جای window.open تا بلاکر پنجرهٔ بازشو مانع نشود.
+      var a = document.createElement('a');
+      a.href = url;
+      a.target = '_blank';
+      a.rel = 'noopener';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
     });
   }
   function formatDate(value) {
