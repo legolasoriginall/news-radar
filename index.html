@@ -374,6 +374,9 @@ footer h4 { color: #344054; font-size: 13px; margin: 0 0 6px; }
 footer ul { margin: 0; padding-inline-start: 18px; }
 footer .demo-links { font-size: 11.5px; color: #98a2b3; }
 footer .demo-links a { color: #475467; text-decoration: underline; }
+footer .build-stamp { margin-top: 14px; font-size: 11px; color: #98a2b3; font-variant-numeric: tabular-nums; }
+footer .build-stamp a { color: #667085; text-decoration: none; border-bottom: 1px dotted #cbd5e1; }
+footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 .skeleton { color: var(--muted); text-align: center; padding: 60px 20px; }
 .skeleton .ring { width: 34px; height: 34px; border: 3px solid #e2e8f0; border-top-color: var(--teal); border-radius: 50%; margin: 0 auto 12px; animation: spin 1s linear infinite; }
 .error-box { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 12px; padding: 12px 14px; font-size: 13px; display: none; margin-top: 10px; }
@@ -605,6 +608,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
         </ul>
       </div>
     </div>
+    <div class="build-stamp" id="build-stamp" hidden></div>
   </footer>
 </main>
 
@@ -3029,6 +3033,44 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     setInterval(probeRouteStatus, 300000);
   })();
 
+  // مهر نسخه: کامیت و زمان انتشار را از version.json (ساختهٔ گردش‌کار) می‌خواند
+  (function initBuildStamp() {
+    var el = $('build-stamp');
+    if (!el || !window.fetch) return;
+    fetch('version.json', { cache: 'no-store' })
+      .then(function (res) { return res.ok ? res.json() : null; })
+      .then(function (info) {
+        if (!info || !info.commit) return;
+        var sha = String(info.commit).slice(0, 7);
+        var when = '';
+        if (info.built_at) {
+          var d = new Date(info.built_at);
+          if (!isNaN(d.getTime())) {
+            when = (d.getUTCHours() < 10 ? '0' : '') + d.getUTCHours() + ':' + (d.getUTCMinutes() < 10 ? '0' : '') + d.getUTCMinutes() + ' UTC';
+          }
+        }
+        var repo = '';
+        var m = String(location.hostname || '').match(/^([a-z0-9-]+)\.github\.io$/i);
+        if (m) {
+          var seg = location.pathname.split('/').filter(Boolean)[0];
+          if (seg) repo = 'https://github.com/' + m[1] + '/' + seg;
+        }
+        el.textContent = 'نسخهٔ منتشرشده: ';
+        if (repo) {
+          var a = document.createElement('a');
+          a.href = repo + '/commit/' + info.commit;
+          a.target = '_blank';
+          a.rel = 'noopener';
+          a.textContent = sha;
+          el.appendChild(a);
+        } else {
+          el.appendChild(document.createTextNode(sha));
+        }
+        if (when) el.appendChild(document.createTextNode(' · انتشار ' + when));
+        el.hidden = false;
+      })
+      .catch(function () { /* بدون مهر هم صفحه کامل است */ });
+  })();
   (async function boot() {
     await fetchStatus();
     await loadData(true);
