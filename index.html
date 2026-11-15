@@ -802,6 +802,11 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var res = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
       if (!res.ok) throw new Error('دریافت داده ناموفق بود (HTTP ' + res.status + ')');
       var data = await res.json();
+      // در نسخهٔ استاتیک (بدون API سرور) آستانه‌های پنل مدیر از خود data.json خوانده می‌شود.
+      if (statusAvailable === false && data.settings) {
+        var dataSilent = Number(data.settings.silent_hours);
+        if (isFinite(dataSilent) && dataSilent > 0) SILENT_HOURS = dataSilent;
+      }
       var changed = data.generated_at !== state.generatedAt;
       state.data = data;
       state.generatedAt = data.generated_at;

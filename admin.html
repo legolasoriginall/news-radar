@@ -90,6 +90,17 @@
   </section>
 
   <section id="settings" hidden style="margin-top:14px">
+    <div class="card" id="github-card" style="margin-bottom:14px" hidden>
+      <h2 style="font-size:15px;margin:0 0 4px">ذخیرهٔ تنظیمات در گیت‌هاب</h2>
+      <p class="muted">این نسخه روی GitHub Pages اجرا می‌شود و سرور ندارد؛ برای اینکه تنظیمات برای همه و در سایت منتشرشده ذخیره شود، پنل فایل <code>settings.json</code> را با توکن شخصی گیت‌هاب در مخزن به‌روز می‌کند و گردش‌کار سایت را با همان تنظیمات بازمی‌سازد.</p>
+      <input type="password" id="gh-token" placeholder="github_pat_…" autocomplete="off" dir="ltr">
+      <label class="muted" style="display:flex;gap:6px;align-items:center"><input type="checkbox" id="gh-remember"> نگه‌داشتن توکن در این مرورگر</label>
+      <div class="row" style="margin-top:8px">
+        <button id="gh-save">ذخیرهٔ توکن</button>
+        <span class="muted" id="gh-msg"></span>
+      </div>
+      <p class="muted">توکن را از GitHub → Settings → Developer settings → Fine-grained tokens بساز و فقط دسترسی <strong>Contents: Read and write</strong> به همین مخزن بده. توکن در کد یا فایل پروژه ذخیره نمی‌شود.</p>
+    </div>
     <div class="card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">آستانهٔ سکوت خبری</h2>
       <p class="muted">منبعی که پاسخ می‌دهد ولی بیش از این مدت خبر تازه نداده، در داشبورد «ساکت» و در هشدارها «سکوت خبری» حساب می‌شود. مقدار مجاز: ۱ تا ۷۲۰ ساعت.</p>
@@ -110,7 +121,7 @@
         <span class="muted" id="price-stale-msg"></span>
       </div>
     </div>
-    <div class="card" style="margin-bottom:14px">
+    <div class="card" id="alerts-card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">هشدارها <span id="alerts-badge" class="badge" hidden></span></h2>
       <p class="muted" id="alerts-info"></p>
       <div class="row">
@@ -121,7 +132,7 @@
       <ul class="alerts" id="alerts-list"></ul>
       <p class="muted">منبع خراب، منبعی که ۲۴ ساعت خبر تازه نداده، یا پخش قطع‌شده همان لحظه اینجا ثبت می‌شود؛ برای تلگرام <code>ALERT_TELEGRAM_BOT_TOKEN</code> و <code>ALERT_TELEGRAM_CHAT_ID</code> را در <code>.env</code> بگذار.</p>
     </div>
-    <div class="card" style="margin-bottom:14px">
+    <div class="card" id="custom-card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">منبع خبری و کانال تازه</h2>
       <p class="muted" id="custom-info"></p>
 
@@ -147,7 +158,7 @@
       <p class="muted">افزودنی‌ها در <code>.custom-sources.json</code> (خارج از گیت) ذخیره می‌شوند و از به‌روزرسانی بعدی خودکار در سایت دیده می‌شوند.</p>
     </div>
 
-    <div class="card">
+    <div class="card" id="pwd-card">
       <h2 style="font-size:15px;margin:0 0 4px">تغییر رمز مدیر</h2>
       <p class="muted" id="pwd-info"></p>
       <input type="password" id="cur-pwd" placeholder="رمز فعلی" autocomplete="current-password">
@@ -164,6 +175,14 @@
 
 <script>
   var state = { messages: [], busy: false, alertTimer: null };
+  var github = { static: false, token: '' };
+  var TOKEN_KEY = 'newsradar:ghToken';
+  // مخزن از خود آدرس صفحه تشخیص داده می‌شود (owner.github.io/repo).
+  var REPO = (function () {
+    var m = String(location.hostname || '').match(/^([a-z0-9-]+)\.github\.io$/i);
+    var seg = location.pathname.split('/').filter(Boolean)[0];
+    return m && seg ? { owner: m[1], repo: seg, branch: 'main' } : null;
+  })();
 
   function el(id) { return document.getElementById(id); }
 
@@ -182,6 +201,94 @@
     return payload;
   }
 
+  function contentsUrl() {
+    return 'https://api.github.com/repos/' + REPO.owner + '/' + REPO.repo + '/contents/settings.json';
+  }
+
+  function b64encode(text) { return btoa(unescape(encodeURIComponent(text))); }
+  function b64decode(text) { return decodeURIComponent(escape(atob(String(text).replace(/\s+/g, '')))); }
+
+  function loadToken() {
+    try { return sessionStorage.getItem(TOKEN_KEY) || localStorage.getItem(TOKEN_KEY) || ''; } catch (error) { return ''; }
+  }
+
+  function rememberToken(token, remember) {
+    github.token = token;
+    try {
+      sessionStorage.setItem(TOKEN_KEY, token);
+      if (remember) localStorage.setItem(TOKEN_KEY, token);
+      else localStorage.removeItem(TOKEN_KEY);
+    } catch (error) { /* حالت خصوصی مرورگر */ }
+  }
+
+  async function readRepoSettings() {
+    if (!REPO) throw new Error('این صفحه روی گیت‌هاب نیست');
+    var headers = github.token ? { Authorization: 'Bearer ' + github.token } : {};
+    var res = await fetch(contentsUrl() + '?ref=' + REPO.branch + '&_=' + Date.now(), { headers: headers, cache: 'no-store' });
+    if (res.status === 404) return { data: {}, sha: null };
+    if (!res.ok) throw new Error('خواندن تنظیمات از گیت‌هاب ناموفق بود (HTTP ' + res.status + ')');
+    var payload = await res.json();
+    var text = payload && payload.content ? b64decode(payload.content) : '{}';
+    var data = {};
+    try { data = JSON.parse(text) || {}; } catch (error) { data = {}; }
+    return { data: data, sha: (payload && payload.sha) || null };
+  }
+
+  async function saveRepoSettings(patch) {
+    if (!REPO) throw new Error('این صفحه روی گیت‌هاب نیست');
+    if (!github.token) throw new Error('اول توکن گیت‌هاب را ذخیره کن');
+    var current = await readRepoSettings();
+    var next = {
+      silent_hours: Number(current.data.silent_hours) || 24,
+      price_stale_hours: Number(current.data.price_stale_hours) || 48,
+    };
+    if (patch.silent_hours !== undefined) next.silent_hours = patch.silent_hours;
+    if (patch.price_stale_hours !== undefined) next.price_stale_hours = patch.price_stale_hours;
+    var body = {
+      message: 'تنظیمات داشبورد از پنل مدیر',
+      content: b64encode(JSON.stringify(next, null, 2) + '\n'),
+      branch: REPO.branch,
+    };
+    if (current.sha) body.sha = current.sha;
+    var res = await fetch(contentsUrl(), {
+      method: 'PUT',
+      headers: {
+        Authorization: 'Bearer ' + github.token,
+        Accept: 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(body),
+    });
+    if (!res.ok) {
+      var failure = await res.json().catch(function () { return {}; });
+      throw new Error(failure.message || ('HTTP ' + res.status));
+    }
+    return next;
+  }
+
+  async function saveSettings(patch) {
+    if (github.static) return { settings: await saveRepoSettings(patch) };
+    return api('/admin/api/settings', { method: 'POST', body: JSON.stringify(patch) });
+  }
+
+  async function startStaticMode() {
+    github.static = true;
+    github.token = loadToken();
+    el('login').hidden = true;
+    el('chat').style.display = 'none';
+    el('logout').hidden = true;
+    el('no-key').hidden = true;
+    el('settings').hidden = false;
+    el('github-card').hidden = false;
+    ['alerts-card', 'custom-card', 'pwd-card'].forEach(function (id) {
+      var card = el(id);
+      if (card) card.hidden = true;
+    });
+    el('gh-msg').textContent = !REPO
+      ? 'این صفحه روی گیت‌هاب نیست؛ ذخیرهٔ مخزنی فقط در GitHub Pages کار می‌کند'
+      : REPO.owner + '/' + REPO.repo + (github.token ? ' · توکن ذخیره شده است' : ' · برای ذخیره، توکن لازم است');
+    loadSettings();
+  }
   function formatDate(value) {
     if (!value) return '';
     try {
@@ -215,8 +322,16 @@
   }
 
   async function boot() {
+    var response = await fetch('/admin/api/session', {
+      headers: { Accept: 'application/json' },
+      cache: 'no-store',
+    }).catch(function () { return null; });
+    var session = null;
+    if (response && response.ok && String(response.headers.get('content-type') || '').indexOf('json') !== -1) {
+      session = await response.json().catch(function () { return null; });
+    }
+    if (!session) { startStaticMode(); return; }
     try {
-      var session = await api('/admin/api/session');
       if (session.authed) showChat(session);
       else if (!session.configured) el('login-error').textContent = 'رمز مدیر روی سرور تنظیم نشده است';
     } catch (error) {
@@ -272,6 +387,17 @@
 
   async function loadSettings() {
     var msg = el('silent-msg');
+    if (github.static) {
+      try {
+        var repo = await readRepoSettings();
+        if (repo.data.silent_hours) el('silent-hours').value = String(repo.data.silent_hours);
+        if (repo.data.price_stale_hours) el('price-stale-hours').value = String(repo.data.price_stale_hours);
+        msg.textContent = '';
+      } catch (error) {
+        msg.textContent = 'خواندن تنظیمات از گیت‌هاب ناموفق بود: ' + error.message;
+      }
+      return;
+    }
     try {
       var payload = await api('/admin/api/settings');
       var input = el('silent-hours');
@@ -302,12 +428,10 @@
     el('silent-save').disabled = true;
     msg.textContent = 'در حال ذخیره…';
     try {
-      var payload = await api('/admin/api/settings', {
-        method: 'POST',
-        body: JSON.stringify({ silent_hours: hours })
-      });
+      var payload = await saveSettings({ silent_hours: hours });
+      var staticNote = github.static ? ' — سایت تا چند دقیقه با همین تنظیمات بازسازی می‌شود.' : '';
       el('silent-hours').value = String(payload.settings.silent_hours);
-      msg.textContent = 'ذخیره شد: ' + payload.settings.silent_hours + ' ساعت';
+      msg.textContent = 'ذخیره شد: ' + payload.settings.silent_hours + ' ساعت' + staticNote;
     } catch (error) {
       msg.textContent = 'خطا: ' + error.message;
     } finally {
@@ -325,12 +449,10 @@
     el('price-stale-save').disabled = true;
     msg.textContent = 'در حال ذخیره…';
     try {
-      var payload = await api('/admin/api/settings', {
-        method: 'POST',
-        body: JSON.stringify({ price_stale_hours: hours })
-      });
+      var payload = await saveSettings({ price_stale_hours: hours });
+      var staticNote = github.static ? ' — سایت تا چند دقیقه با همین تنظیمات بازسازی می‌شود.' : '';
       el('price-stale-hours').value = String(payload.settings.price_stale_hours);
-      msg.textContent = 'ذخیره شد: ' + payload.settings.price_stale_hours + ' ساعت';
+      msg.textContent = 'ذخیره شد: ' + payload.settings.price_stale_hours + ' ساعت' + staticNote;
     } catch (error) {
       msg.textContent = 'خطا: ' + error.message;
     } finally {
@@ -516,6 +638,25 @@
     }
   });
 
+  el('gh-save').addEventListener('click', async function () {
+    var msg = el('gh-msg');
+    var token = el('gh-token').value.trim();
+    if (!token) { msg.textContent = 'توکن را وارد کن'; return; }
+    el('gh-save').disabled = true;
+    msg.textContent = 'در حال بررسی توکن…';
+    var previous = github.token;
+    rememberToken(token, el('gh-remember').checked);
+    try {
+      await readRepoSettings();
+      el('gh-token').value = '';
+      msg.textContent = 'توکن ذخیره شد؛ حالا می‌توانی آستانه‌ها را بنویسی.';
+    } catch (error) {
+      github.token = previous;
+      msg.textContent = 'توکن پذیرفته نشد: ' + error.message;
+    } finally {
+      el('gh-save').disabled = false;
+    }
+  });
   async function send(text) {
     if (state.busy || !text.trim()) return;
     state.busy = true;

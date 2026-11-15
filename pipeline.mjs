@@ -16,7 +16,7 @@ import {
   TOPICS,
 } from './src/analyze.mjs';
 import { translateMany, saveCache } from './src/translate.mjs';
-import { fetchMarkets, buildMarketHistory, MARKET_SOURCE } from './src/markets.mjs';
+import { fetchMarkets, buildMarketHistory, MARKET_SOURCE, setStaleHours } from './src/markets.mjs';
 import { buildXlsx } from './src/xlsx.mjs';
 import { fetchFeedWithMirrors } from './src/mirrors.mjs';
 import {
@@ -38,6 +38,24 @@ const MIRROR_FILE = path.join(CACHE_DIR, 'feed-mirrors.json');
 const MIRROR_TIMEOUT_MS = Number(process.env.FEED_MIRROR_TIMEOUT_SECONDS || 20) * 1000;
 const MAX_PER_SOURCE = 50;
 const MAX_ARTICLES = 1400;
+
+// آستانه‌های داشبورد در settings.json نگه داشته می‌شوند تا نسخهٔ میزبانی‌شده روی GitHub Pages
+// هم همان تنظیماتی را داشته باشد که در پنل مدیر ذخیره شده است.
+const SETTINGS_FILE = path.join(ROOT, 'settings.json');
+const DEFAULT_SETTINGS = { silent_hours: 24, price_stale_hours: 48 };
+const clampSetting = (value, min, max, fallback) => {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return fallback;
+  return Math.min(max, Math.max(min, Math.round(num)));
+};
+
+async function loadSettings() {
+  const saved = await readJson(SETTINGS_FILE, {});
+  return {
+    silent_hours: clampSetting(saved.silent_hours, 1, 720, DEFAULT_SETTINGS.silent_hours),
+    price_stale_hours: clampSetting(saved.price_stale_hours, 1, 168, DEFAULT_SETTINGS.price_stale_hours),
+  };
+}
 
 const faNumber = (value, digits = 0) =>
   Number(value || 0).toLocaleString('fa-IR', { minimumFractionDigits: digits, maximumFractionDigits: digits });
@@ -357,6 +375,8 @@ export async function runPipeline({ quiet = false } = {}) {
 
   // قیمت طلا و دلار هم‌زمان با خبرها خوانده می‌شود؛ اگر نشد، مقدار موفق قبلی حفظ می‌شود
   const previousData = await readJson(DATA_FILE, null);
+  const settings = await loadSettings();
+  setStaleHours(settings.price_stale_hours);
   const marketsPromise = fetchMarkets({ previous: previousData?.markets || null }).catch((error) => ({
     ok: false,
     stale: true,
@@ -746,6 +766,7 @@ export async function runPipeline({ quiet = false } = {}) {
     generated_at: generatedAt,
     next_update_at: new Date(Date.now() + UPDATE_INTERVAL_MINUTES * 60000).toISOString(),
     update_interval_minutes: UPDATE_INTERVAL_MINUTES,
+    settings,
     window_hours: null,
     window_label: 'همهٔ خبرها (بدون محدودیت زمانی)',
     markets,

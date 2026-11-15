@@ -17,6 +17,8 @@ on:
       - 'test/**'
       - 'package.json'
       - 'index.html'
+      - 'admin.html'
+      - 'settings.json'
       - 'vendor/**'
       - '.github/workflows/update.yml'
 
@@ -68,6 +70,7 @@ jobs:
           rm -rf _site
           mkdir -p _site
           cp index.html _site/
+          cp admin.html _site/
           cp status.html _site/
           cp favicon.svg _site/
           cp data.json _site/
