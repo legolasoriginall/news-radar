@@ -411,12 +411,22 @@
         return topic.name + ' (' + faNum(topic.count) + ' خبر)';
       }).join('، '));
     }
-    var markets = Array.isArray(data.markets) ? data.markets.slice(0, 12) : [];
-    if (markets.length) {
-      lines.push('نرخ‌ها: ' + markets.map(function (item) {
-        return (item.name || item.id || '') + ': ' + (item.value != null ? faNum(item.value) : '—') + (item.unit ? ' ' + item.unit : '');
+    // markets در data.json یک شیء با آرایهٔ items است؛ آرایهٔ ساده هم پشتیبانی می‌شود.
+    var marketItems = Array.isArray(data.markets) ? data.markets
+      : (data.markets && Array.isArray(data.markets.items) ? data.markets.items : []);
+    if (marketItems.length) {
+      lines.push('نرخ‌ها: ' + marketItems.slice(0, 14).map(function (item) {
+        var label = item.label || item.name || item.id || '';
+        var value = item.value != null ? faNum(item.value) : '—';
+        var percent = Number(item.change_percent);
+        var change = Number.isFinite(percent)
+          ? ' (' + (percent >= 0 ? '+' : '') + percent.toLocaleString('fa-IR') + '٪)'
+          : '';
+        return label + ': ' + value + (item.unit ? ' ' + item.unit : '') + change;
       }).join(' · '));
     }
+    var summaryLines = Array.isArray(data.summary_lines) ? data.summary_lines.slice(0, 4) : [];
+    if (summaryLines.length) lines.push('خلاصهٔ خودکار: ' + summaryLines.join(' '));
     var articles = Array.isArray(data.articles) ? data.articles.slice(0, 40) : [];
     if (articles.length) {
       lines.push('تازه‌ترین خبرها:');
@@ -436,7 +446,7 @@
     return SITE_CTX;
   }
 
-  async function freeAiReply(messages) {
+  async function freeAiReply(messages, retried) {
     var context = await siteContext();
     var system = [
       'تو دستیار مدیر داشبورد «رصد خبر» هستی: سایت فارسی رصد خبر، قیمت طلا و دلار،',
@@ -457,6 +467,21 @@
       }),
       signal: AbortSignal.timeout(60000),
     });
+    if (res.status === 402 || res.status === 429) {
+      // نسخهٔ رایگان هر ۴۵ ثانیه یک پاسخ می‌دهد؛ یک بار خودکار صبر می‌کنیم.
+      var waitSeconds = 46;
+      try {
+        var info = await res.json();
+        var match = /Retry after (\d+)\s*s/i.exec(String((info && info.error && info.error.message) || ''));
+        if (match) waitSeconds = Math.min(60, Number(match[1]) + 2);
+      } catch (error) {}
+      if (!retried) {
+        addMessage('bot', 'سهمیهٔ رایگان هر ۴۵ ثانیه یک پاسخ است؛ ' + faNum(waitSeconds) + ' ثانیه صبر می‌کنم و دوباره می‌پرسم…');
+        await new Promise(function (resolve) { setTimeout(resolve, waitSeconds * 1000); });
+        return freeAiReply(messages, true);
+      }
+      throw new Error('سهمیهٔ رایگان پر است — هر ۴۵ ثانیه یک پاسخ. یک دقیقه بعد دوباره بفرست.');
+    }
     if (!res.ok) throw new Error('مدل رایگان پاسخ نداد (HTTP ' + res.status + ')');
     var payload = await res.json();
     var reply = payload && payload.choices && payload.choices[0] && payload.choices[0].message
