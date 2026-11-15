@@ -382,11 +382,94 @@
     }, 5000);
   }
 
+
+  /* ---------------- دستیار رایگان (بدون سرور و بدون کلید) ----------------
+     در GitHub Pages هیچ سروری نیست؛ مدل رایگان Pollinations مستقیم از
+     مرورگر صدا زده می‌شود و دادهٔ سایت از data.json به آن داده می‌شود. */
+  var SITE_CTX = '';
+  var SITE_CTX_AT = 0;
+
+  function faNum(value) { return Number(value || 0).toLocaleString('fa-IR'); }
+
+  async function siteContext() {
+    if (SITE_CTX && Date.now() - SITE_CTX_AT < 300000) return SITE_CTX;
+    var data = null;
+    try {
+      var res = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
+      if (res.ok) data = await res.json();
+    } catch (error) { data = null; }
+    if (!data) { SITE_CTX = 'دادهٔ سایت در دسترس نیست.'; SITE_CTX_AT = Date.now(); return SITE_CTX; }
+    var stats = data.stats || {};
+    var lines = [
+      'زمان آخرین به‌روزرسانی داده‌ها: ' + (data.generated_at ? new Date(data.generated_at).toLocaleString('fa-IR') : 'نامشخص'),
+      'خبرها: ' + faNum(stats.total) + ' · قصه‌ها: ' + faNum(stats.stories) + ' · چندمنبعی: ' + faNum(stats.multi_source_stories) + ' · ۲۴ ساعت گذشته: ' + faNum(stats.fresh_24h),
+      'منابع سالم: ' + faNum(stats.sources_ok) + ' از ' + faNum(stats.sources_total),
+    ];
+    var topics = Array.isArray(data.topics) ? data.topics.slice(0, 12) : [];
+    if (topics.length) {
+      lines.push('موضوع‌های داغ: ' + topics.map(function (topic) {
+        return topic.name + ' (' + faNum(topic.count) + ' خبر)';
+      }).join('، '));
+    }
+    var markets = Array.isArray(data.markets) ? data.markets.slice(0, 12) : [];
+    if (markets.length) {
+      lines.push('نرخ‌ها: ' + markets.map(function (item) {
+        return (item.name || item.id || '') + ': ' + (item.value != null ? faNum(item.value) : '—') + (item.unit ? ' ' + item.unit : '');
+      }).join(' · '));
+    }
+    var articles = Array.isArray(data.articles) ? data.articles.slice(0, 40) : [];
+    if (articles.length) {
+      lines.push('تازه‌ترین خبرها:');
+      articles.forEach(function (article, index) {
+        lines.push((index + 1) + '. ' + (article.title_fa || article.title || '') +
+          (article.source_name ? ' — ' + article.source_name : '') +
+          (article.published ? ' (' + new Date(article.published).toLocaleString('fa-IR') + ')' : ''));
+      });
+    }
+    var broken = (Array.isArray(data.source_health) ? data.source_health : [])
+      .filter(function (source) { return source && source.ok === false; })
+      .slice(0, 10)
+      .map(function (source) { return source.name || source.id; });
+    if (broken.length) lines.push('منابع مشکل‌دار: ' + broken.join('، '));
+    SITE_CTX = lines.join('\n');
+    SITE_CTX_AT = Date.now();
+    return SITE_CTX;
+  }
+
+  async function freeAiReply(messages) {
+    var context = await siteContext();
+    var system = [
+      'تو دستیار مدیر داشبورد «رصد خبر» هستی: سایت فارسی رصد خبر، قیمت طلا و دلار،',
+      'خبرهای تلگرام و پخش زندهٔ شبکه‌ها.',
+      'فقط از داده‌ای که در ادامه می‌آید حرف بزن و اگر داده‌ای نبود صادقانه بگو که در دسترس نیست.',
+      'پاسخ‌ها کوتاه، فارسی و عملی باشند. هرگز رمز یا کلید نخواه.',
+      '',
+      'دادهٔ فعلی سایت:',
+      context,
+    ].join('\n');
+    var res = await fetch('https://text.pollinations.ai/openai/chat/completions', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        model: 'openai',
+        temperature: 0.2,
+        messages: [{ role: 'system', content: system }].concat(messages.slice(-10)),
+      }),
+      signal: AbortSignal.timeout(60000),
+    });
+    if (!res.ok) throw new Error('مدل رایگان پاسخ نداد (HTTP ' + res.status + ')');
+    var payload = await res.json();
+    var reply = payload && payload.choices && payload.choices[0] && payload.choices[0].message
+      ? payload.choices[0].message.content
+      : '';
+    return String(reply || '').trim() || '(پاسخی نبود)';
+  }
+
   async function startStaticMode() {
     github.static = true;
     github.token = loadToken();
     el('login').hidden = true;
-    el('chat').style.display = 'none';
+    el('chat').style.display = 'block';
     el('logout').hidden = true;
     el('no-key').hidden = true;
     el('settings').hidden = false;
@@ -398,6 +481,8 @@
       var card = el(id);
       if (card) card.hidden = true;
     });
+    var sessionInfo = el('session-info');
+    if (sessionInfo) sessionInfo.textContent = 'دستیار رایگان (بدون کلید) — پاسخ‌ها از دادهٔ همین سایت ساخته می‌شوند.';
     el('gh-msg').textContent = !REPO
       ? 'این صفحه روی گیت‌هاب نیست؛ ذخیرهٔ مخزنی فقط در GitHub Pages کار می‌کند'
       : REPO.owner + '/' + REPO.repo + (github.token ? ' · توکن ذخیره شده است' : ' · برای ذخیره، توکن لازم است');
@@ -889,9 +974,15 @@
     state.messages.push({ role: 'user', content: text.trim() });
     el('message').value = '';
     try {
-      var payload = await api('/admin/api/chat', { method: 'POST', body: JSON.stringify({ messages: state.messages.slice(-20) }) });
-      addMessage('bot', payload.reply || '(پاسخی نبود)');
-      state.messages.push({ role: 'assistant', content: payload.reply || '' });
+      var reply;
+      if (github.static) {
+        reply = await freeAiReply(state.messages);
+      } else {
+        var payload = await api('/admin/api/chat', { method: 'POST', body: JSON.stringify({ messages: state.messages.slice(-20) }) });
+        reply = payload.reply || '(پاسخی نبود)';
+      }
+      addMessage('bot', reply);
+      state.messages.push({ role: 'assistant', content: reply });
     } catch (error) {
       addMessage('err', error.message || 'خطا در پاسخ');
     } finally {
