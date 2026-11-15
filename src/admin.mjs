@@ -121,6 +121,34 @@ export function llmConfig(env = process.env) {
   };
 }
 
+/** مدل‌های جایگزین به ترتیب اولویت؛ اگر مدلی خطا داد، مدل سالم بعدی امتحان می‌شود. */
+export function llmConfigChain(env = process.env) {
+  const primary = llmConfig(env);
+  const chain = [primary];
+  const same = (a, b) => a.provider === b.provider && a.baseUrl === b.baseUrl && a.model === b.model;
+  const push = (config) => {
+    if (!config || !config.baseUrl) return;
+    if (chain.some((item) => same(item, config))) return;
+    chain.push(config);
+  };
+  // مدل محلی رایگان (اگر همان مدل اصلی نباشد)
+  if (primary.provider !== 'ollama') {
+    push({
+      apiKey: '',
+      baseUrl: env.OLLAMA_URL || 'http://127.0.0.1:11434/v1',
+      model: env.OLLAMA_MODEL || 'llama3.2',
+      provider: 'ollama',
+    });
+  }
+  // آخرین جایگزین: مدل رایگان بدون کلید، با چند نام مدل
+  const baseUrl = env.POLLINATIONS_URL || 'https://text.pollinations.ai/openai';
+  const models = [env.POLLINATIONS_MODEL, 'openai', 'openai-fast'].filter(Boolean);
+  for (const model of models) {
+    push({ apiKey: 'anonymous', baseUrl, model, provider: 'pollinations' });
+  }
+  return chain;
+}
+
 /** آیا Ollama روی همین کامپیوتر بالاست و چه مدل‌هایی دارد. */
 export async function detectOllama({ baseUrl = 'http://127.0.0.1:11434/v1', fetcher = fetch, timeoutMs = 1500 } = {}) {
   try {
@@ -141,6 +169,8 @@ export async function chatWithTools({ messages, tools, config = llmConfig(), fet
   const local = config.provider === 'ollama';
   if (!config.apiKey && !local) throw new Error('کلید مدل تنظیم نشده است');
   if (!config.baseUrl) throw new Error('آدرس مدل تنظیم نشده است');
+  // ابزارها فقط وقتی فرستاده می‌شوند که فهرستشان آماده باشد؛ در غیر این صورت tool_choice خطای ۴۰۰ می‌دهد.
+  const useTools = !local && Array.isArray(tools) && tools.length > 0;
   const headers = { 'Content-Type': 'application/json' };
   if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`;
   const response = await fetcher(`${String(config.baseUrl).replace(/\/+$/, '')}/chat/completions`, {
@@ -149,8 +179,7 @@ export async function chatWithTools({ messages, tools, config = llmConfig(), fet
     body: JSON.stringify({
       model: config.model,
       messages,
-      tools: local ? undefined : tools,
-      tool_choice: local ? undefined : 'auto',
+      ...(useTools ? { tools, tool_choice: 'auto' } : {}),
       temperature: 0.2,
     }),
     signal: AbortSignal.timeout(timeoutMs),
@@ -158,6 +187,29 @@ export async function chatWithTools({ messages, tools, config = llmConfig(), fet
   if (!response.ok) throw new Error(`LLM HTTP ${response.status}`);
   const payload = await response.json();
   return payload?.choices?.[0]?.message || { role: 'assistant', content: '' };
+}
+
+/** یک دور گفت‌وگو؛ اگر مدلی خطا داد، به‌ترتیب مدل سالم بعدی امتحان می‌شود. */
+export async function chatWithFallback({
+  messages,
+  tools,
+  configs = llmConfigChain(),
+  fetcher = fetch,
+  timeoutMs = 60000,
+  chat = chatWithTools,
+}) {
+  const chain = Array.isArray(configs) && configs.length ? configs : [llmConfig()];
+  const failures = [];
+  for (const config of chain) {
+    try {
+      const message = await chat({ messages, tools, config, fetcher, timeoutMs });
+      return { message, config, failures };
+    } catch (error) {
+      failures.push({ provider: config.provider, model: config.model, error: String(error?.message || error) });
+    }
+  }
+  const detail = failures.map((item) => `${item.provider}/${item.model}: ${item.error}`).join(' | ');
+  throw new Error(`هیچ مدلی پاسخ نداد — ${detail}`);
 }
 
 export const ADMIN_TOOLS = [
@@ -613,6 +665,7 @@ export async function runTool(
 export async function runAssistant({
   messages,
   config = llmConfig(),
+  configs,
   tools = ADMIN_TOOLS,
   execute = runTool,
   chat = chatWithTools,
@@ -623,12 +676,30 @@ export async function runAssistant({
     ...(Array.isArray(messages) ? messages.slice(-20) : []),
   ];
   const used = [];
+  const chain = Array.isArray(configs) && configs.length ? configs : [config];
+  let active = 0;
+  let provider = chain[0]?.provider || config.provider;
+  const failed = [];
 
   for (let round = 0; round < MAX_TOOL_ROUNDS; round += 1) {
-    const message = await chat({ messages: conversation, tools, config });
+    let message;
+    // اگر مدل خطا داد، مدل سالم بعدی امتحان می‌شود.
+    for (;;) {
+      try {
+        message = await chat({ messages: conversation, tools, config: chain[Math.min(active, chain.length - 1)] });
+        provider = chain[Math.min(active, chain.length - 1)].provider;
+        break;
+      } catch (error) {
+        failed.push(chain[Math.min(active, chain.length - 1)].provider + ': ' + String(error?.message || error));
+        if (active >= chain.length - 1) {
+          throw new Error('هیچ مدلی پاسخ نداد — ' + failed.join(' | '));
+        }
+        active += 1;
+      }
+    }
     const calls = Array.isArray(message.tool_calls) ? message.tool_calls : [];
     if (!calls.length) {
-      return { reply: String(message.content || '').trim(), used };
+      return { reply: String(message.content || '').trim(), used, provider };
     }
     conversation.push({ role: 'assistant', content: message.content || '', tool_calls: calls });
     for (const call of calls) {
@@ -648,5 +719,5 @@ export async function runAssistant({
     }
   }
 
-  return { reply: 'پاسخ با ابزارها کامل نشد؛ لطفاً دوباره بپرس.', used };
+  return { reply: 'پاسخ با ابزارها کامل نشد؛ لطفاً دوباره بپرس.', used, provider };
 }

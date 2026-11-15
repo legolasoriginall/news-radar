@@ -31,6 +31,7 @@ import {
   verifyPassword,
   validateNewPassword,
   llmConfig,
+  llmConfigChain,
   detectOllama,
   intentOf,
   queryOf,
@@ -678,6 +679,20 @@ function getModelConfig() {
   return modelCache.config || llmConfig();
 }
 
+// مدل اصلی + جایگزین‌های سالم؛ اگر یکی خطا داد، بعدی امتحان می‌شود.
+function getModelChain(info) {
+  const base = getModelConfig();
+  const primary = { ...base, model: (info && info.model) || base.model };
+  const chain = [primary];
+  for (const config of llmConfigChain()) {
+    const duplicate = chain.some((item) => item.provider === config.provider
+      && item.baseUrl === config.baseUrl
+      && item.model === config.model);
+    if (!duplicate) chain.push(config);
+  }
+  return chain;
+}
+
 function adminToolContext() {
   return {
     getStatus: async () => {
@@ -1313,12 +1328,17 @@ async function handleRequest(req, res) {
         }
       const result = await runAssistant({
         messages: body.messages,
-        config: { ...getModelConfig(), model: info.model },
+        configs: getModelChain(info),
         context: adminToolContext(),
       });
       sendJson(res, 200, { ...result, keyless: false });
     } catch (error) {
-      sendJson(res, 500, { error: String(error?.message || error) });
+      // سهمیهٔ رایگان (۴۰۲/۴۲۹) پیام روشن بگیرد تا کاربر بداند فقط باید کمی صبر کند.
+      const message = String(error?.message || error);
+      const friendly = /402|429/.test(message)
+        ? 'همهٔ مدل‌های رایگان الان سهمیه‌شان پر است؛ حدود ۴۵ ثانیه بعد دوباره بپرس.'
+        : message;
+      sendJson(res, 500, { error: friendly });
     }
     return;
   }
