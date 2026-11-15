@@ -101,6 +101,16 @@
       </div>
     </div>
     <div class="card" style="margin-bottom:14px">
+      <h2 style="font-size:15px;margin:0 0 4px">آستانهٔ کهنه‌بودن قیمت‌ها</h2>
+      <p class="muted">نرخی که از این مدت قدیمی‌تر باشد «کهنه» حساب می‌شود و داشبورد به‌جای آن، تازه‌ترین مقدار منبع دوم را نشان می‌دهد. مقدار کمتر یعنی سریع‌تر سراغ منبع دوم می‌رویم. مقدار مجاز: ۱ تا ۱۶۸ ساعت.</p>
+      <div class="row">
+        <input class="field" id="price-stale-hours" type="number" min="1" max="168" step="1" style="max-width:120px" dir="ltr" inputmode="numeric" aria-label="آستانهٔ کهنه‌بودن قیمت به ساعت">
+        <span class="muted">ساعت</span>
+        <button id="price-stale-save">ذخیره</button>
+        <span class="muted" id="price-stale-msg"></span>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">هشدارها <span id="alerts-badge" class="badge" hidden></span></h2>
       <p class="muted" id="alerts-info"></p>
       <div class="row">
@@ -270,6 +280,12 @@
         input.min = payload.limits.min;
         input.max = payload.limits.max;
       }
+      var priceInput = el('price-stale-hours');
+      if (payload.settings && payload.settings.price_stale_hours) priceInput.value = String(payload.settings.price_stale_hours);
+      if (payload.limits && payload.limits.price_min) {
+        priceInput.min = payload.limits.price_min;
+        priceInput.max = payload.limits.price_max;
+      }
       msg.textContent = '';
     } catch (error) {
       msg.textContent = 'خواندن تنظیمات ناموفق بود: ' + error.message;
@@ -296,6 +312,29 @@
       msg.textContent = 'خطا: ' + error.message;
     } finally {
       el('silent-save').disabled = false;
+    }
+  });
+
+  el('price-stale-save').addEventListener('click', async function () {
+    var msg = el('price-stale-msg');
+    var hours = Number(el('price-stale-hours').value);
+    if (!isFinite(hours) || hours < 1) {
+      msg.textContent = 'یک عدد ساعت معتبر بگذار';
+      return;
+    }
+    el('price-stale-save').disabled = true;
+    msg.textContent = 'در حال ذخیره…';
+    try {
+      var payload = await api('/admin/api/settings', {
+        method: 'POST',
+        body: JSON.stringify({ price_stale_hours: hours })
+      });
+      el('price-stale-hours').value = String(payload.settings.price_stale_hours);
+      msg.textContent = 'ذخیره شد: ' + payload.settings.price_stale_hours + ' ساعت';
+    } catch (error) {
+      msg.textContent = 'خطا: ' + error.message;
+    } finally {
+      el('price-stale-save').disabled = false;
     }
   });
 

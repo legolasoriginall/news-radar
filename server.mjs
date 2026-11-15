@@ -5,7 +5,7 @@ import { randomBytes } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { runPipeline, probeSource } from './pipeline.mjs';
-import { fetchMarkets } from './src/markets.mjs';
+import { fetchMarkets, setStaleHours } from './src/markets.mjs';
 import { fetchTelegramFeeds, fetchTelegramFeed, addTelegramChannel, removeTelegramChannel, TELEGRAM_CHANNELS } from './src/telegram.mjs';
 import { parseSourceInput, parseChannelInput, looksLikeFeed, feedItemCount } from './src/custom.mjs';
 import { firstUrlIn } from './src/web.mjs';
@@ -101,6 +101,10 @@ const SETTINGS_FILE = path.join(ROOT, '.settings.json');
 const SILENT_HOURS_MIN = 1;
 const SILENT_HOURS_MAX = 720;
 const DEFAULT_SILENT_HOURS = 24;
+// آستانهٔ کهنه‌بودن نرخ‌ها؛ کوچک‌تر یعنی زودتر سراغ منبع دوم می‌رویم.
+const PRICE_STALE_HOURS_MIN = 1;
+const PRICE_STALE_HOURS_MAX = 168;
+const DEFAULT_PRICE_STALE_HOURS = 48;
 
 function clampSilentHours(value) {
   const num = Number(value);
@@ -108,16 +112,29 @@ function clampSilentHours(value) {
   return Math.min(SILENT_HOURS_MAX, Math.max(SILENT_HOURS_MIN, Math.round(num)));
 }
 
+function clampPriceStaleHours(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return DEFAULT_PRICE_STALE_HOURS;
+  return Math.min(PRICE_STALE_HOURS_MAX, Math.max(PRICE_STALE_HOURS_MIN, Math.round(num)));
+}
+
 function loadSettings() {
   try {
     const parsed = JSON.parse(readFileSync(SETTINGS_FILE, 'utf8'));
-    return { silent_hours: clampSilentHours(parsed.silent_hours ?? process.env.ALERT_SILENT_HOURS) };
+    return {
+      silent_hours: clampSilentHours(parsed.silent_hours ?? process.env.ALERT_SILENT_HOURS),
+      price_stale_hours: clampPriceStaleHours(parsed.price_stale_hours ?? process.env.MARKET_STALE_HOURS),
+    };
   } catch {
-    return { silent_hours: clampSilentHours(process.env.ALERT_SILENT_HOURS) };
+    return {
+      silent_hours: clampSilentHours(process.env.ALERT_SILENT_HOURS),
+      price_stale_hours: clampPriceStaleHours(process.env.MARKET_STALE_HOURS),
+    };
   }
 }
 
 let settings = loadSettings();
+setStaleHours(settings.price_stale_hours);
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const INTERVAL_MS = UPDATE_INTERVAL_MINUTES * 60 * 1000;
@@ -369,6 +386,7 @@ async function getLiveMarkets() {
         warnings: result.warnings || [],
         providers: result.providers || [],
         divergence_threshold_percent: result.divergence_threshold_percent,
+        stale_threshold_hours: result.stale_threshold_hours,
         error: result.error || '',
         fetched_at: new Date().toISOString(),
         ttl_seconds: Math.round(LIVE_MARKETS_TTL_MS / 1000),
@@ -833,7 +851,16 @@ async function handleRequest(req, res) {
 
   if (pathname === '/admin/api/settings') {
     if (req.method === 'GET') {
-      sendJson(res, 200, { ok: true, settings, limits: { min: SILENT_HOURS_MIN, max: SILENT_HOURS_MAX } });
+      sendJson(res, 200, {
+        ok: true,
+        settings,
+        limits: {
+          min: SILENT_HOURS_MIN,
+          max: SILENT_HOURS_MAX,
+          price_min: PRICE_STALE_HOURS_MIN,
+          price_max: PRICE_STALE_HOURS_MAX,
+        },
+      });
       return;
     }
     if (req.method === 'POST') {
@@ -842,12 +869,37 @@ async function handleRequest(req, res) {
         return;
       }
       const body = await readJsonBody(req, 4096).catch(() => ({}));
-      const hours = Number(body.silent_hours);
-      if (!Number.isFinite(hours) || hours < SILENT_HOURS_MIN || hours > SILENT_HOURS_MAX) {
-        sendJson(res, 400, { error: `عدد ساعت باید بین ${SILENT_HOURS_MIN} و ${SILENT_HOURS_MAX} باشد` });
+      const next = { ...settings };
+      let changed = false;
+      if (body.silent_hours !== undefined) {
+        const hours = Number(body.silent_hours);
+        if (!Number.isFinite(hours) || hours < SILENT_HOURS_MIN || hours > SILENT_HOURS_MAX) {
+          sendJson(res, 400, { error: `عدد ساعت سکوت باید بین ${SILENT_HOURS_MIN} و ${SILENT_HOURS_MAX} باشد` });
+          return;
+        }
+        next.silent_hours = Math.round(hours);
+        changed = true;
+      }
+      if (body.price_stale_hours !== undefined) {
+        const hours = Number(body.price_stale_hours);
+        if (!Number.isFinite(hours) || hours < PRICE_STALE_HOURS_MIN || hours > PRICE_STALE_HOURS_MAX) {
+          sendJson(res, 400, {
+            error: `آستانهٔ کهنه‌بودن قیمت باید بین ${PRICE_STALE_HOURS_MIN} و ${PRICE_STALE_HOURS_MAX} ساعت باشد`,
+          });
+          return;
+        }
+        next.price_stale_hours = Math.round(hours);
+        changed = true;
+      }
+      if (!changed) {
+        sendJson(res, 400, { error: 'هیچ تنظیمی در درخواست نبود' });
         return;
       }
-      settings = { ...settings, silent_hours: Math.round(hours) };
+      settings = next;
+      setStaleHours(settings.price_stale_hours);
+      // نرخ‌های کش‌شده با آستانهٔ قبلی سنجیده شده‌اند؛ کش دور ریخته می‌شود.
+      liveMarkets.payload = null;
+      liveMarkets.at = 0;
       try {
         await writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
       } catch (error) {
@@ -1183,6 +1235,7 @@ async function handleRequest(req, res) {
       next_run_at: state.next_run_at || (data ? new Date(new Date(data.generated_at).getTime() + INTERVAL_MS).toISOString() : null),
       interval_minutes: UPDATE_INTERVAL_MINUTES,
       silent_hours: settings.silent_hours,
+      price_stale_hours: settings.price_stale_hours,
       generated_at: data?.generated_at || null,
       total: data?.stats?.total || 0,
       countdown_seconds: state.next_run_at ? Math.max(0, Math.round((new Date(state.next_run_at).getTime() - Date.now()) / 1000)) : null,

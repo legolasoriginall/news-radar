@@ -122,7 +122,9 @@ a:hover { text-decoration: underline; }
 .live-pill.off { background: #fff7ed; color: #9a3412; border-color: #fed7aa; }
 .live-cdn { font-size: 11px; color: #0f766e; background: #ecfdf5; border: 1px solid #a7f3d0; border-radius: 999px; padding: 2px 9px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* وضعیت مسیر شبکه: آیا آینه‌های iptv-org از این دستگاه در دسترس‌اند */
+/* این نوار فقط برای گزارش داخلی است و به کاربر نشان داده نمی‌شود. */
 .route-status { display: flex; align-items: center; flex-wrap: wrap; gap: 8px; margin: 10px 0 2px; font-size: 11.8px; color: var(--muted); }
+.route-status[hidden] { display: none; }
 .route-title { font-weight: 700; color: #334155; }
 .route-pill { display: inline-flex; align-items: center; gap: 6px; border-radius: 999px; padding: 3px 10px; font-size: 11.5px; border: 1px solid #cbd5e1; background: #f8fafc; color: #475569; }
 .route-pill.ok { background: #ecfdf5; color: #047857; border-color: #a7f3d0; }
@@ -223,6 +225,20 @@ body.sat-fs-lock { overflow: hidden; }
 .src-check.ok { color: #047857; }
 .src-check.bad { color: #b91c1c; }
 
+/* ویرایش آستانهٔ سکوت از خود داشبورد؛ فقط برای مدیر واردشده دیده می‌شود */
+.silent-admin { display: flex; flex-direction: column; gap: 8px; margin-top: 12px; padding-top: 12px; border-top: 1px dashed var(--line); font-size: 12.5px; color: #344054; }
+.silent-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
+.silent-admin[hidden] { display: none; }
+.silent-admin label { font-weight: 600; }
+.silent-admin input { width: 84px; border: 1px solid var(--line); border-radius: 8px; padding: 5px 8px; font-family: inherit; font-size: 12.5px; color: var(--navy); font-variant-numeric: tabular-nums; }
+.silent-admin input:focus-visible { outline: 2px solid #5eead4; outline-offset: 1px; }
+.silent-admin button { border: 1px solid #0d9488; background: #0f766e; color: #fff; border-radius: 8px; padding: 5px 13px; font-family: inherit; font-size: 12px; font-weight: 600; cursor: pointer; }
+.silent-admin button:hover { background: #115e59; }
+.silent-admin button:disabled { opacity: .65; cursor: progress; }
+.silent-admin button:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; }
+.silent-msg { font-size: 11.8px; color: var(--muted); }
+.silent-msg.ok { color: #047857; }
+.silent-msg.bad { color: #b91c1c; }
 /* پنل مدیر در قاب هم‌مبدأ */
 .admin-overlay { position: fixed; inset: 0; z-index: 90; background: rgba(15,23,42,.55); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 16px; }
 .admin-overlay[hidden] { display: none; }
@@ -465,7 +481,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
         </select>
         <label class="sat-only"><input type="checkbox" id="sat-only-free"> فقط بدون فیلترشکن</label>
       </div>
-      <div class="route-status" id="route-status" role="status" aria-live="polite">
+      <div class="route-status" id="route-status" role="status" aria-live="polite" hidden>
         <span class="route-title">مسیر شبکه</span>
         <span class="route-pill" id="route-pill">در حال بررسی آینه‌ها…</span>
         <button class="route-recheck" id="route-recheck" type="button" title="همین حالا آینه‌ها را دوباره امتحان کن">بازبینی مسیر</button>
@@ -542,6 +558,20 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
         </div>
       </div>
       <p class="market-note" id="sources-note"></p>
+      <div class="silent-admin" id="silent-admin" hidden>
+        <div class="silent-row">
+          <label for="silent-hours">آستانهٔ سکوت خبری (ساعت)</label>
+          <input id="silent-hours" type="number" min="1" max="720" step="1" inputmode="numeric" aria-describedby="silent-msg">
+          <button type="button" id="silent-save">ذخیره</button>
+          <span class="silent-msg" id="silent-msg" role="status"></span>
+        </div>
+        <div class="silent-row">
+          <label for="price-stale-hours">آستانهٔ کهنه‌بودن قیمت (ساعت)</label>
+          <input id="price-stale-hours" type="number" min="1" max="168" step="1" inputmode="numeric" aria-describedby="price-stale-msg">
+          <button type="button" id="price-stale-save">ذخیره</button>
+          <span class="silent-msg" id="price-stale-msg" role="status"></span>
+        </div>
+      </div>
     </div>
   </section>
 
@@ -1584,6 +1614,109 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     });
   })();
 
+  /* آستانه‌های قابل تنظیم (سکوت خبری و کهنه‌بودن قیمت) برای مدیر واردشده */
+  (function setupThresholdSettings() {
+    var box = $('silent-admin');
+    var silentInput = $('silent-hours');
+    var silentSave = $('silent-save');
+    var silentMsg = $('silent-msg');
+    var priceInput = $('price-stale-hours');
+    var priceSave = $('price-stale-save');
+    var priceMsg = $('price-stale-msg');
+    if (!box || !silentInput || !silentSave || !silentMsg || !priceInput || !priceSave || !priceMsg) return;
+
+    function say(node, text, kind) {
+      node.textContent = text;
+      node.className = 'silent-msg' + (kind ? ' ' + kind : '');
+    }
+
+    function setLimits(input, min, max) {
+      if (isFinite(Number(min))) input.min = String(min);
+      if (isFinite(Number(max))) input.max = String(max);
+    }
+
+    function applySettings(payload) {
+      var limits = payload && payload.limits;
+      var saved = payload && payload.settings;
+      if (!saved) return;
+      if (isFinite(Number(saved.silent_hours)) && Number(saved.silent_hours) > 0) {
+        SILENT_HOURS = Number(saved.silent_hours);
+        silentInput.value = String(SILENT_HOURS);
+        renderSourceHealth();
+      }
+      if (isFinite(Number(saved.price_stale_hours)) && Number(saved.price_stale_hours) > 0) {
+        priceInput.value = String(Number(saved.price_stale_hours));
+      }
+      if (limits) {
+        setLimits(silentInput, limits.min, limits.max);
+        setLimits(priceInput, limits.price_min, limits.price_max);
+      }
+      box.hidden = false;
+    }
+
+    async function load() {
+      try {
+        var sessionRes = await fetch('admin/api/session?_=' + Date.now(), { cache: 'no-store' });
+        if (!sessionRes.ok) return;
+        var session = await sessionRes.json();
+        if (!session || !session.authed) return;
+        var settingsRes = await fetch('admin/api/settings?_=' + Date.now(), { cache: 'no-store' });
+        if (!settingsRes.ok) return;
+        applySettings(await settingsRes.json());
+      } catch (e) {
+        /* نسخهٔ میزبانی‌شدهٔ استاتیک: پنل مدیر و تنظیمات در دسترس نیست */
+      }
+    }
+
+    async function save(field, input, msg, button) {
+      var hours = Number(input.value);
+      if (!isFinite(hours) || hours <= 0) {
+        say(msg, 'عدد ساعت معتبر نیست', 'bad');
+        return;
+      }
+      button.disabled = true;
+      say(msg, 'ذخیره…');
+      try {
+        var body = {};
+        body[field] = hours;
+        var res = await fetch('admin/api/settings', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(body),
+        });
+        var payload = await res.json().catch(function () { return {}; });
+        if (!res.ok) {
+          say(msg, (payload && payload.error) || 'ذخیره ناموفق بود', 'bad');
+          return;
+        }
+        applySettings(payload);
+        say(msg, 'ذخیره شد: ' + fmt(Number(payload.settings[field])) + ' ساعت', 'ok');
+        if (field === 'price_stale_hours') {
+          // نرخ‌های فعلی با آستانهٔ قبلی سنجیده شده‌اند؛ دوباره خوانده می‌شوند.
+          setTimeout(function () { pollLiveMarkets(); }, 0);
+        }
+      } catch (e) {
+        say(msg, 'ارتباط با سرور برقرار نشد', 'bad');
+      } finally {
+        button.disabled = false;
+      }
+    }
+
+    silentSave.addEventListener('click', function () {
+      save('silent_hours', silentInput, silentMsg, silentSave);
+    });
+    priceSave.addEventListener('click', function () {
+      save('price_stale_hours', priceInput, priceMsg, priceSave);
+    });
+
+    // اگر مدیر تازه از قاب پنل وارد شد، بعد از بستن قاب نشست دوباره بررسی می‌شود.
+    document.addEventListener('click', function (event) {
+      if (!event.target || !event.target.closest || !event.target.closest('#admin-close')) return;
+      setTimeout(load, 0);
+    });
+
+    load();
+  })();
   /* ---------------- پنل مدیر (قاب هم‌مبدأ) ---------------- */
 
   (function () {

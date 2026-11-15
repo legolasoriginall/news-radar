@@ -88,7 +88,16 @@ export const MARKET_DEFINITIONS = [
   },
 ];
 
-const STALE_HOURS = 48;
+export const DEFAULT_STALE_HOURS = 48;
+// آستانهٔ کهنه‌بودن نرخ‌ها از پنل مدیر قابل تغییر است؛ نرخی که از این مدت
+// قدیمی‌تر باشد کهنه حساب می‌شود و مقدار تازه‌تر از منبع بعدی جایش را می‌گیرد.
+let staleHours = DEFAULT_STALE_HOURS;
+
+export function setStaleHours(value) {
+  const num = Number(value);
+  if (Number.isFinite(num) && num > 0) staleHours = num;
+  return staleHours;
+}
 
 // اگر نرخ دو منبع بیش از این درصد اختلاف داشته باشد، داده مشکوک علامت می‌خورد
 export const DIVERGENCE_THRESHOLD_PERCENT = 3;
@@ -152,7 +161,7 @@ function buildItem(definition, { value, change, changePercent, updatedAt }) {
     change_percent: percent,
     direction: roundedChange > 0 ? 'up' : roundedChange < 0 ? 'down' : 'flat',
     updated_at: updatedAt,
-    stale: ageHours === null ? false : ageHours > STALE_HOURS,
+    stale: ageHours === null ? false : ageHours > staleHours,
   };
 }
 
@@ -567,6 +576,7 @@ export async function fetchMarkets({
       items: [],
       warnings: [],
       divergence_threshold_percent: DIVERGENCE_THRESHOLD_PERCENT,
+      stale_threshold_hours: staleHours,
       providers: attempts.map(({ id, label, ok, error }) => ({ id, label, ok, error })),
       summary_text: '',
     };
@@ -586,6 +596,7 @@ export async function fetchMarkets({
     items,
     warnings,
     divergence_threshold_percent: DIVERGENCE_THRESHOLD_PERCENT,
+    stale_threshold_hours: staleHours,
     providers: attempts.map(({ id, label, ok, error, feed, used }) => ({ id, label, ok, error, feed, used })),
     summary_text: summaryLine(items),
   };
