@@ -40,7 +40,7 @@ jobs:
     timeout-minutes: 30
     environment:
       name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
+      url: ${{ steps.deploy-url.outputs.page_url }}
     steps:
       - name: دریافت مخزن
         uses: actions/checkout@v4
@@ -93,9 +93,42 @@ jobs:
         with:
           path: _site
 
-      - name: انتشار روی Pages
+      # انتشار با سه تلاش و فاصلهٔ بین آن‌ها تا خطای موقت شبکه/سرویس، زنجیرهٔ خودکار را قطع نکند.
+      - name: انتشار روی Pages (تلاش ۱)
         id: deployment
+        continue-on-error: true
         uses: actions/deploy-pages@v5
+
+      - name: فاصله پیش از تلاش دوباره (۱)
+        if: steps.deployment.outcome == 'failure'
+        run: |
+          echo "تلاش اول انتشار ناموفق بود؛ ۴۵ ثانیه صبر…"
+          sleep 45
+
+      - name: انتشار روی Pages (تلاش ۲)
+        id: deployment-retry
+        if: steps.deployment.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/deploy-pages@v5
+
+      - name: فاصله پیش از تلاش دوباره (۲)
+        if: steps.deployment.outcome == 'failure' && steps.deployment-retry.outcome == 'failure'
+        run: |
+          echo "تلاش دوم انتشار هم ناموفق بود؛ ۹۰ ثانیه صبر…"
+          sleep 90
+
+      - name: انتشار روی Pages (تلاش ۳)
+        id: deployment-final
+        if: steps.deployment.outcome == 'failure' && steps.deployment-retry.outcome == 'failure'
+        uses: actions/deploy-pages@v5
+
+      - name: ثبت آدرس منتشرشده
+        id: deploy-url
+        if: always()
+        run: |
+          url="${{ steps.deployment-final.outputs.page_url || steps.deployment-retry.outputs.page_url || steps.deployment.outputs.page_url }}"
+          echo "page_url=${url}" >> "$GITHUB_OUTPUT"
+          printf 'آدرس منتشرشده: %s\n' "${url:-نامشخص}"
 
       - name: زمان‌بندی اجرای بعدی
         env:
