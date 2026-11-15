@@ -557,6 +557,7 @@
   async function loadRawSettings() {
     var box = el('raw-settings');
     if (!box) return;
+    if (!REPO) { say('raw-msg', 'ویرایش فایل تنظیمات فقط روی GitHub Pages است'); return; }
     try {
       var current = await readRepoSettings();
       box.value = JSON.stringify(current.data || {}, null, 2);
@@ -569,6 +570,7 @@
   async function saveRawSettings() {
     var box = el('raw-settings');
     if (!box) return;
+    if (!REPO) { say('raw-msg', 'ویرایش فایل تنظیمات فقط روی GitHub Pages است'); return; }
     var parsed;
     try {
       parsed = JSON.parse(box.value);
@@ -592,6 +594,7 @@
   }
 
   async function downloadBackup() {
+    if (!REPO) { say('maint-msg', 'پشتیبان‌گیری از مخزن فقط روی GitHub Pages است'); return; }
     try {
       var settings = (await readRepoSettings()).data || {};
       var custom = (await readRepoCustom()).data || { sources: [], channels: [] };
