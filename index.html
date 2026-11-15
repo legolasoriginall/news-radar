@@ -76,6 +76,7 @@ a:hover { text-decoration: underline; }
 .btn:hover { background: rgba(255,255,255,.18); }
 .btn.primary { background: #0f766e; border-color: #0f766e; }
 .btn.primary:hover { background: #115e59; }
+.btn[hidden] { display: none; }
 .btn[aria-pressed="false"] { opacity: .6; }
 .btn .spin { display: none; width: 12px; height: 12px; border: 2px solid rgba(255,255,255,.4); border-top-color: #fff; border-radius: 50%; animation: spin .8s linear infinite; }
 .btn.busy .spin { display: inline-block; }
@@ -423,6 +424,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     <div class="actions">
       <button class="btn primary" id="refresh-btn" type="button"><span class="spin"></span><span id="refresh-label">به‌روزرسانی فوری</span></button>
       <button class="btn" id="auto-btn" type="button" aria-pressed="true">توقف به‌روزرسانی خودکار</button>
+      <button class="btn" id="header-admin" type="button" data-admin-open hidden>داشبورد مدیر</button>
     </div>
   </div>
 </header>
@@ -603,7 +605,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         <ul>
           <li id="method-note">ترجمهٔ ماشینی ممکن است در برخی عنوان‌ها ناقص باشد؛ پیوند اصل خبر همیشه در دسترس است.</li>
           <li>ترتیب خبر‌ها به‌طور خودکار و بدون دخالت دستی تعیین می‌شود.</li>
-          <li><a href="data.json" download>داده خام JSON</a> · <a href="news.xlsx" download>جدول اکسل</a> · <a href="admin" id="open-admin">داشبورد مدیر ↗</a></li>
+          <li><a href="data.json" download>داده خام JSON</a> · <a href="news.xlsx" download>جدول اکسل</a> · <a href="admin" id="open-admin" data-admin-open>داشبورد مدیر ↗</a></li>
           <li class="demo-links">نمایش آزمایشی: <a href="?demo=backup">حالت پشتیبان</a> · <a href="?demo=offline">حالت قطع منابع</a></li>
         </ul>
       </div>
@@ -1727,12 +1729,16 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   (function () {
     var overlay = $('admin-overlay');
     var frame = $('admin-frame');
-    var opener = $('open-admin');
+    var openers = Array.prototype.slice.call(document.querySelectorAll('[data-admin-open]'));
     var closer = $('admin-close');
-    if (!overlay || !frame || !opener || !closer) return;
+    if (!overlay || !frame || !openers.length || !closer) return;
+    var lastOpener = openers[0];
 
     function openPanel(event) {
-      if (event) event.preventDefault();
+      if (event) {
+        event.preventDefault();
+        if (event.currentTarget) lastOpener = event.currentTarget;
+      }
       // فقط یک‌بار بارگذاری می‌شود و بعد همان نشست را نگه می‌دارد.
       if (!frame.getAttribute('src') || frame.getAttribute('src') === 'about:blank') frame.src = 'admin';
       overlay.hidden = false;
@@ -1742,10 +1748,19 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     function closePanel() {
       overlay.hidden = true;
       document.body.style.overflow = '';
-      opener.focus();
+      if (lastOpener && lastOpener.focus) lastOpener.focus();
     }
 
-    opener.addEventListener('click', openPanel);
+    openers.forEach(function (item) { item.addEventListener('click', openPanel); });
+
+    // دکمهٔ سربرگ فقط وقتی دیده می‌شود که پنل مدیر واقعاً در دسترس باشد
+    // (در نسخهٔ استاتیک GitHub Pages چنین مسیری وجود ندارد).
+    var headerAdmin = $('header-admin');
+    if (headerAdmin) {
+      fetch('admin', { cache: 'no-store' })
+        .then(function (res) { if (res && res.ok) headerAdmin.hidden = false; })
+        .catch(function () { /* بدون دکمه هم داشبورد کامل است */ });
+    }
     closer.addEventListener('click', closePanel);
     overlay.addEventListener('click', function (event) {
       if (event.target === overlay) closePanel();
