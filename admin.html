@@ -117,6 +117,11 @@
         <span class="muted" id="live-auto-status">—</span>
       </div>
     </div>
+    <div class="card" id="live-paths-card" style="margin-bottom:14px">
+      <h2 style="font-size:15px;margin:0 0 4px">مسیرهای پخش زنده <span class="muted" id="live-paths-hint">—</span></h2>
+      <p class="muted" style="margin:0 0 8px">وضعیت سالم/خراب هر مسیر بر اساس آخرین آزمون واقعی تصویر در مرورگر. نتیجه در مرورگر کاربر ذخیره می‌شود و پس از بازدید از صفحهٔ اصلی به‌روز می‌گردد.</p>
+      <div id="live-paths"></div>
+    </div>
     <div class="card" id="ops-card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">اجرا و انتشار</h2>
       <p class="muted">هر تغییر در تنظیمات یا منابع، خودکار بازسازی را شروع می‌کند؛ از اینجا می‌توانی بی‌صبرانه یک اجرای تازه هم شروع کنی و نتیجه‌اش را زنده ببینی. اجرای کامل حدود ۱۵ دقیقه طول می‌کشد.</p>
@@ -995,6 +1000,60 @@
     renderLiveAutoToggle();
   }
 
+  var LIVE_PATH_CHANNELS = [
+    { id: 'iranintl', name: 'ایران اینترنشنال', sources: [
+      'https://hlspackager.akamaized.net/live/DB/IRAN_INTERNATIONAL/HLS/IRAN_INTERNATIONAL.m3u8',
+      'https://live.livetvstream.co.uk/LS-63503-4/index.m3u8',
+      'https://dev-live.livetvstream.co.uk/LS-63503-4/index.m3u8',
+      'https://dev-live.livetvstream.co.uk/LS-63503-4/chunklist_b1196000.m3u8'
+    ]},
+    { id: 'voa', name: 'صدای آمریکا', sources: [
+      'https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07/playlist.m3u8',
+      'https://voa-ingest.akamaized.net/hls/live/2033876/tvmc07/playlist_1080.m3u8'
+    ]},
+    { id: 'radiofarda', name: 'رادیو فردا', sources: [
+      'https://rferl-ingest.akamaized.net/hls/live/2121768/tvmc01/playlist.m3u8',
+      'https://rfe-ingest.akamaized.net/hls/live/2033042/tvmc01/playlist.m3u8',
+      'https://rfe-ingest.akamaized.net/hls/live/2035292/axia21/playlist.m3u8'
+    ]}
+  ];
+
+  function livePathEsc(value) { return String(value == null ? '' : value).replace(/[<>&"]/g, ''); }
+
+  function renderLivePaths() {
+    var box = el('live-paths');
+    var hint = el('live-paths-hint');
+    if (!box) return;
+    var verified = {};
+    try { verified = JSON.parse(localStorage.getItem('newsradar:liveVerified') || '{}') || {}; } catch (e) { verified = {}; }
+    var anyTested = false;
+    var html = LIVE_PATH_CHANNELS.map(function (channel) {
+      var boxCh = verified[channel.id] || {};
+      var saved = null;
+      try { saved = JSON.parse(localStorage.getItem('newsradar:liveSource:' + channel.id) || 'null'); } catch (e) { saved = null; }
+      var lastAt = 0;
+      channel.sources.forEach(function (url) {
+        var v = boxCh[url];
+        if (v && v.at && v.at > lastAt) lastAt = v.at;
+      });
+      if (lastAt) anyTested = true;
+      var rows = channel.sources.map(function (url) {
+        var v = boxCh[url];
+        var status = !v ? '<span class="tag">آزمون‌نشده</span>'
+          : (v.ok ? '<span class="tag ok">سالم</span>' : '<span class="tag err">خراب</span>');
+        var time = v && v.at ? formatDate(v.at) : '—';
+        var used = saved === url ? ' · در حال استفاده' : '';
+        return '<li>' + status + ' <code style="font-size:11px;word-break:break-all">' + livePathEsc(url) + '</code>' + used +
+          '<br><span class="muted" style="font-size:11px">' + time + '</span></li>';
+      }).join('');
+      var head = '<h3 style="font-size:13px;margin:10px 0 4px">' + livePathEsc(channel.name) +
+        (lastAt ? ' <span class="muted" style="font-size:11px">· آخرین آزمون ' + formatDate(lastAt) + '</span>' : '') + '</h3>';
+      return head + '<ul class="alerts" style="margin:0 0 8px">' + rows + '</ul>';
+    }).join('');
+    box.innerHTML = html || '<p class="muted">داده‌ای نیست.</p>';
+    if (hint) hint.textContent = anyTested ? 'آزموده شده' : 'هنوز آزمونی انجام نشده';
+  }
+
   async function startStaticMode() {
     github.static = true;
     github.token = loadToken();
@@ -1024,6 +1083,7 @@
     loadRawSettings();
     refreshRun();
     setupLiveAutoToggle();
+    renderLivePaths();
     if (github.token) refreshBuildStatus();
     var localOpen = el('local-admin-open');
     var localUrlInput = el('local-admin-url');
@@ -1070,6 +1130,7 @@
     loadRawSettings();
     refreshRun();
     setupLiveAutoToggle();
+    renderLivePaths();
     loadAlerts();
     if (!state.alertTimer) state.alertTimer = setInterval(loadAlerts, 30000);
     loadCustom();
