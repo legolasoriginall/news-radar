@@ -2697,7 +2697,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var text = await response.text();
       if (token !== satState.token) return;
       var list = groupSatChannels(parseM3uText(text));
-      if (code === 'ADULT') { list.forEach(function (e) { e.adult = true; }); }
+      if (code === 'ADULT') { list.forEach(function (e) { e.adult = true; e.free = true; }); }
       // کانال‌های ۱۸+ از فایل Adult.m3u (داخلی) همیشه افزوده می‌شوند.
       if (code !== 'ADULT') {
         try {
@@ -2712,6 +2712,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
               if (e.url && !seenA[e.url]) {
                 seenA[e.url] = true;
                 e.adult = true;
+                e.free = true;
                 list.push(e);
               }
             });
