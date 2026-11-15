@@ -6,7 +6,7 @@
  *   و اگر شبکه نبود نسخهٔ ذخیره‌شده نمایش داده می‌شود.
  * نام کش‌ها با نام مخزن شروع می‌شود چون دامنهٔ github.io بین همهٔ پروژه‌ها مشترک است.
  */
-const VERSION = 'news-radar-v4';
+const VERSION = 'news-radar-v5';
 const SHELL_CACHE = VERSION + '-shell';
 const DATA_CACHE = VERSION + '-data';
 
@@ -23,8 +23,15 @@ const DATA_FILES = [
 
 self.addEventListener('install', (event) => {
   event.waitUntil((async () => {
-    const cache = await caches.open(SHELL_CACHE);
-    try { await cache.addAll(SHELL_URLS); } catch (e) { /* بخشی کش نشد؛ درخواست‌های بعدی جبران می‌کنند */ }
+    const shellCache = await caches.open(SHELL_CACHE);
+    try { await shellCache.addAll(SHELL_URLS); } catch (e) { /* بخشی کش نشد؛ درخواست‌های بعدی جبران می‌کنند */ }
+    const dataCache = await caches.open(DATA_CACHE);
+    const lightData = [
+      new URL('health.json', BASE).href,
+      new URL('summary.json', BASE).href,
+      new URL('telegram.json', BASE).href
+    ];
+    try { await dataCache.addAll(lightData); } catch (e) { /* بخشی کش نشد */ }
     await self.skipWaiting();
   })());
 });
