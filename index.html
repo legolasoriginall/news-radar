@@ -212,6 +212,10 @@ body.sat-fs-lock { overflow: hidden; }
 }
 .live-start { width: 100%; height: 100%; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 8px; background: radial-gradient(circle at 50% 40%, #1e293b, #0b1220); color: #e2e8f0; border: 0; cursor: pointer; font-family: inherit; font-size: 14px; }
 .live-start small { color: #94a3b8; font-size: 11.5px; }
+.live-fallback { margin: 10px 0 0; }
+.live-fallback[hidden] { display: none; }
+.live-fallback a { display: inline-flex; align-items: center; min-height: 44px; padding: 0 16px; border-radius: 10px; background: #0f766e; color: #fff; text-decoration: none; font-weight: 700; font-size: 13px; }
+.live-fallback a:hover { background: #115e59; }
 .live-play { width: 52px; height: 52px; border-radius: 50%; display: flex; align-items: center; justify-content: center; background: #dc2626; color: #fff; font-size: 20px; box-shadow: 0 0 0 8px rgba(220, 38, 38, 0.18); }
 .tg-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
 .tg-filter { border: 1px solid #dbe3ec; background: #f8fafc; color: #334155; border-radius: 999px; padding: 5px 11px; min-height: 32px; font-size: 11.5px; cursor: pointer; font-family: inherit; }
@@ -518,6 +522,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
           <small>برای صرفه‌جویی در اینترنت، پخش‌کننده فقط با کلیک شما بارگذاری می‌شود</small>
         </button>
       </div>
+      <p class="live-fallback" id="live-fallback" hidden></p>
       <div class="market-note live-note">پخش‌ها از مسیرهای CDN عمومی (نه دامنهٔ خود شبکه‌ها و نه یوتیوب) می‌آیند و اگر یکی پاسخ نداد، خودکار مسیر بعدی امتحان می‌شود · <a href="https://www.manoto.com/live" target="_blank" rel="noopener noreferrer">منوتو ↗</a> · <a href="https://www.bbc.com/persian/tv" target="_blank" rel="noopener noreferrer">بی‌بی‌سی فارسی ↗</a></div>
     </div>
   </section>
@@ -2151,6 +2156,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     var start = $('live-start');
     stopLiveWatchdog();
     hideHlsFailPanel($('live-wrap'));
+    setLiveFallback(null, false);
     if (liveState && liveState.retry) { clearTimeout(liveState.retry); liveState.retry = 0; }
     if (liveState && liveState.hls) { try { liveState.hls.destroy(); } catch (e) { /* ignore */ } liveState.hls = null; }
     if (liveState && liveState.nativeErrorHandler && video) {
@@ -2180,6 +2186,20 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }
   }
 
+  function setLiveFallback(channel, show) {
+    var box = $('live-fallback');
+    if (!box) return;
+    box.textContent = '';
+    if (!show || !channel || !channel.watch) { box.hidden = true; return; }
+    var link = document.createElement('a');
+    link.href = channel.watch;
+    link.target = '_blank';
+    link.rel = 'noopener noreferrer';
+    link.textContent = 'تماشا در سایت رسمی ' + channel.name + ' ↗';
+    box.appendChild(link);
+    box.hidden = false;
+  }
+
   function showLiveError() {
     var start = $('live-start');
     var label = $('live-start-label');
@@ -2187,10 +2207,9 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (label) label.textContent = 'پخش نشد — تلاش دوبارهٔ خودکار…';
     if (start) start.hidden = false;
     var channel = liveChannelById(liveState.channel);
+    setLiveFallback(channel, true);
     if (hint) {
-      hint.textContent = channel.watch
-        ? 'همهٔ مسیرها بسته بودند؛ در ۲۰ ثانیه دوباره امتحان می‌شود'
-        : 'همهٔ مسیرها بسته بودند؛ در ۲۰ ثانیه دوباره امتحان می‌شود';
+      hint.textContent = 'همهٔ مسیرها بسته بودند؛ در ۲۰ ثانیه دوباره امتحان می‌شود';
     }
     if (liveState.retry) clearTimeout(liveState.retry);
     liveState.retry = setTimeout(function () {
@@ -2274,6 +2293,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         storeSet(liveSourceKey(channel.id), src);
         // برای بازسازی خودکار پخش‌کننده بعد از بازخوانی صفحه (اگر کاربر روشن کرده باشد)
         if (liveAutoResumeEnabled()) storeSet('newsradar:livePlaying', channel.id);
+        setLiveFallback(channel, false);
         var hint = $('live-hint');
         if (hint) hint.textContent = 'پخش زنده · ' + channel.name;
         var startBtn = $('live-start');
