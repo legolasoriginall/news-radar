@@ -814,8 +814,10 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   // خبرهای بعدی و فهرست تلگرام همراه فایل اول نمی‌آیند تا باز شدن صفحه سبک بماند؛
   // هرکدام یک‌بار و فقط وقتی لازم شد خوانده و برای نوسازی‌های بعدی نگه داشته می‌شوند.
   var moreArticles = [];
-  var moreLoaded = false;
+  var moreChunk = 1;        // شمارهٔ قطعهٔ بعدی آرشیو (هر قطعه ۵۰۰ خبر)
+  var moreDone = false;
   var moreBusy = false;
+  var MORE_CHUNK = 500;
   var telegramCache = null;
   var telegramBusy = false;
 
@@ -832,20 +834,24 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   }
 
   async function ensureMoreArticles() {
-    if (moreLoaded || moreBusy || !state.data) return;
-    // در اجرای محلی، data.json از ابتدا همهٔ خبرها را دارد و فایل دومی وجود ندارد.
-    if (FEED_FILE === 'data.json') { moreLoaded = true; return; }
+    if (moreDone || moreBusy || !state.data) return;
+    // در اجرای محلی، data.json از ابتدا همهٔ خبرها را دارد و قطعه‌ای وجود ندارد.
+    if (FEED_FILE === 'data.json') { moreDone = true; return; }
     moreBusy = true;
     try {
-      var res = await fetch('feed-more.json', { cache: 'no-cache' });
+      var res = await fetch('feed-more-' + moreChunk + '.json', { cache: 'no-cache' });
+      if (res.status === 404) { moreDone = true; return; }
       if (!res.ok) throw new Error('HTTP ' + res.status);
       var json = await res.json();
-      moreArticles = Array.isArray(json.articles) ? json.articles : [];
-      appendArticles(state.data, moreArticles);
-      moreLoaded = true;
+      var chunk = Array.isArray(json.articles) ? json.articles : [];
+      moreArticles = moreArticles.concat(chunk);
+      appendArticles(state.data, chunk);
+      moreChunk += 1;
+      if (chunk.length < MORE_CHUNK) moreDone = true; // آخرین قطعه
       renderFeed();
     } catch (error) {
-      moreLoaded = true; // جلوگیری از تلاش پشت‌سرهم روی اتصال قطع
+      // اتصال قطع یا خطای موقت: قطعه مصرف نشده و کلیک بعدی دوباره تلاش می‌کند
+      return;
     } finally {
       moreBusy = false;
     }
@@ -1569,10 +1575,13 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         '</li>';
     }).join('');
 
+    // کل آرشیو (stats.total) مبناست، نه خبرهای بارگذاری‌شده؛ وگرنه با خواندن
+    // مرحله‌ای، شمارنده و دکمهٔ «نمایش بیشتر» زودتر از موعد متوقف می‌شدند.
+    var totalKnown = Math.max(list.length, Number((data.stats && data.stats.total) || 0));
     $('empty').style.display = list.length ? 'none' : 'block';
-    $('more').style.display = list.length > state.page ? 'inline-block' : 'none';
+    $('more').style.display = !moreDone && totalKnown > state.page ? 'inline-block' : 'none';
     $('counter').textContent = list.length
-      ? 'نمایش ' + fmt(Math.min(state.page, list.length)) + ' از ' + fmt(list.length) + ' خبر'
+      ? 'نمایش ' + fmt(Math.min(state.page, list.length)) + ' از ' + fmt(totalKnown) + ' خبر'
       : '';
     $('feed-hint').textContent = 'همهٔ خبرها بدون محدودیت زمانی · ' + fmt((data.stats && data.stats.total) || data.articles.length) + ' خبر';
   }

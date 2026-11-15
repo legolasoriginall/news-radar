@@ -6,7 +6,7 @@
  *   و اگر شبکه نبود نسخهٔ ذخیره‌شده نمایش داده می‌شود.
  * نام کش‌ها با نام مخزن شروع می‌شود چون دامنهٔ github.io بین همهٔ پروژه‌ها مشترک است.
  */
-const VERSION = 'news-radar-v2';
+const VERSION = 'news-radar-v3';
 const SHELL_CACHE = VERSION + '-shell';
 const DATA_CACHE = VERSION + '-data';
 
@@ -14,7 +14,6 @@ const BASE = self.registration.scope; // مثلاً https://user.github.io/news-
 const SHELL_KEY = new URL('index.html', BASE).href;
 const DATA_FILES = [
   new URL('feed.json', BASE).pathname,
-  new URL('feed-more.json', BASE).pathname,
   new URL('telegram.json', BASE).pathname,
   new URL('data.json', BASE).pathname
 ];
@@ -44,7 +43,7 @@ self.addEventListener('fetch', (event) => {
   // مسیرهای پویا و پنل مدیر کش نمی‌شوند
   if (url.pathname.indexOf('/api/') !== -1 || url.pathname.indexOf('/admin') !== -1) return;
 
-  if (DATA_FILES.indexOf(url.pathname) !== -1) {
+  if (DATA_FILES.indexOf(url.pathname) !== -1 || /\/feed-more-\d+\.json$/.test(url.pathname)) {
     event.respondWith(staleWhileRevalidate(event, url));
     return;
   }

@@ -130,7 +130,6 @@ jobs:
           };
           const articles = (data.articles || []).slice().sort(byDate).map(trimArticle);
           const HEAD = 200;   // همراه صفحهٔ اصلی
-          const MORE = 400;   // با «نمایش بیشتر» خوانده می‌شود
           const feed = {};
           ['generated_at', 'next_update_at', 'update_interval_minutes', 'stats', 'markets',
             'topics', 'translations', 'source_health', 'settings'].forEach((key) => {
@@ -142,16 +141,27 @@ jobs:
           const telegram = data.telegram || {};
           feed.telegram = { posts: [], channels: Array.isArray(telegram.channels) ? telegram.channels : [], deferred: true };
           fs.writeFileSync('_site/feed.json', JSON.stringify(feed));
-          fs.writeFileSync('_site/feed-more.json', JSON.stringify({
-            generated_at: data.generated_at,
-            articles: articles.slice(HEAD, HEAD + MORE)
-          }));
+          // آرشیو به قطعه‌های ۵۰۰تایی شکسته می‌شود تا «نمایش بیشتر» هر بار فقط
+          // یک قطعه را از سرور بگیرد و کل آرشیو قابل مرور بماند.
+          const CHUNK = 500;
+          const rest = articles.slice(HEAD);
+          let chunks = 0;
+          for (let i = 0; i * CHUNK < rest.length; i += 1) {
+            chunks += 1;
+            fs.writeFileSync('_site/feed-more-' + chunks + '.json', JSON.stringify({
+              generated_at: data.generated_at,
+              chunk: chunks,
+              chunk_size: CHUNK,
+              articles: rest.slice(i * CHUNK, (i + 1) * CHUNK)
+            }));
+          }
+          console.log('archive chunks:', chunks, 'of', rest.length, 'articles');
           fs.writeFileSync('_site/telegram.json', JSON.stringify({
             generated_at: data.generated_at,
             telegram: { posts: Array.isArray(telegram.posts) ? telegram.posts : [], channels: Array.isArray(telegram.channels) ? telegram.channels : [] }
           }));
           NODE
-          ls -lh _site/feed.json _site/feed-more.json _site/telegram.json
+          ls -lh _site/feed.json _site/feed-more-*.json _site/telegram.json
           # فهرست‌های پخش ماهواره به‌صورت محلی هم منتشر می‌شوند تا بازکردن این بخش به
           # میزبان‌های خارجی که از ایران کند یا بسته‌اند وابسته نباشد. اگر دانلود نشد،
           # سایت همان آینه‌های عمومی را امتحان می‌کند و چیزی نمی‌شکند.
