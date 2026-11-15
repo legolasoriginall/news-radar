@@ -3334,6 +3334,17 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     })();
   })();
 
+  // سرویس‌ورکر: بازدید دوباره فایل داده را از دیسک می‌خواند و نسخهٔ تازه را
+  // در پس‌زمینه جایگزین می‌کند؛ روی اتصال کند این چند ثانیه صرفه‌جویی است.
+  (function initServiceWorker() {
+    if (!('serviceWorker' in navigator) || location.protocol !== 'https:') return;
+    navigator.serviceWorker.register('sw.js', { updateViaCache: 'none' }).catch(function () { /* بی‌اثر */ });
+    navigator.serviceWorker.addEventListener('message', function (event) {
+      if (!event.data || event.data.type !== 'feed-updated' || document.hidden) return;
+      loadData(false);
+    });
+  })();
+
   // مهر نسخه: کامیت و زمان انتشار را از version.json (ساختهٔ گردش‌کار) می‌خواند
   (function initBuildStamp() {
     var el = $('build-stamp');

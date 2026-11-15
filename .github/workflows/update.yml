@@ -97,6 +97,7 @@ jobs:
           cp index.html _site/
           cp admin.html _site/
           cp status.html _site/
+          cp sw.js _site/
           cp favicon.svg _site/
           cp Adult.m3u _site/
           cp AdultVod.m3u _site/
