@@ -18,6 +18,7 @@ on:
       - 'package.json'
       - 'index.html'
       - 'admin.html'
+      - 'status.html'
       - 'Adult.m3u'
       - 'AdultVod.m3u'
       - 'settings.json'
