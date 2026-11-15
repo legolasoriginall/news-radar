@@ -2679,6 +2679,25 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var text = await response.text();
       if (token !== satState.token) return;
       var list = groupSatChannels(parseM3uText(text));
+      // کانال‌های ۱۸+ همیشه از فهرست جهانی iptv-org افزوده می‌شوند تا این دسته در هر کشور هم دیده شود.
+      if (code) {
+        try {
+          var gRes = await satFetchFirst(SAT_ALL_URLS, { cache: 'force-cache' });
+          var gText = await gRes.text();
+          if (token === satState.token) {
+            var gList = groupSatChannels(parseM3uText(gText));
+            var seen = {};
+            list.forEach(function (e) { if (e.url) seen[e.url] = true; });
+            gList.forEach(function (e) {
+              var t = String(e.group || '') + ' ' + String(e.name || '');
+              if (/\bxxx\b|adult|18\+|porn|эрот/i.test(t) && e.url && !seen[e.url]) {
+                seen[e.url] = true;
+                list.push(e);
+              }
+            });
+          }
+        } catch (e) { /* ignore */ }
+      }
       list.sort(function (a, b) {
         if (Boolean(a.free) !== Boolean(b.free)) return a.free ? -1 : 1;
         return String(a.name).localeCompare(String(b.name));
