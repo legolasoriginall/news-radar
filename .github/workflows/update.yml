@@ -63,6 +63,7 @@ jobs:
 
       # تولید داده‌ها با سه تلاش و فاصلهٔ افزایشی؛ خطای موقت شبکه/منبع داده زنجیره را قطع نکند.
       - name: تولید داده‌ها
+        id: pipeline
         env:
           MYMEMORY_EMAIL: ${{ secrets.MYMEMORY_EMAIL }}
         run: |
@@ -72,10 +73,12 @@ jobs:
           while [ "$attempt" -le "$max" ]; do
             echo "تلاش ${attempt} از ${max} برای تولید داده‌ها…"
             if node pipeline.mjs; then
+              echo "$attempt" > .chain-data-attempts
               echo "تولید داده‌ها موفق بود."
               exit 0
             fi
             if [ "$attempt" -eq "$max" ]; then
+              echo "$attempt" > .chain-data-attempts
               echo "تولید داده‌ها پس از ${max} تلاش ناموفق ماند." >&2
               exit 1
             fi
@@ -98,6 +101,8 @@ jobs:
           cp AdultVod.m3u _site/
           cp data.json _site/
           cp news.xlsx _site/
+          # گزارش وضعیت زنجیره از اجرای قبلی (اگر وجود داشته باشد) هم منتشر می‌شود.
+          if [ -f chain-log.json ]; then cp chain-log.json _site/; fi
           cp -r vendor _site/
           mkdir -p _site/src
           cp src/hls-loader.js _site/src/
@@ -168,6 +173,64 @@ jobs:
           fi
           echo "page_url=${url}" >> "$GITHUB_OUTPUT"
           printf 'آدرس منتشرشده: %s\n' "$url"
+
+      - name: ثبت وضعیت زنجیره
+        # حتی با شکست مراحل قبلی، وضعیت همین اجرا ثبت و منتشر می‌شود.
+        if: ${{ !cancelled() }}
+        env:
+          DISPATCH_TOKEN: ${{ secrets.NEWS_RADAR_TOKEN }}
+          REPO: ${{ github.repository }}
+          RUN_ID: ${{ github.run_id }}
+          SHA: ${{ github.sha }}
+          DATA_OUTCOME: ${{ steps.pipeline.outcome }}
+          ARTIFACT_1: ${{ steps.artifact.outcome }}
+          ARTIFACT_2: ${{ steps.artifact-retry.outcome }}
+          DEPLOY_1: ${{ steps.deployment.outcome }}
+          DEPLOY_2: ${{ steps.deployment-retry.outcome }}
+          DEPLOY_3: ${{ steps.deployment-final.outcome }}
+          PAGE_URL: ${{ steps.deploy-url.outputs.page_url }}
+        run: |
+          set -u
+          node - <<'NODE'
+          const fs = require('fs');
+          const env = process.env;
+          const ok = (value) => value === 'success';
+          const attempts = (list) => list.filter((value) => value && value !== 'skipped').length;
+          const readAttempts = () => {
+            try { return Number(fs.readFileSync('.chain-data-attempts', 'utf8').trim()) || 0; } catch (e) { return 0; }
+          };
+          const dataAttempts = readAttempts() || (env.DATA_OUTCOME === 'success' ? 1 : 0);
+          const artifactAttempts = attempts([env.ARTIFACT_1, env.ARTIFACT_2]);
+          const deployAttempts = attempts([env.DEPLOY_1, env.DEPLOY_2, env.DEPLOY_3]);
+          const entry = {
+            at: new Date().toISOString(),
+            commit: String(env.SHA || '').slice(0, 7),
+            run: env.RUN_ID || '',
+            data: { attempts: dataAttempts, ok: ok(env.DATA_OUTCOME) || env.DATA_OUTCOME === 'skipped' },
+            artifact: { attempts: artifactAttempts, ok: ok(env.ARTIFACT_1) || ok(env.ARTIFACT_2) || artifactAttempts === 0 },
+            deploy: { attempts: deployAttempts, ok: ok(env.DEPLOY_1) || ok(env.DEPLOY_2) || ok(env.DEPLOY_3) || deployAttempts === 0 },
+            url: env.PAGE_URL || '',
+          };
+          let log = [];
+          try { log = JSON.parse(fs.readFileSync('chain-log.json', 'utf8')); } catch (e) { log = []; }
+          if (!Array.isArray(log)) log = [];
+          log.push(entry);
+          fs.writeFileSync('chain-log.json', JSON.stringify(log.slice(-60), null, 1) + '\n');
+          console.log('ثبت شد: ' + JSON.stringify(entry));
+          NODE
+
+          git config user.name "news-radar-bot"
+          git config user.email "actions@users.noreply.github.com"
+          git add chain-log.json
+          git commit -m "ثبت وضعیت اجرای زنجیره" >/dev/null 2>&1 || echo "رکورد جدیدی برای ثبت نبود"
+          if [ -n "${DISPATCH_TOKEN:-}" ]; then
+            git remote set-url origin "https://x-access-token:${DISPATCH_TOKEN}@github.com/${REPO}.git"
+            git push origin HEAD:main || {
+              git pull --rebase origin main && git push origin HEAD:main
+            } || echo "ثبت وضعیت در مخزن ناموفق بود" >&2
+          else
+            echo "توکن ثبت وضعیت تنظیم نشده؛ فقط در همین اجرا ثبت شد." >&2
+          fi
 
       - name: زمان‌بندی اجرای بعدی
         # حتی اگر انتشار یا تولید داده شکست بخورد، حلقهٔ خودکار متوقف نشود

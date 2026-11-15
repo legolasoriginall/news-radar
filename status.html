@@ -124,6 +124,30 @@ footer { color: var(--muted); font-size: 11.6px; padding: 0 0 26px; }
     <div class="empty" id="empty" hidden>منبعی با این فیلتر پیدا نشد.</div>
   </section>
 
+  <section class="panel" id="chain-panel">
+    <div class="toolbar">
+      <h2 style="margin:0;font-size:15.5px">زنجیرهٔ به‌روزرسانی خودکار</h2>
+      <span class="hint" id="chain-hint">در حال خواندن…</span>
+    </div>
+    <div class="summary" id="chain-stats" style="margin-top:10px"></div>
+    <div class="table-wrap">
+      <table>
+        <thead>
+          <tr>
+            <th>زمان</th>
+            <th>کامیت</th>
+            <th>تولید داده</th>
+            <th>بارگذاری</th>
+            <th>انتشار</th>
+            <th>نتیجه</th>
+          </tr>
+        </thead>
+        <tbody id="chain-rows"></tbody>
+      </table>
+    </div>
+    <div class="hint" style="margin-top:8px">هر اجرای زنجیره یک ردیف ثبت می‌کند؛ ستون‌های «تلاش» نشان می‌دهند تلاش دوباره لازم شده یا نه.</div>
+  </section>
+
   <footer id="foot"></footer>
 </main>
 
@@ -297,8 +321,66 @@ footer { color: var(--muted); font-size: 11.6px; padding: 0 0 26px; }
     });
   });
 
+  // وضعیت اجراهای زنجیرهٔ خودکار (فایل chain-log.json که گردش‌کار می‌نویسد)
+  function chainBadge(part) {
+    if (!part || !part.attempts) return '<span class="badge arch">اجرا نشد</span>';
+    if (part.ok) {
+      return '<span class="badge ok">موفق' + (part.attempts > 1 ? ' · تلاش ' + num(part.attempts) : '') + '</span>';
+    }
+    return '<span class="badge bad">ناموفق' + (part.attempts > 1 ? ' · ' + num(part.attempts) + ' تلاش' : '') + '</span>';
+  }
+
+  function chainRow(run) {
+    var complete = run.data && run.data.ok && run.deploy && run.deploy.ok;
+    return '<tr>' +
+      '<td class="num">' + clock(run.at) + '</td>' +
+      '<td class="sub">' + esc((run.commit || '—')) + '</td>' +
+      '<td>' + chainBadge(run.data) + '</td>' +
+      '<td>' + chainBadge(run.artifact) + '</td>' +
+      '<td>' + chainBadge(run.deploy) + '</td>' +
+      '<td><span class="badge ' + (complete ? 'ok' : 'bad') + '">' + (complete ? 'کامل' : 'ناقص') + '</span></td>' +
+      '</tr>';
+  }
+
+  async function loadChain() {
+    try {
+      var res = await fetch('chain-log.json?_=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var log = await res.json();
+      if (!Array.isArray(log)) log = [];
+      var stats = { runs: log.length, dataFail: 0, artFail: 0, deployFail: 0, rescued: 0 };
+      log.forEach(function (run) {
+        ['data', 'artifact', 'deploy'].forEach(function (key) {
+          var part = run[key] || {};
+          if (part.attempts && !part.ok) {
+            if (key === 'data') stats.dataFail += 1;
+            else if (key === 'artifact') stats.artFail += 1;
+            else stats.deployFail += 1;
+          }
+          if (part.attempts > 1 && part.ok) stats.rescued += 1;
+        });
+      });
+      var rows = log.slice(-12).reverse();
+      $('chain-stats').innerHTML =
+        '<div class="stat"><div class="label">اجراهای ثبت‌شده</div><div class="value">' + num(stats.runs) + '</div></div>' +
+        '<div class="stat bad"><div class="label">شکست تولید داده</div><div class="value">' + num(stats.dataFail) + '</div></div>' +
+        '<div class="stat bad"><div class="label">شکست بارگذاری</div><div class="value">' + num(stats.artFail) + '</div></div>' +
+        '<div class="stat bad"><div class="label">شکست انتشار</div><div class="value">' + num(stats.deployFail) + '</div></div>' +
+        '<div class="stat ok"><div class="label">نجات با تلاش دوباره</div><div class="value">' + num(stats.rescued) + '</div></div>';
+      $('chain-rows').innerHTML = rows.map(chainRow).join('') ||
+        '<tr><td colspan="6" class="empty">هنوز اجرایی ثبت نشده است.</td></tr>';
+      $('chain-hint').textContent = num(log.length) + ' اجرا ثبت شده' +
+        (rows[0] && rows[0].at ? ' · آخرین: ' + age(rows[0].at) : '');
+    } catch (error) {
+      $('chain-hint').textContent = 'وضعیت زنجیره هنوز منتشر نشده است';
+      $('chain-rows').innerHTML = '<tr><td colspan="6" class="empty">فایل chain-log.json در دسترس نیست.</td></tr>';
+    }
+  }
+
   load();
   setInterval(load, 60000);
+  loadChain();
+  setInterval(loadChain, 60000);
 })();
 </script>
 </body>
