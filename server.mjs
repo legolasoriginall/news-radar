@@ -230,9 +230,11 @@ function buildCsp(nonce, isAdminPage) {
   return directives.join('; ');
 }
 
-// nonce را در تگ‌های <script> درون‌خطی می‌گذارد (تگ‌های دارای src دست نمی‌خورند)
+// nonce را در همهٔ تگ‌های <script> بدون nonce می‌گذارد (درون‌خطی و دارای src)
+// nonce به همهٔ تگ‌های script بدون nonce اضافه می‌شود (حتی script با src) تا با
+// strict-dynamic اسکریپت‌های همین مبدا مثل src/hls-loader.js هم مجاز باشند.
 function withCspNonce(html, nonce) {
-  return String(html).replace(/<script(?![^>]*\bsrc=)([^>]*)>/gi, (tag, attrs) => `<script nonce="${nonce}"${attrs}>`);
+  return String(html).replace(/<script(?![^>]*\bnonce=)([^>]*)>/gi, (tag, attrs) => `<script nonce="${nonce}"${attrs}>`);
 }
 
 function isSecureRequest(req) {
