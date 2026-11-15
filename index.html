@@ -2567,7 +2567,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   function satCountryOptionsFromBuiltin() {
     var items = Object.keys(SAT_COUNTRY_NAMES).map(function (code) { return { code: code }; });
     items.sort(function (a, b) { return satCountryName(a.code).localeCompare(satCountryName(b.code), 'fa'); });
-    var options = ['<option value="">همهٔ کشورها</option>', '<option value="ADULT">۱۸+</option>'];
+    var options = ['<option value="">همهٔ کشورها</option>', '<option value="ADULT">۱۸+</option>', '<option value="ADULTVOD">۱۸+ کلیپ</option>'];
     items.forEach(function (country) {
       options.push('<option value="' + country.code + '">' + esc(satCountryName(country.code)) + '</option>');
     });
@@ -2638,6 +2638,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         options.push('<option value="' + country.code + '">' + (country.flag ? country.flag + ' ' : '') + esc(satCountryName(country.code)) + '</option>');
       });
       options.push('<option value="ADULT">۱۸+</option>');
+      options.push('<option value="ADULTVOD">۱۸+ کلیپ</option>');
       var select = $('sat-country');
       if (select) {
         select.innerHTML = options.join('');
@@ -2671,7 +2672,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
   async function loadSatList(code) {
     // در دستهٔ ۱۸+ همهٔ شبکه‌ها حتی بی‌پخش‌ها نمایش داده می‌شوند تا فهرست خالی نماند.
-    if (code === 'ADULT') {
+    if (code === 'ADULT' || code === 'ADULTVOD') {
       satState.showDead = true;
       var sd = $('sat-show-dead');
       if (sd) sd.checked = false;
@@ -2692,18 +2693,19 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (hint) hint.textContent = 'در حال خواندن فهرست…';
     if (box) box.innerHTML = '';
     try {
-      var satUrl = (code === 'ADULT') ? 'Adult.m3u' : (code ? satCountryUrls(code) : SAT_ALL_URLS);
-      // Adult.m3u is a local relative path; use fetch directly
+      var adultFile = code === 'ADULT' ? 'Adult.m3u' : (code === 'ADULTVOD' ? 'AdultVod.m3u' : '');
+      var satUrl = code ? satCountryUrls(code) : SAT_ALL_URLS;
+      // فایل‌های ۱۸+ محلی‌اند و با fetch مستقیم خوانده می‌شوند
       var response;
-      if (code === 'ADULT') {
-        response = await fetch('Adult.m3u', { cache: 'no-store' });
+      if (adultFile) {
+        response = await fetch(adultFile, { cache: 'no-store' });
       } else {
         response = await satFetchFirst(satUrl, { cache: 'force-cache' });
       }
       var text = await response.text();
       if (token !== satState.token) return;
       var list = groupSatChannels(parseM3uText(text));
-      if (code === 'ADULT') { list.forEach(function (e) { e.adult = true; e.free = true; }); }
+      if (adultFile) { list.forEach(function (e) { e.adult = true; e.free = true; }); }
       // کانال‌های ۱۸+ از فایل Adult.m3u (داخلی) همیشه افزوده می‌شوند.
       if (code !== 'ADULT') {
         try {

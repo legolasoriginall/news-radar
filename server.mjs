@@ -221,6 +221,7 @@ const MIME = {
   '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   '.ico': 'image/x-icon',
   '.txt': 'text/plain; charset=utf-8',
+  '.m3u': 'audio/x-mpegurl; charset=utf-8',
 };
 
 // --- هدرهای امنیتی --------------------------------------------------------
@@ -537,7 +538,7 @@ function serveStatusPage(res) {
 
 // فقط همین فایل‌ها و پوشه‌ها عمومی‌اند؛ هر چیز دیگری (کد سرور، پیکربندی،
 // فایل‌های نقطه‌ای و پوشه‌های داخلی) حتی با آدرس مستقیم هم سرو نمی‌شود.
-const PUBLIC_FILES = new Set(['/index.html', '/status.html', '/data.json', '/news.xlsx', '/favicon.svg', '/src/hls-loader.js']);
+const PUBLIC_FILES = new Set(['/index.html', '/status.html', '/data.json', '/news.xlsx', '/favicon.svg', '/Adult.m3u', '/AdultVod.m3u', '/src/hls-loader.js']);
 
 // سیاست کش دارایی‌های ثابت: آدرسِ نسخه‌دار (?v=…) کش طولانی و immutable می‌گیرد؛
 // خود آدرس بدون نسخه کوتاه و قابل‌بازبینی می‌ماند تا لینک قدیمی محتوای کهنه ندهد.
