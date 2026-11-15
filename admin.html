@@ -490,13 +490,15 @@
   }
 
   async function chainRunDurations(tail) {
-    if (!github.token) return;
+    if (!REPO) return;
     await Promise.all((tail || []).map(async function (run) {
       if (!run || !run.run || run.duration_ms) return;
       try {
+        var headers = { Accept: 'application/vnd.github+json' };
+        if (github.token) headers.Authorization = 'Bearer ' + github.token;
         var res = await fetch('https://api.github.com/repos/' + REPO.owner + '/' + REPO.repo +
           '/actions/runs/' + encodeURIComponent(run.run), {
-          headers: { Authorization: 'Bearer ' + github.token, Accept: 'application/vnd.github+json' },
+          headers: headers,
           cache: 'no-store',
         });
         if (!res.ok) return;
