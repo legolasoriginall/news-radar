@@ -33,6 +33,9 @@ PORT=8080 npm start
 | `admin.html` | صفحهٔ خصوصی دستیار مدیر (فقط از سرور محلی، رمزدار) |
 | `test/markets.test.mjs` | تست زنجیرهٔ منابع نرخ: حالت عادی، دو منبع قطع، همهٔ منابع قطع، پوشش ناقص و آستانهٔ اختلاف |
 | `.github/workflows/update.yml` | گردش‌کار گیت‌هاب: تست، تولید داده و انتشار روی Pages |
+| `gateway/serve.py` | درگاه محلی Respan روی `127.0.0.1` برای مدل دستیار (پایتون) |
+| `requirements.txt` | وابستگی پایتون درگاه: `respan-gateway==0.3.0` |
+| `scripts/gateway-smoke.mjs` | بررسی دودی مسیر دستیار از درگاه، با یک تأمین‌کنندهٔ ساختگی و بدون کلید واقعی |
 | `scheduler/` | راهنما و اسکریپت زمان‌بند ویندوزی برای تریگر دستی گردش‌کار |
 | `data.json` | دادهٔ کامل داشبورد (همهٔ خبرها + تحلیل + بازار) |
 | `news.xlsx` | خروجی اکسل: اخبار، موضوعات، بازار، منابع، تحلیل، خلاصه |
@@ -64,6 +67,26 @@ ALERT_TELEGRAM_CHAT_ID=شناسهٔ-چت
 
 - **مدل محلی رایگان:** [Ollama](https://ollama.com) را نصب کن، `ollama pull llama3.2` و بعد `npm start`؛ پنل خودش مدل محلی را پیدا می‌کند (`OLLAMA_URL`/`OLLAMA_MODEL` اختیاری). داده از کامپیوتر تو بیرون نمی‌رود.
 - **حالت بدون مدل:** اگر مدلی نصب نباشد، پیام‌هایت به دستورهای آماده تبدیل می‌شوند: «وضعیت سایت»، «سلامت پخش»، «به‌روزرسانی خبرها». همین کارها از مسیر `/admin/api/tool` هم بدون هیچ مدلی اجرا می‌شوند.
+
+**گذر از درگاه محلی Respan (اختیاری):** اگر می‌خواهی دستورهای مدل دستیار از یک درگاه واحد رد شوند — تا بعداً مسیر، مدل و کلید را یک‌جا عوض کنی — [درگاه Respan](https://github.com/respanai/respan-gateway?utm_source=freebuff&utm_medium=paid&utm_campaign=respan-gateway&bfcid=bfc_1.eyJpZCI6IjJjZDYwMDc2LTBiZjAtNGMyMS04Mjk2LWM4ZGI1OWY0OWY1OSIsImMiOiIyMDM2ODZkZS1mMzg0LTQ4NTQtYmViNC1hYzBiYWRmNmM1NTUiLCJrIjoiM2IxMGE4YmUtNzgyOS00MmJhLWFmNmEtYmI0YWUxZTRhY2Y4IiwiaWF0IjoxNzk0NTczOTI2fQ.-tUThyVEUc1QAjN2Y2g0VfZweqdh6Tau2wNnDzDAwZw) را نصب کن؛ روی همین کامپیوتر (`127.0.0.1`) بالا می‌آید، نه حساب Respan می‌خواهد نه کردیت، و کلید تأمین‌کنندهٔ خودت (OpenAI/Anthropic/Gemini/…) همان‌جا می‌ماند:
+
+```bash
+python -m venv .venv
+.venv/bin/python -m pip install --only-binary=:all: -r requirements.txt   # respan-gateway==0.3.0
+npm run gateway                 # درگاه روی http://127.0.0.1:8788/v1
+```
+
+کلید تأمین‌کننده را مثل قبل در `.env` پروژه بگذار (این فایل در گیت نیست) و برای وصل‌کردن دستیار به درگاه این خط را هم اضافه کن:
+
+```
+RESPAN_GATEWAY_URL=http://127.0.0.1:8788
+# RESPAN_GATEWAY_MODEL=gpt-4o-mini   # هر مدلی که درگاه مسیریابی می‌کند، مثل claude-haiku-5-5 یا gemini-2.0-flash
+# RESPAN_GATEWAY_PORT=8788           # اگر پورت را عوض کردی، برای npm run gateway هم همان را بگذار
+```
+
+بعد مثل همیشه `npm start`. تا وقتی `RESPAN_GATEWAY_URL` خالی است، دستیار مانند قبل مستقیم سراغ Z.ai/OpenAI/Ollama می‌رود؛ همین‌طور اگر درگاه بالا نباشد پیام خطای همان درخواست در پنل دیده می‌شود و بقیهٔ داشبورد دست‌نخورده کار می‌کند. درگاه فقط روی loopback گوش می‌دهد و بدون `client_keys` به آدرس غیرمحلی اجازهٔ بالا آمدن نمی‌دهد.
+
+**بررسی بدون کلید واقعی:** `npm run gateway:check` یک تأمین‌کنندهٔ ساختگی محلی بالا می‌آورد، درگاه Respan را از `gateway/serve.py` اجرا می‌کند و یک گفت‌وگوی ابزاری دستیار را از مسیر واقعی برنامه (`runAssistant` → `chatWithTools` → درگاه) می‌فرستد. آخرین اجرا: درگاه روی `http://127.0.0.1:<port>/v1` بالا آمد، مدل `gpt-4o-mini` مسیریابی شد، ابزار `site_status` فراخوانی شد و پاسخ نهایی از تأمین‌کنندهٔ ساختگی برگشت (۲ درخواست). این بررسی درخواستی به تأمین‌کنندهٔ ابری نمی‌فرستد؛ تأیید درخواست واقعی مدل به کلید معتبر خودت و اجرای `npm start` با درگاه بالا نیاز دارد.
 
 ## میزبانی روی GitHub Pages
 

@@ -91,6 +91,16 @@
 
   <section id="settings" hidden style="margin-top:14px">
     <div class="card" style="margin-bottom:14px">
+      <h2 style="font-size:15px;margin:0 0 4px">آستانهٔ سکوت خبری</h2>
+      <p class="muted">منبعی که پاسخ می‌دهد ولی بیش از این مدت خبر تازه نداده، در داشبورد «ساکت» و در هشدارها «سکوت خبری» حساب می‌شود. مقدار مجاز: ۱ تا ۷۲۰ ساعت.</p>
+      <div class="row">
+        <input class="field" id="silent-hours" type="number" min="1" max="720" step="1" style="max-width:120px" dir="ltr" inputmode="numeric" aria-label="آستانهٔ سکوت خبری به ساعت">
+        <span class="muted">ساعت</span>
+        <button id="silent-save">ذخیره</button>
+        <span class="muted" id="silent-msg"></span>
+      </div>
+    </div>
+    <div class="card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">هشدارها <span id="alerts-badge" class="badge" hidden></span></h2>
       <p class="muted" id="alerts-info"></p>
       <div class="row">
@@ -184,6 +194,7 @@
     loadAlerts();
     if (!state.alertTimer) state.alertTimer = setInterval(loadAlerts, 30000);
     loadCustom();
+    loadSettings();
     if (session.mode === 'cloud') {
       el('session-info').textContent = 'مدل ابری: ' + session.model + ' · نشست تا ۱۲ ساعت';
     } else if (session.mode === 'local') {
@@ -246,6 +257,45 @@
       msg.textContent = error.message || 'تغییر رمز ممکن نشد';
     } finally {
       el('pwd-btn').disabled = false;
+    }
+  });
+
+  async function loadSettings() {
+    var msg = el('silent-msg');
+    try {
+      var payload = await api('/admin/api/settings');
+      var input = el('silent-hours');
+      if (payload.settings && payload.settings.silent_hours) input.value = String(payload.settings.silent_hours);
+      if (payload.limits) {
+        input.min = payload.limits.min;
+        input.max = payload.limits.max;
+      }
+      msg.textContent = '';
+    } catch (error) {
+      msg.textContent = 'خواندن تنظیمات ناموفق بود: ' + error.message;
+    }
+  }
+
+  el('silent-save').addEventListener('click', async function () {
+    var msg = el('silent-msg');
+    var hours = Number(el('silent-hours').value);
+    if (!isFinite(hours) || hours < 1) {
+      msg.textContent = 'یک عدد ساعت معتبر بگذار';
+      return;
+    }
+    el('silent-save').disabled = true;
+    msg.textContent = 'در حال ذخیره…';
+    try {
+      var payload = await api('/admin/api/settings', {
+        method: 'POST',
+        body: JSON.stringify({ silent_hours: hours })
+      });
+      el('silent-hours').value = String(payload.settings.silent_hours);
+      msg.textContent = 'ذخیره شد: ' + payload.settings.silent_hours + ' ساعت';
+    } catch (error) {
+      msg.textContent = 'خطا: ' + error.message;
+    } finally {
+      el('silent-save').disabled = false;
     }
   });
 

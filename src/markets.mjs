@@ -455,28 +455,65 @@ export async function fetchMarkets({
     if (complete && attempts.filter((row) => row.ok).length >= 2) break;
   }
 
-  const byId = new Map();
+  // برای هر نرخ همهٔ منابعی که آن را می‌دهند جمع می‌شود. مقدار منبع اصلی حفظ
+  // می‌شود مگر آنکه کهنه باشد (stale)؛ در آن صورت تازه‌ترین مقدار از بقیهٔ
+  // منابع انتخاب می‌شود تا نرخِ قدیمی به کاربر نشان داده نشود.
+  const primaryLabel = attempts.find((attempt) => attempt.ok)?.label || '';
+  const candidatesById = new Map();
   for (const attempt of attempts) {
     if (!attempt.ok) continue;
     for (const item of attempt.items) {
-      if (byId.has(item.id)) continue;
-      byId.set(item.id, { ...item, source: attempt.label });
-      attempt.used = true;
+      if (!candidatesById.has(item.id)) candidatesById.set(item.id, []);
+      candidatesById.get(item.id).push({ item, label: attempt.label, attempt });
     }
   }
+  const byId = new Map();
+  let refreshedCount = 0;
+  for (const [id, candidates] of candidatesById) {
+    const primary = candidates.find((entry) => entry.label === primaryLabel);
+    let chosen = primary;
+    if (!primary || primary.item.stale) {
+      const fresh = candidates.filter((entry) => !entry.item.stale);
+      const pool = fresh.length ? fresh : candidates;
+      chosen = pool.reduce((best, entry) => {
+        const bestTs = Date.parse(best.item.updated_at || '') || 0;
+        const curTs = Date.parse(entry.item.updated_at || '') || 0;
+        return curTs > bestTs ? entry : best;
+      }, pool[0]);
+    }
+    chosen.attempt.used = true;
+    const switched = chosen.label !== primaryLabel && candidates.some((entry) => entry.label === primaryLabel);
+    if (switched) refreshedCount += 1;
+    byId.set(id, { ...chosen.item, source: chosen.label, ...(switched ? { switched_from: primaryLabel } : {}) });
+  }
 
-  // تکمیل موارد باقی‌مانده از منابع جهانی (انس طلا)
-  const missing = MARKET_DEFINITIONS.filter((definition) => !byId.has(definition.id));
-  if (missing.length) {
+  // منابع جهانی (انس طلا) هم نرخ‌های جامانده را پر می‌کنند و هم نرخ کهنه را
+  // با مقدار تازه‌تر عوض می‌کنند.
+  const needsGlobal = MARKET_DEFINITIONS.filter((definition) => {
+    const current = byId.get(definition.id);
+    return !current || current.stale;
+  });
+  if (needsGlobal.length) {
     for (const provider of globalProviders) {
       const attempt = await tryProvider(provider, Math.min(timeoutMs, 15000));
       attempts.push(attempt);
       if (!attempt.ok) continue;
       for (const item of attempt.items) {
-        if (byId.has(item.id)) continue;
-        byId.set(item.id, { ...item, source: attempt.label });
+        const current = byId.get(item.id);
+        if (!current) {
+          byId.set(item.id, { ...item, source: attempt.label });
+          continue;
+        }
+        if (current.stale && !item.stale) {
+          byId.set(item.id, { ...item, source: attempt.label, switched_from: current.source });
+          refreshedCount += 1;
+        }
       }
-      if (MARKET_DEFINITIONS.every((definition) => byId.has(definition.id))) break;
+      const settled = MARKET_DEFINITIONS.every((definition) => {
+        const current = byId.get(definition.id);
+        return current && !current.stale;
+      });
+      if (settled) break;
     }
   }
 
@@ -538,6 +575,7 @@ export async function fetchMarkets({
   return {
     ok: filledFromPrevious.length === 0 && items.length === MARKET_DEFINITIONS.length,
     stale: filledFromPrevious.length > 0,
+    refreshed_count: refreshedCount,
     partial: items.length < MARKET_DEFINITIONS.length,
     previous_count: filledFromPrevious.length,
     source: usedLabels.join(' + ') || MARKET_SOURCE,

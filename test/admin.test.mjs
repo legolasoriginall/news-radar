@@ -69,6 +69,23 @@ test('پیکربندی مدل از محیط خوانده می‌شود و بدو
   assert.match(openai.baseUrl, /openai\.com/);
 });
 
+test('با RESPAN_GATEWAY_URL مدل از درگاه محلی Respan رد می‌شود', () => {
+  const config = llmConfig({ RESPAN_GATEWAY_URL: 'http://127.0.0.1:8788/' });
+  assert.equal(config.provider, 'respan-gateway');
+  assert.equal(config.baseUrl, 'http://127.0.0.1:8788/v1');
+  assert.equal(config.model, 'gpt-4o-mini');
+  assert.ok(config.apiKey);
+
+  const explicit = llmConfig({
+    RESPAN_GATEWAY_URL: 'http://127.0.0.1:8788/v1',
+    RESPAN_GATEWAY_MODEL: 'claude-haiku-5-5',
+    OPENAI_API_KEY: 'should-not-be-used',
+  });
+  assert.equal(explicit.baseUrl, 'http://127.0.0.1:8788/v1');
+  assert.equal(explicit.model, 'claude-haiku-5-5');
+  assert.notEqual(explicit.apiKey, 'should-not-be-used');
+});
+
 test('بدون کلید، مدل محلی پیش‌فرض است و کلید لازم ندارد', () => {
   const config = llmConfig({});
   assert.equal(config.provider, 'ollama');

@@ -1,0 +1,3 @@
+# درگاه محلی Respan برای دستیار مدیر (پایتون ۳.۱۰+، فقط wheel)
+# نصب وابستگی‌ها: python -m venv .venv && .venv/bin/python -m pip --only-binary=:all: -r requirements.txt
+respan-gateway==0.3.0

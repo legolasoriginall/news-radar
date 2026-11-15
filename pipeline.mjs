@@ -18,6 +18,7 @@ import {
 import { translateMany, saveCache } from './src/translate.mjs';
 import { fetchMarkets, buildMarketHistory, MARKET_SOURCE } from './src/markets.mjs';
 import { buildXlsx } from './src/xlsx.mjs';
+import { fetchFeedWithMirrors } from './src/mirrors.mjs';
 import {
   fetchTelegramFeeds,
   TELEGRAM_CHANNELS,
@@ -32,6 +33,9 @@ const XLSX_FILE = path.join(ROOT, 'news.xlsx');
 const CACHE_DIR = path.join(ROOT, '.cache');
 const HISTORY_FILE = path.join(CACHE_DIR, 'history.json');
 const SEEN_FILE = path.join(CACHE_DIR, 'seen.json');
+// آینه‌ای که برای هر منبع جواب داده در حافظه می‌ماند تا اجرای بعدی زودتر سراغش برود.
+const MIRROR_FILE = path.join(CACHE_DIR, 'feed-mirrors.json');
+const MIRROR_TIMEOUT_MS = Number(process.env.FEED_MIRROR_TIMEOUT_SECONDS || 20) * 1000;
 const MAX_PER_SOURCE = 50;
 const MAX_ARTICLES = 1400;
 
@@ -92,7 +96,7 @@ function isUsableTitle(title) {
   return true;
 }
 
-async function fetchSource(source) {
+async function fetchSource(source, mirrorStore) {
   const started = Date.now();
   let lastError = '';
   for (let attempt = 0; attempt < 2; attempt++) {
@@ -100,16 +104,53 @@ async function fetchSource(source) {
       const xml = await fetchWithTimeout(source.url);
       const parsed = parseFeed(xml, source);
       if (!parsed.items.length) throw new Error('خوراک خالی بود');
+      // دامنه دوباره سالم شده؛ آینهٔ ذخیره‌شده لازم نیست.
+      if (mirrorStore?.items && mirrorStore.items[source.id]) delete mirrorStore.items[source.id];
       return { source, items: parsed.items, elapsed: Date.now() - started, error: '' };
     } catch (error) {
       lastError = String(error?.name === 'TimeoutError' ? 'زمان پاسخ به پایان رسید' : error.message || error);
       if (attempt === 0) await new Promise((r) => setTimeout(r, 1200));
     }
   }
+
+  // مسیر اصلی جواب نداد: همان فید از مسیر جایگزین یا آرشیو خوانده می‌شود.
+  if (process.env.FEED_MIRRORS !== '0') {
+    const cached = mirrorStore?.items?.[source.id] || '';
+    const mirrored = await fetchFeedWithMirrors({ url: source.url, cached, timeoutMs: MIRROR_TIMEOUT_MS });
+    if (mirrored.ok) {
+      const parsed = parseFeed(mirrored.xml, source);
+      if (parsed.items.length) {
+        if (mirrorStore?.items) mirrorStore.items[source.id] = mirrored.via;
+        return { source, items: parsed.items, elapsed: Date.now() - started, error: '', via: mirrored.via };
+      }
+      lastError = 'خوراک آینه خالی بود';
+    } else {
+      lastError = `${lastError} · آینه‌ها: ${mirrored.error}`;
+    }
+  }
+
   return { source, items: [], elapsed: Date.now() - started, error: lastError };
 }
 
-async function fetchAllSources() {
+// بررسی فوری یک منبع برای دکمهٔ «بررسی مجدد» داشبورد؛ آدرس از همین پیکربندی خوانده می‌شود.
+export async function probeSource(id) {
+  const source = SOURCES.find((item) => item.id === id);
+  if (!source) return null;
+  const result = await fetchSource(source, null);
+  return {
+    id: source.id,
+    name: source.name,
+    url: source.url,
+    ok: !result.error,
+    items: result.items.length,
+    error: result.error || '',
+    elapsed_ms: result.elapsed,
+    via: result.via || '',
+    checked_at: new Date().toISOString(),
+  };
+}
+
+async function fetchAllSources(mirrorStore) {
   const results = [];
   const queue = [...SOURCES];
   const concurrency = 8;
@@ -117,9 +158,11 @@ async function fetchAllSources() {
   async function worker() {
     while (queue.length) {
       const source = queue.shift();
-      const result = await fetchSource(source);
+      const result = await fetchSource(source, mirrorStore);
       results.push(result);
-      const state = result.error ? `خطا: ${result.error}` : `${result.items.length} مورد`;
+      const state = result.error
+        ? `خطا: ${result.error}`
+        : `${result.items.length} مورد${result.via ? ' (آینه)' : ''}`;
       console.log(`  ${result.source.name.padEnd(24, ' ')} ${state} (${result.elapsed}ms)`);
     }
   }
@@ -130,7 +173,7 @@ async function fetchAllSources() {
 
 function buildSourceHealth(results, total, acceptedCounts = new Map()) {
   return results
-    .map(({ source, items, elapsed, error }) => {
+    .map(({ source, items, elapsed, error, via }) => {
       const count = acceptedCounts.get(source.id) || 0;
       return {
         id: source.id,
@@ -147,6 +190,8 @@ function buildSourceHealth(results, total, acceptedCounts = new Map()) {
         error,
         elapsed_ms: elapsed,
         success_percent: error ? 0 : 100,
+        via: via || '',
+        mirror: Boolean(via),
       };
     })
     .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'fa'));
@@ -332,8 +377,11 @@ export async function runPipeline({ quiet = false } = {}) {
     error: String(error?.message || error),
   }));
 
+  const mirrorStore = await readJson(MIRROR_FILE, { items: {} });
+  if (!mirrorStore.items) mirrorStore.items = {};
   log('› دریافت خوراک منابع…');
-  const results = await fetchAllSources();
+  const results = await fetchAllSources(mirrorStore);
+  await writeJson(MIRROR_FILE, mirrorStore, true).catch(() => {});
   const collected = [];
   const seenLinks = new Set();
   const acceptedBySource = new Map();

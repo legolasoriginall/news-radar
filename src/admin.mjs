@@ -3,6 +3,7 @@
 
 import { createHmac, randomBytes, scryptSync, timingSafeEqual } from 'node:crypto';
 import { LIVE_CHANNELS, probeStream } from './live.mjs';
+import { searchWeb, readPage } from './web.mjs';
 
 export const SESSION_COOKIE = 'radar_admin';
 export const SESSION_TTL_MS = 12 * 60 * 60 * 1000;
@@ -72,10 +73,20 @@ export function parseCookies(header) {
   return out;
 }
 
-/** پیکربندی مدل از محیط سرور (Z.ai سازگار با OpenAI، یا OpenAI). */
+/** پیکربندی مدل از محیط سرور (درگاه محلی Respan، Z.ai سازگار با OpenAI، یا OpenAI). */
 export function llmConfig(env = process.env) {
   const zaiKey = env.ZAI_API_KEY || '';
   const openaiKey = env.OPENAI_API_KEY || '';
+  // درگاه محلی Respan: با RESPAN_GATEWAY_URL روشن می‌شود و کلید تأمین‌کننده سمت درگاه می‌ماند.
+  const gatewayUrl = String(env.RESPAN_GATEWAY_URL || '').trim().replace(/\/+$/, '');
+  if (gatewayUrl) {
+    return {
+      apiKey: env.RESPAN_GATEWAY_API_KEY || 'local-gateway',
+      baseUrl: /\/v1$/.test(gatewayUrl) ? gatewayUrl : `${gatewayUrl}/v1`,
+      model: env.RESPAN_GATEWAY_MODEL || env.OPENAI_MODEL || 'gpt-4o-mini',
+      provider: 'respan-gateway',
+    };
+  }
   if (zaiKey) {
     return {
       apiKey: zaiKey,
@@ -144,6 +155,38 @@ export const ADMIN_TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'web_search',
+      description: 'جستجوی اینترنتی برای خبرها و اطلاعات تازه (بدون کلید API).',
+      parameters: {
+        type: 'object',
+        properties: {
+          query: { type: 'string', description: 'عبارت جستجو.' },
+          limit: { type: 'number', description: 'تعداد نتیجه؛ حداکثر ۸.' },
+          lang: { type: 'string', enum: ['fa', 'en'], description: 'زبان نتایج.' },
+        },
+        required: ['query'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'read_url',
+      description: 'یک صفحهٔ اینترنتی را می‌خواند و متن اصلی‌اش را برمی‌گرداند.',
+      parameters: {
+        type: 'object',
+        properties: {
+          url: { type: 'string', description: 'آدرس کامل http یا https.' },
+        },
+        required: ['url'],
+        additionalProperties: false,
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'site_status',
       description: 'وضعیت فعلی سایت: زمان آخرین به‌روزرسانی داده‌ها، تعداد خبرها، قصه‌ها و پست‌های تلگرام.',
       parameters: { type: 'object', properties: {}, additionalProperties: false },
@@ -209,6 +252,8 @@ export const ADMIN_SYSTEM_PROMPT = [
   'تو دستیار مدیر داشبورد «رصد خبر» هستی: یک سایت فارسی رصد خبر، قیمت طلا و دلار،',
   'خبرهای تلگرام و پخش زندهٔ شبکه‌ها.',
   'فقط از داده‌ای که ابزارها برمی‌گردانند حرف بزن و اگر ابزاری شکست خورد صادقانه بگو.',
+  'برای خبر و اطلاعات تازه از ابزار web_search و برای خواندن یک آدرس از read_url استفاده کن',
+  'و منبع هر جملهٔ اینترنتی را با لینک بیاور.',
   'پاسخ‌ها کوتاه، فارسی و عملی باشند: اول کار انجام‌شده، بعد نکتهٔ مهم. هرگز رمز یا کلید نخواه.',
 ].join(' ');
 
@@ -218,6 +263,8 @@ const MAX_TOOL_ROUNDS = 4;
 export function intentOf(text) {
   const value = String(text || '');
   if (/به[\s\u200c-]*روز|بروز[\s\u200c-]*رسانی|آپدیت|update|refresh/i.test(value)) return 'refresh_site';
+  if (/https?:\/\//i.test(value) && /بخوان|باز\s*کن|خلاصه|محتوای|لینک|صفحه/i.test(value)) return 'read_url';
+  if (/اینترنت|از\s*وب|گوگل|سرچ|آنلاین|web\b|google/i.test(value)) return 'web_search';
   if (/درباره|جستجو|دنبال|بگرد|پیدا\s*کن|search/i.test(value)) return 'news_search';
   if (/موضوع|تاپیک|ترند|سرفصل|topic/i.test(value)) return 'topic_report';
   if (/منابع|منبع|سورس|بازنگری|source/i.test(value)) return 'source_report';
@@ -230,7 +277,7 @@ export function intentOf(text) {
 const STOP_WORDS = new Set([
   'خبر', 'خبرها', 'خبرهای', 'اخبار', 'جستجو', 'جستجوی', 'کن', 'کنید', 'بده', 'نشان', 'بگرد',
   'پیدا', 'لیست', 'موضوع', 'امروز', 'را', 'از', 'در', 'و', 'چه', 'چیست', 'درباره', 'دربارهٔ',
-  'همه', 'یک', 'چند', 'برای', 'من', 'بررسی',
+  'همه', 'یک', 'چند', 'برای', 'من', 'بررسی', 'اینترنت', 'وب', 'آنلاین', 'گوگل', 'سرچ',
 ]);
 
 /** عبارت جستجو را از جملهٔ مدیر جدا می‌کند. */
@@ -298,6 +345,18 @@ export function describeToolResult(name, result) {
       ),
     ].join('\n');
   }
+  if (name === 'web_search') {
+    const items = result.items || [];
+    if (!items.length) return `نتیجه‌ای برای «${result.query}» پیدا نشد.`;
+    return [
+      `اینترنت — «${result.query}»: ${faNumber(items.length)} نتیجه`,
+      ...items.map((item) => `• ${item.title}${item.source ? ` — ${item.source}` : ''}\n  ${item.link}`),
+    ].join('\n');
+  }
+  if (name === 'read_url') {
+    const text = String(result.text || '').replace(/\s+/g, ' ').slice(0, 1200);
+    return [result.title || result.url, text, result.truncated ? '… (بقیهٔ صفحه خوانده نشد)' : ''].filter(Boolean).join('\n');
+  }
   if (name === 'refresh_site') {
     return result.ok ? 'به‌روزرسانی انجام شد.' : `به‌روزرسانی انجام نشد: ${result.error || result.message || ''}`;
   }
@@ -313,7 +372,17 @@ function safeJson(value) {
 }
 
 /** ابزارها را اجرا می‌کند؛ وابستگی‌ها تزریق می‌شوند تا تست‌پذیر باشند. */
-export async function runTool(name, args = {}, { getStatus, getData, refresh, probe = probeStream, channels = LIVE_CHANNELS } = {}) {
+export async function runTool(
+  name,
+  args = {},
+  { getStatus, getData, refresh, probe = probeStream, channels = LIVE_CHANNELS, webSearch = searchWeb, readPage: readUrl = readPage } = {}
+) {
+  if (name === 'web_search') {
+    return webSearch({ query: args.query, limit: args.limit, lang: args.lang === 'en' ? 'en' : 'fa' });
+  }
+  if (name === 'read_url') {
+    return readUrl({ url: args.url });
+  }
   if (name === 'source_report') {
     if (typeof getData !== 'function') return { ok: false, error: 'داده در دسترس نیست' };
     const data = await getData();

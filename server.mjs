@@ -2,8 +2,9 @@
 import { createServer } from 'node:http';
 import { readFile, stat, writeFile } from 'node:fs/promises';
 import { randomBytes } from 'node:crypto';
+import { readFileSync } from 'node:fs';
 import path from 'node:path';
-import { runPipeline } from './pipeline.mjs';
+import { runPipeline, probeSource } from './pipeline.mjs';
 import { fetchMarkets } from './src/markets.mjs';
 import { fetchTelegramFeeds, fetchTelegramFeed, addTelegramChannel, removeTelegramChannel, TELEGRAM_CHANNELS } from './src/telegram.mjs';
 import { parseSourceInput, parseChannelInput, looksLikeFeed, feedItemCount } from './src/custom.mjs';
@@ -93,6 +94,30 @@ async function loadAuthRecord() {
 }
 
 const ROOT = path.resolve('.');
+
+// تنظیمات قابل تغییر از پنل مدیر (مثلاً آستانهٔ سکوت خبری) در این فایل می‌ماند
+// تا با ری‌استارت گم نشود؛ در گیت نیست و مقدار پیش‌فرض از ALERT_SILENT_HOURS می‌آید.
+const SETTINGS_FILE = path.join(ROOT, '.settings.json');
+const SILENT_HOURS_MIN = 1;
+const SILENT_HOURS_MAX = 720;
+const DEFAULT_SILENT_HOURS = 24;
+
+function clampSilentHours(value) {
+  const num = Number(value);
+  if (!Number.isFinite(num) || num <= 0) return DEFAULT_SILENT_HOURS;
+  return Math.min(SILENT_HOURS_MAX, Math.max(SILENT_HOURS_MIN, Math.round(num)));
+}
+
+function loadSettings() {
+  try {
+    const parsed = JSON.parse(readFileSync(SETTINGS_FILE, 'utf8'));
+    return { silent_hours: clampSilentHours(parsed.silent_hours ?? process.env.ALERT_SILENT_HOURS) };
+  } catch {
+    return { silent_hours: clampSilentHours(process.env.ALERT_SILENT_HOURS) };
+  }
+}
+
+let settings = loadSettings();
 const PORT = Number(process.env.PORT || 3000);
 const HOST = process.env.HOST || '0.0.0.0';
 const INTERVAL_MS = UPDATE_INTERVAL_MINUTES * 60 * 1000;
@@ -108,6 +133,7 @@ const RATE_WINDOWS = {
   api: { limit: 180, windowMs: 60 * 1000 },
   live: { limit: 30, windowMs: 60 * 1000 },
   refresh: { limit: 5, windowMs: 60 * 1000 },
+  sourcecheck: { limit: 20, windowMs: 60 * 1000 },
   login: { limit: 20, windowMs: 5 * 60 * 1000 },
   admin: { limit: 120, windowMs: 60 * 1000 },
 };
@@ -148,6 +174,7 @@ function hitRate(key, limit, windowMs) {
 function rateClassFor(pathname) {
   if (pathname === '/admin/login') return 'login';
   if (pathname === '/api/live') return 'live';
+  if (pathname === '/api/sources/check') return 'sourcecheck';
   if (pathname === '/api/refresh') return 'refresh';
   if (pathname.startsWith('/api/')) return 'api';
   if (pathname.startsWith('/admin/')) return 'admin';
@@ -334,6 +361,7 @@ async function getLiveMarkets() {
       const payload = {
         ok: Boolean(result.ok),
         stale: Boolean(result.stale),
+        refreshed_count: Number(result.refreshed_count) || 0,
         source: result.source || '',
         items: result.items || [],
         warnings: result.warnings || [],
@@ -645,7 +673,7 @@ async function checkAlerts({ probeStreams = true, notify = true } = {}) {
     const issues = collectIssues({
       data,
       channels,
-      silentHours: Number(process.env.ALERT_SILENT_HOURS || 24),
+      silentHours: settings.silent_hours,
     });
     const result = applyIssues({ state: alertState.data, issues });
     alertState.data = result.state;
@@ -748,6 +776,37 @@ async function handleRequest(req, res) {
       mode: info.available ? (info.hasKey ? 'cloud' : 'local') : 'keyless',
       password_changed_at: authState.record?.updated_at || null,
     });
+    return;
+  }
+
+  if (pathname === '/admin/api/settings') {
+    if (req.method === 'GET') {
+      sendJson(res, 200, { ok: true, settings, limits: { min: SILENT_HOURS_MIN, max: SILENT_HOURS_MAX } });
+      return;
+    }
+    if (req.method === 'POST') {
+      if (!isAdmin(req)) {
+        sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+        return;
+      }
+      const body = await readJsonBody(req, 4096).catch(() => ({}));
+      const hours = Number(body.silent_hours);
+      if (!Number.isFinite(hours) || hours < SILENT_HOURS_MIN || hours > SILENT_HOURS_MAX) {
+        sendJson(res, 400, { error: `عدد ساعت باید بین ${SILENT_HOURS_MIN} و ${SILENT_HOURS_MAX} باشد` });
+        return;
+      }
+      settings = { ...settings, silent_hours: Math.round(hours) };
+      try {
+        await writeFile(SETTINGS_FILE, JSON.stringify(settings, null, 2), 'utf8');
+      } catch (error) {
+        sendJson(res, 500, { error: 'ذخیرهٔ تنظیمات ناموفق بود: ' + String(error?.message || error) });
+        return;
+      }
+      sendJson(res, 200, { ok: true, settings });
+      return;
+    }
+    res.setHeader('Allow', 'GET, POST');
+    sendJson(res, 405, { error: 'متد پشتیبانی نمی‌شود' });
     return;
   }
 
@@ -1071,6 +1130,7 @@ async function handleRequest(req, res) {
       last_finished_at: state.last_finished_at,
       next_run_at: state.next_run_at || (data ? new Date(new Date(data.generated_at).getTime() + INTERVAL_MS).toISOString() : null),
       interval_minutes: UPDATE_INTERVAL_MINUTES,
+      silent_hours: settings.silent_hours,
       generated_at: data?.generated_at || null,
       total: data?.stats?.total || 0,
       countdown_seconds: state.next_run_at ? Math.max(0, Math.round((new Date(state.next_run_at).getTime() - Date.now()) / 1000)) : null,
@@ -1095,6 +1155,25 @@ async function handleRequest(req, res) {
   if (pathname === '/api/live') {
     const payload = await getLiveChannels();
     sendJson(res, 200, { ok: !payload.error, ...payload });
+    return;
+  }
+
+  if (pathname === '/api/sources/check' && req.method === 'POST') {
+    // همان لحظه یک فید مشخص را دوباره می‌خوانیم؛ آدرس از پیکربندی سرور می‌آید
+    // نه از مرورگر، تا این مسیر به ابزار درخواست دلخواه (SSRF) تبدیل نشود.
+    const body = await readJsonBody(req, 4096).catch(() => ({}));
+    const id = String(body.id || '').trim();
+    if (!id) {
+      sendJson(res, 400, { ok: false, error: 'شناسهٔ منبع لازم است' });
+      return;
+    }
+    const result = await probeSource(id);
+    if (!result) {
+      sendJson(res, 404, { ok: false, error: 'منبعی با این شناسه در پیکربندی نیست' });
+      return;
+    }
+    res.setHeader('Cache-Control', 'no-store');
+    sendJson(res, 200, { ok: true, source: result });
     return;
   }
 

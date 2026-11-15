@@ -12,6 +12,8 @@
     "dev": "node server.mjs",
     "update": "node pipeline.mjs",
     "once": "node pipeline.mjs --once",
+    "gateway": ".venv/bin/python gateway/serve.py",
+    "gateway:check": "node scripts/gateway-smoke.mjs",
     "test": "node --test"
   }
 }

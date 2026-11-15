@@ -35,10 +35,27 @@ export const LIVE_CHANNELS = [
   },
 ];
 
+// برای هر مسیر iptv-org چند آینه داریم؛ اگر GitHub Pages در دسترس نبود، همان فایل
+// از jsDelivr (دو دامنهٔ جدا)، raw.githack یا GitHub Raw (شاخهٔ gh-pages) خوانده می‌شود
+// تا فهرست شبکه‌ها نیفتد. هر مسیر در زمان نوشتن با دریافت واقعی فایل آزمایش شده است.
+export const IPTV_MIRROR_BASES = [
+  'https://iptv-org.github.io/iptv',
+  'https://cdn.jsdelivr.net/gh/iptv-org/iptv@gh-pages',
+  'https://fastly.jsdelivr.net/gh/iptv-org/iptv@gh-pages',
+  'https://raw.githack.com/iptv-org/iptv/gh-pages',
+  'https://raw.githubusercontent.com/iptv-org/iptv/gh-pages',
+];
+
+/** نشانی‌های آینهٔ یک فایل iptv-org، به‌ترتیب اولویت. */
+export function iptvMirrors(playlistPath) {
+  const relative = String(playlistPath || '').replace(/^\/+/, '');
+  return IPTV_MIRROR_BASES.map((base) => `${base}/${relative}`);
+}
+
 export const LIVE_PLAYLISTS = [
-  'https://iptv-org.github.io/iptv/languages/fas.m3u',
-  'https://raw.githubusercontent.com/Siamakeo/IPTV/master/Playlist.m3u',
-  'https://iptv-org.github.io/iptv/index.m3u',
+  iptvMirrors('languages/fas.m3u'),
+  ['https://raw.githubusercontent.com/Siamakeo/IPTV/master/Playlist.m3u'],
+  iptvMirrors('index.m3u'),
 ];
 
 /** خطوط EXTINF یک فهرست m3u را به رکوردهای { tvgId, name, url } تبدیل می‌کند. */
@@ -98,18 +115,28 @@ export async function probeStream(url, { fetcher = fetch, timeoutMs = 6000 } = {
   }
 }
 
+// هر ورودی یک فهرست یا گروهی از آینه‌هاست؛ آینه‌ها به‌ترتیب امتحان می‌شوند و
+// فقط اولین پاسخ سالم خوانده می‌شود تا ترافیک تکراری ساخته نشود.
 async function readPlaylists({ fetcher, playlists, timeoutMs }) {
-  const settled = await Promise.allSettled(
-    playlists.map(async (url) => {
-      const response = await fetcher(url, {
-        headers: { 'User-Agent': USER_AGENT },
-        signal: AbortSignal.timeout(timeoutMs),
-      });
-      if (!response.ok) throw new Error(`HTTP ${response.status}`);
-      return response.text();
+  const groups = playlists.map((item) => (Array.isArray(item) ? item : [item]));
+  const results = await Promise.all(
+    groups.map(async (group) => {
+      for (const url of group) {
+        try {
+          const response = await fetcher(url, {
+            headers: { 'User-Agent': USER_AGENT },
+            signal: AbortSignal.timeout(timeoutMs),
+          });
+          if (!response.ok) throw new Error(`HTTP ${response.status}`);
+          return parsePlaylist(await response.text());
+        } catch {
+          // آینهٔ بعدی امتحان می‌شود
+        }
+      }
+      return [];
     })
   );
-  return settled.filter((result) => result.status === 'fulfilled').flatMap((result) => parsePlaylist(result.value));
+  return results.flat();
 }
 
 /**

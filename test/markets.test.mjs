@@ -148,6 +148,54 @@ test('اختلاف کمتر از آستانه هشدار نمی‌دهد ولی 
   assert.equal(dollar.divergence_percent, 2);
 });
 
+test('اگر منبع اصلی نرخ کهنه بدهد، نرخ تازه‌تر منبع دوم انتخاب می‌شود', async () => {
+  const stalePrimary = fullSet().map((item) => ({ ...item, updated_at: '2026-11-01T00:00:00.000Z', stale: true }));
+  const freshBackup = fullSet(2).map((item) => ({ ...item, updated_at: '2026-11-15T00:00:00.000Z', stale: false }));
+
+  const result = await fetchMarkets({
+    providers: [okProvider('tgju', 'TGJU', stalePrimary), okProvider('nerkhara', 'نرخ‌آرا', freshBackup)],
+    globalProviders: [],
+  });
+
+  assert.equal(result.refreshed_count, IDS.length);
+  assert.ok(result.items.every((item) => item.source === 'نرخ‌آرا'));
+  assert.ok(result.items.every((item) => item.stale === false));
+  assert.equal(result.items.find((item) => item.id === 'dollar').switched_from, 'TGJU');
+  assert.equal(result.source, 'نرخ‌آرا');
+});
+
+test('اگر منبع اصلی تازه باشد، نرخ پشتیبان جای آن را نمی‌گیرد', async () => {
+  const primary = fullSet().map((item) => ({ ...item, updated_at: '2026-11-14T00:00:00.000Z', stale: false }));
+  const backup = fullSet(3).map((item) => ({ ...item, updated_at: '2026-11-15T00:00:00.000Z', stale: false }));
+
+  const result = await fetchMarkets({
+    providers: [okProvider('tgju', 'TGJU', primary), okProvider('nerkhara', 'نرخ‌آرا', backup)],
+    globalProviders: [],
+  });
+
+  assert.equal(result.refreshed_count, 0);
+  assert.ok(result.items.every((item) => item.source === 'TGJU'));
+  assert.equal(result.items.find((item) => item.id === 'dollar').value, 1000);
+});
+
+test('نرخ کهنه از منبع جهانی تازه می‌شود', async () => {
+  const primary = fullSet().filter((item) => item.id !== 'ounce');
+  const staleOunce = { ...makeItem('ounce', 3900), updated_at: '2026-11-01T00:00:00.000Z', stale: true };
+  const freshOunce = { ...makeItem('ounce', 4100), updated_at: new Date().toISOString(), stale: false };
+  const global = { id: 'coingecko', label: 'CoinGecko', load: async () => ({ items: [freshOunce], feed: 'coingecko://feed' }) };
+
+  const result = await fetchMarkets({
+    providers: [okProvider('tgju', 'TGJU', [...primary, staleOunce])],
+    globalProviders: [global],
+  });
+
+  const ounce = result.items.find((item) => item.id === 'ounce');
+  assert.equal(ounce.source, 'CoinGecko');
+  assert.equal(ounce.stale, false);
+  assert.equal(ounce.value, 4100);
+  assert.ok(result.refreshed_count >= 1);
+});
+
 test('آشکارساز اختلاف برای یک منبع تنها کاری نمی‌کند', () => {
   const items = [makeItem('dollar', 1000)];
   const warnings = computeDivergence(items, [{ label: 'TGJU', ok: true, items: [makeItem('dollar', 1000)] }]);

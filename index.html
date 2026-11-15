@@ -187,6 +187,14 @@ a:hover { text-decoration: underline; }
 .src-item-meta { margin-top: 4px; display: flex; flex-wrap: wrap; gap: 4px 12px; color: var(--muted); font-size: 11.5px; font-variant-numeric: tabular-nums; }
 .src-item-err { margin-top: 4px; color: #b91c1c; font-size: 12px; word-break: break-word; }
 .src-empty { color: var(--muted); font-size: 12.3px; padding: 4px 2px 8px; }
+/* دکمهٔ بررسی مجدد هر فید خراب و نتیجهٔ همان لحظه */
+.src-recheck { margin-top: 7px; display: inline-flex; align-items: center; gap: 6px; border: 1px solid #0d9488; background: #f0fdfa; color: #0f766e; border-radius: 8px; padding: 4px 11px; font-size: 11.8px; font-family: inherit; cursor: pointer; }
+.src-recheck:hover { background: #ccfbf1; }
+.src-recheck:disabled { opacity: .65; cursor: progress; }
+.src-recheck:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; }
+.src-check { display: block; margin-top: 6px; font-size: 11.8px; font-variant-numeric: tabular-nums; color: var(--muted); }
+.src-check.ok { color: #047857; }
+.src-check.bad { color: #b91c1c; }
 
 /* پنل مدیر در قاب هم‌مبدأ */
 .admin-overlay { position: fixed; inset: 0; z-index: 90; background: rgba(15,23,42,.55); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 16px; }
@@ -706,6 +714,12 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       statusAvailable = true;
       state.source = 'server';
       if (json.next_run_at) state.nextUpdate = new Date(json.next_run_at).getTime();
+      // آستانهٔ سکوت خبری از پنل مدیر می‌آید؛ پیش‌فرض ۲۴ ساعت است.
+      var silentHours = Number(json.silent_hours);
+      if (isFinite(silentHours) && silentHours > 0 && silentHours !== SILENT_HOURS) {
+        SILENT_HOURS = silentHours;
+        renderSourceHealth();
+      }
       return json;
     } catch (e) {
       statusAvailable = false;
@@ -1426,6 +1440,10 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
         '</div>' +
         '<div class="src-item-err">' + esc(source.error || source.status || 'بی‌پاسخ') + '</div>' +
         (meta.length ? '<div class="src-item-meta">' + meta.map(function (item) { return '<span>' + esc(item) + '</span>'; }).join('') + '</div>' : '') +
+        (source.id
+          ? '<button type="button" class="src-recheck" data-source-id="' + esc(source.id) + '">بررسی مجدد</button>' +
+            '<span class="src-check" data-check-for="' + esc(source.id) + '"></span>'
+          : '') +
         '</li>';
     }).join('');
 
@@ -1469,6 +1487,50 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       ' ساعت گذشته خبر تازه‌ای نداشته است؛ منابعی که هیچ خبر تاریخ‌داری در داده ندارند (معمولاً ردشده در فیلترها) در این فهرست نمی‌آیند.' +
       (mirrored.length ? ' ' + fmt(mirrored.length) + ' منبع از مسیر جایگزین یا آرشیو خوانده شد.' : '');
   }
+
+  // دکمهٔ «بررسی مجدد»: همان لحظه فید را از سرور دوباره می‌خواند و نتیجه را زیر همان ردیف می‌نویسد
+  (function setupSourceRecheck() {
+    var list = $('sources-broken');
+    if (!list) return;
+    list.addEventListener('click', function (event) {
+      var button = event.target.closest ? event.target.closest('.src-recheck') : null;
+      if (!button) return;
+      var id = button.getAttribute('data-source-id') || '';
+      if (!id) return;
+      var out = list.querySelector('.src-check[data-check-for="' + id.replace(/["\\]/g, '') + '"]');
+      button.disabled = true;
+      button.textContent = 'در حال بررسی…';
+      if (out) { out.className = 'src-check'; out.textContent = ''; }
+      fetch('/api/sources/check', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: id })
+      }).then(function (response) {
+        return response.json().catch(function () { return {}; }).then(function (payload) {
+          if (!response.ok || !payload.source) throw new Error(payload.error || ('HTTP ' + response.status));
+          return payload.source;
+        });
+      }).then(function (source) {
+        if (!out) return;
+        if (source.ok) {
+          out.className = 'src-check ok';
+          out.textContent = '✓ پاسخ داد · ' + fmt(source.items) + ' مورد' +
+            (source.via ? ' (از مسیر جایگزین)' : '') +
+            ' · ' + fmt(source.elapsed_ms) + ' میلی‌ثانیه';
+        } else {
+          out.className = 'src-check bad';
+          out.textContent = '✕ باز هم پاسخ نداد · ' + (source.error || 'بی‌پاسخ') + ' · ' + fmt(source.elapsed_ms) + ' میلی‌ثانیه';
+        }
+      }).catch(function (error) {
+        if (!out) return;
+        out.className = 'src-check bad';
+        out.textContent = 'بررسی نشد: ' + (error && error.message ? error.message : 'خطای شبکه');
+      }).then(function () {
+        button.disabled = false;
+        button.textContent = 'بررسی مجدد';
+      });
+    });
+  })();
 
   /* ---------------- پنل مدیر (قاب هم‌مبدأ) ---------------- */
 
@@ -1752,6 +1814,16 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
       }
       if (video.paused || Date.now() - changedAt < 20000) return;
       stopLiveWatchdog();
+      // اگر پخش بومی گیر کرده (خطای صریح نداده ولی جلو نمی‌رود)، اول همین مسیر را
+      // یک بار با hls.js امتحان کن؛ بعد نوبت مسیرهای بعدی شبکه است.
+      if (liveState.nativeUsed && !liveState.hls && !liveState.nativeFallbackTried) {
+        var stuck = video.currentSrc || sources[index] || '';
+        if (stuck) {
+          liveState.nativeFallbackTried = true;
+          startLiveSource({ id: channel.id, name: channel.name, sources: [stuck] }, 0, true);
+          return;
+        }
+      }
       var rest = sources.slice(index + 1);
       if (rest.length) {
         startLiveSource({ id: channel.id, name: channel.name, sources: rest }, 0);
@@ -1771,6 +1843,10 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     if (liveState && liveState.nativeErrorHandler && video) {
       video.removeEventListener('error', liveState.nativeErrorHandler);
       liveState.nativeErrorHandler = null;
+    }
+    if (liveState) {
+      liveState.nativeUsed = false;
+      liveState.nativeFallbackTried = false;
     }
     if (video) {
       video.pause();
@@ -1853,6 +1929,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
           startLiveSource(channel, index, true);
         };
         liveState.nativeErrorHandler = onNativeError;
+        liveState.nativeUsed = true;
         video.addEventListener('error', onNativeError);
         video.src = src;
       } else {
@@ -1864,6 +1941,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
         }
         var hls = new Hls({ enableWorker: true });
         liveState.hls = hls;
+        liveState.nativeUsed = false;
         hls.on(Hls.Events.ERROR, function (event, data) {
           if (!data || !data.fatal) return;
           try { hls.destroy(); } catch (e) { /* ignore */ }
@@ -1896,6 +1974,7 @@ footer .demo-links a { color: #475467; text-decoration: underline; }
     var start = $('live-start');
     if (!wrap || !start) return;
     stopLivePlayback();
+    liveState.nativeFallbackTried = false;
     start.hidden = true;
     startLiveSource({
       id: channel.id,

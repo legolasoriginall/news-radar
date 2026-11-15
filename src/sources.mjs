@@ -20,10 +20,12 @@ export const SOURCES = [
   { id: 'iranintl_fa', name: 'ایران اینترنشنال', url: 'https://www.iranintl.com/fa/feed', lang: 'fa', weight: 0.78, origin: 'foreign' },
   { id: 'iranwire_fa', name: 'ایران‌وایر', url: 'https://iranwire.com/fa/feed/', lang: 'fa', weight: 0.72, origin: 'foreign' },
   { id: 'kayhan_london', name: 'کیهان لندن', url: 'https://kayhan.london/fa/feed/', lang: 'fa', weight: 0.7, origin: 'foreign' },
+  // NOTE: fa.euronews.com/rss به fetch نودی HTTP 406 می‌دهد؛ ناچار از جستجوی گوگل‌نیوز استفاده می‌شود.
   { id: 'euronews_fa', name: 'یورونیوز فارسی', url: 'https://news.google.com/rss/search?q=site%3Aparsi.euronews.com&hl=fa&gl=IR&ceid=IR:fa', lang: 'fa', weight: 0.76, origin: 'foreign', aggregator: true },
-  { id: 'radiofarda', name: 'رادیو فردا', url: 'https://news.google.com/rss/search?q=site%3Aradiofarda.com&hl=fa&gl=IR&ceid=IR:fa', lang: 'fa', weight: 0.78, origin: 'foreign', aggregator: true },
-  { id: 'voa_persian', name: 'صدای آمریکا (فارسی)', url: 'https://news.google.com/rss/search?q=site%3Air.voanews.com&hl=fa&gl=IR&ceid=IR:fa', lang: 'fa', weight: 0.76, origin: 'foreign', aggregator: true },
-  { id: 'dw_persian', name: 'دویچه‌وله فارسی', url: 'https://news.google.com/rss/search?q=site%3Adw.com%2Ffa&hl=fa&gl=IR&ceid=IR:fa', lang: 'fa', weight: 0.76, origin: 'foreign', aggregator: true },
+  { id: 'radiofarda', name: 'رادیو فردا', url: 'https://www.radiofarda.com/api/zrttpol-vomx-tpeoogpi', lang: 'fa', weight: 0.78, origin: 'foreign' },
+  { id: 'voa_persian', name: 'صدای آمریکا (فارسی)', url: 'https://ir.voanews.com/api/zbtpil-vomx-tpeqiyp', lang: 'fa', weight: 0.76, origin: 'foreign' },
+  { id: 'dw_persian', name: 'دویچه‌وله فارسی', url: 'https://rss.dw.com/syndication/feeds/dwworld.per.xml', lang: 'fa', weight: 0.76, origin: 'foreign' },
+  // NOTE: Arabiya RSS feeds return 403 (blocked). Using Google News search as fallback.
   { id: 'alarabiya_fa', name: 'العربیه فارسی', url: 'https://news.google.com/rss/search?q=site%3Afarsi.alarabiya.net&hl=fa&gl=IR&ceid=IR:fa', lang: 'fa', weight: 0.7, origin: 'foreign', aggregator: true },
 
   // ── انگلیسی: خبرگزاری‌های بین‌المللی ───────────────────────────
@@ -67,6 +69,7 @@ export const SOURCES = [
   { id: 'hackernews', name: 'Hacker News', url: 'https://news.ycombinator.com/rss', lang: 'en', weight: 0.66, defaultTopic: 'tech', origin: 'foreign' },
   { id: 'googlenews_en', name: 'Google News World', url: 'https://news.google.com/rss?hl=en-US&gl=US&ceid=US:en', lang: 'en', weight: 0.62, aggregator: true, origin: 'foreign' },
 ];
+export const UPDATE_INTERVAL_MINUTES = Number(process.env.UPDATE_INTERVAL_MINUTES || 5);
 
 /** منبع تازه (از پنل مدیر) را به فهرست اضافه می‌کند؛ تکراری‌ها به‌روز می‌شوند. */
 export function addSource(source) {
@@ -87,5 +90,3 @@ export function removeSource(id) {
   SOURCES.splice(index, 1);
   return true;
 }
-
-export const UPDATE_INTERVAL_MINUTES = Number(process.env.UPDATE_INTERVAL_MINUTES || 5);
