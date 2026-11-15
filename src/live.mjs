@@ -44,6 +44,16 @@ export const LIVE_CHANNELS = [
       'https://rfe-ingest.akamaized.net/hls/live/2035292/axia21/playlist.m3u8',
     ],
   },
+  {
+    id: 'yourtime',
+    name: 'YourTime HD',
+    tvg_ids: ['YourTimeTV.ir', 'YourTime.ir'],
+    name_match: ['yourtime', 'your time'],
+    watch: 'https://yourtime.tv/',
+    fallbacks: [
+      'https://live.yourtime.tv/hls/stream.m3u8',
+    ],
+  },
 ];
 
 // برای هر مسیر iptv-org چند آینه داریم؛ اگر GitHub Pages در دسترس نبود، همان فایل
