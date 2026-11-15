@@ -2617,7 +2617,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var response = await satFetchFirst(SAT_COUNTRIES_URLS, { cache: 'force-cache' });
       var list = await response.json();
       if (!Array.isArray(list)) return false;
-      var options = ['<option value="">همهٔ کشورها</option>', '<option value="ADULT">۱۸+</option>'];
+      var options = ['<option value="">همهٔ کشورها</option>'];
       var items = list
         .filter(function (country) { return country && country.code; })
         .map(function (country) {
@@ -2809,7 +2809,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     var branches = SAT_CATEGORIES.concat([SAT_OTHER]).filter(function (cat) { return buckets[cat.key]; });
     box.innerHTML = branches.map(function (cat) {
       var bucket = buckets[cat.key];
-      body = '<ul class="sat-sublist">' + bucket.items.map(function (item) { return satItemHtml(item.entry, item.index); }).join('') + '</ul>';
+      var body = '<ul class="sat-sublist">' + bucket.items.map(function (item) { return satItemHtml(item.entry, item.index); }).join('') + '</ul>';
       return '<li><details class="sat-branch" data-group="' + esc(cat.key) + '"' + (satBranchOpen(cat.key) ? ' open' : '') + '>' +
         '<summary>' + esc(cat.label) + '<span class="sat-count">' + fmt(bucket.items.length) + '</span></summary>' +
         body +
