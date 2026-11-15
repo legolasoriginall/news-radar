@@ -110,7 +110,7 @@
       <p class="muted">چت هوش مصنوعی فقط روی سرور محلی کار می‌کند. آدرس پنل مدیر محلی خود را بگذار و وارد شو.</p>
       <input type="url" id="local-admin-url" placeholder="http://localhost:3000/admin" autocomplete="off" dir="ltr">
       <div class="row" style="margin-top:8px">
-        <button id="local-admin-open">ورود به پنل مدیر محلی</button>
+        <a id="local-admin-open" class="btn" href="http://localhost:3000/admin" target="_blank" rel="noopener" style="display:inline-block;text-decoration:none">ورود به پنل مدیر محلی</a>
         <span class="muted" id="local-admin-msg"></span>
       </div>
     </div>
@@ -404,18 +404,23 @@
     loadSettings();
     if (github.token) refreshBuildStatus();
     var localOpen = el('local-admin-open');
-    if (localOpen) localOpen.addEventListener('click', function () {
-      var url = (el('local-admin-url').value || '').trim() || 'http://localhost:3000/admin';
-      localStorage.setItem('newsradar:localAdminUrl', url);
-      // استفاده از تگ <a> به‌جای window.open تا بلاکر پنجرهٔ بازشو مانع نشود.
-      var a = document.createElement('a');
-      a.href = url;
-      a.target = '_blank';
-      a.rel = 'noopener';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-    });
+    var localUrlInput = el('local-admin-url');
+    function syncLocalAdminHref() {
+      var url = (localUrlInput && localUrlInput.value || '').trim() || 'http://localhost:3000/admin';
+      if (localOpen) localOpen.href = url;
+    }
+    if (localUrlInput) {
+      localUrlInput.addEventListener('input', syncLocalAdminHref);
+      localUrlInput.addEventListener('change', syncLocalAdminHref);
+    }
+    if (localOpen) {
+      localOpen.addEventListener('click', function () {
+        var url = (localUrlInput && localUrlInput.value || '').trim() || 'http://localhost:3000/admin';
+        localStorage.setItem('newsradar:localAdminUrl', url);
+        localOpen.href = url;
+      });
+    }
+    syncLocalAdminHref();
   }
   function formatDate(value) {
     if (!value) return '';
