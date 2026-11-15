@@ -821,6 +821,48 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   var moreDone = false;
   var moreBusy = false;
   var MORE_CHUNK = 500;
+  // گام «نمایش بیشتر» با اتصال کاربر تنظیم می‌شود: روی اتصال کند ۲۰۰ خبر و
+  // روی اتصال پرسرعت تا ۴۰۰ خبر در هر کلیک. مقدار آخر برای بار بعد نگه داشته می‌شود.
+  var MORE_STEP_MIN = 200;
+  var MORE_STEP_MAX = 400;
+  var moreStep = (function () {
+    var saved = Number(storeGet('newsradar:moreStep', 0));
+    return saved >= MORE_STEP_MIN && saved <= MORE_STEP_MAX ? saved : 300;
+  })();
+
+  function connectionStep() {
+    var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (!conn) return null;
+    if (conn.saveData) return MORE_STEP_MIN;
+    var type = String(conn.effectiveType || '');
+    if (/^(slow-)?2g$/.test(type)) return MORE_STEP_MIN;
+    if (type === '3g') return 250;
+    var downlink = Number(conn.downlink);
+    if (isFinite(downlink) && downlink > 0) {
+      if (downlink < 1) return MORE_STEP_MIN;
+      if (downlink < 3) return 250;
+      if (downlink < 8) return 300;
+      return MORE_STEP_MAX;
+    }
+    return type === '4g' ? MORE_STEP_MAX : null;
+  }
+
+  function nextMoreStep() {
+    var hinted = connectionStep();
+    moreStep = Math.max(MORE_STEP_MIN, Math.min(MORE_STEP_MAX, hinted || moreStep));
+    storeSet('newsradar:moreStep', moreStep);
+    return moreStep;
+  }
+
+  // سرعت واقعی خواندن قطعه هم در گام بعدی اثر دارد؛ اتصال بی‌آرایه/قدیمی هم پوشش داده می‌شود.
+  function tuneMoreStep(milliseconds, bytes) {
+    if (!milliseconds || milliseconds < 50) return;
+    var kbps = (bytes / 1024) / (milliseconds / 1000);
+    if (kbps > 1500) moreStep += 50;
+    else if (kbps < 200) moreStep -= 50;
+    moreStep = Math.max(MORE_STEP_MIN, Math.min(MORE_STEP_MAX, moreStep));
+    storeSet('newsradar:moreStep', moreStep);
+  }
   var telegramCache = null;
   var telegramBusy = false;
 
@@ -845,12 +887,15 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     var totalKnown = Number((state.data.stats && state.data.stats.total) || 0);
     if (totalKnown && (state.data.articles || []).length >= totalKnown) { moreDone = true; return; }
     moreBusy = true;
+    var startedAt = (window.performance && performance.now) ? performance.now() : Date.now();
     try {
       var res = await fetch('feed-more-' + moreChunk + '.json', { cache: 'no-cache' });
       if (res.status === 404) { moreDone = true; return; }
       if (!res.ok) throw new Error('HTTP ' + res.status);
-      var json = await res.json();
+      var text = await res.text();
+      var json = JSON.parse(text);
       var chunk = Array.isArray(json.articles) ? json.articles : [];
+      tuneMoreStep(((window.performance && performance.now) ? performance.now() : Date.now()) - startedAt, text.length);
       moreArticles = moreArticles.concat(chunk);
       appendArticles(state.data, chunk);
       moreChunk += 1;
@@ -1935,8 +1980,17 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
   $('more').addEventListener('click', async function () {
     if (!state.data) return;
-    if (state.page + PAGE * 2 > (state.data.articles || []).length) await ensureMoreArticles();
-    state.page += PAGE * 2;
+    var step = nextMoreStep();
+    var target = state.page + step;
+    // یک کلیک می‌تواند از مرز یک قطعه بگذرد؛ تا رسیدن به هدف، قطعه‌های لازم خوانده می‌شوند.
+    var guard = 0;
+    while (!moreDone && target > (state.data.articles || []).length && guard < 4) {
+      var before = (state.data.articles || []).length;
+      await ensureMoreArticles();
+      guard += 1;
+      if ((state.data.articles || []).length === before) break; // خطا یا پایان آرشیو
+    }
+    state.page = Math.min(target, Math.max((state.data.articles || []).length, state.page));
     renderFeed();
   });
   $('refresh-btn').addEventListener('click', manualRefresh);
