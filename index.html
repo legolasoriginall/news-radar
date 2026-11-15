@@ -820,7 +820,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   async function loadData(force) {
     state.lastAttempt = Date.now();
     try {
-      var res = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
+      // cache: no-cache یعنی بازپرسی از سرور؛ با ETag پاسخ ۳۰۴ می‌آید و ۸۵۰ کیلوبایت دوباره دانلود نمی‌شود.
+      var res = await fetch('data.json', { cache: 'no-cache' });
       if (!res.ok) throw new Error('دریافت داده ناموفق بود (HTTP ' + res.status + ')');
       var data = await res.json();
       // در نسخهٔ استاتیک (بدون API سرور) آستانه‌های پنل مدیر از خود data.json خوانده می‌شود.
@@ -880,7 +881,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
   async function poll() {
     if (!state.auto || document.hidden) return;
-    var res = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' }).catch(function () { return null; });
+    var res = await fetch('data.json', { cache: 'no-cache' }).catch(function () { return null; });
     if (!res || !res.ok) return;
     var data = await res.json().catch(function () { return null; });
     if (!data) return;
@@ -2305,7 +2306,10 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
   // آینه‌های iptv-org: اول GitHub Pages، بعد jsDelivr (cdn و fastly)، raw.githack و
   // GitHub Raw (شاخهٔ gh-pages) تا اگر GitHub Pages در دسترس نبود، فهرست شبکه‌ها باز هم بیاید.
+  // نخست فایل‌های خودِ سایت (هم‌مبدأ، همیشه در دسترس چون صفحه از همین‌جا آمده)؛
+  // بعد آینه‌های عمومی برای کشورها و بخش‌هایی که به‌صورت محلی نیامده‌اند.
   var SAT_IPTV_MIRRORS = [
+    'sat',
     'https://iptv-org.github.io/iptv',
     'https://cdn.jsdelivr.net/gh/iptv-org/iptv@gh-pages',
     'https://fastly.jsdelivr.net/gh/iptv-org/iptv@gh-pages',
@@ -2315,6 +2319,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     'https://raw.githubusercontent.com/iptv-org/iptv/gh-pages'
   ];
   var SAT_COUNTRIES_URLS = [
+    'sat/countries.json',
     'https://iptv-org.github.io/api/countries.json',
     'https://cdn.jsdelivr.net/gh/iptv-org/api@gh-pages/countries.json',
     'https://fastly.jsdelivr.net/gh/iptv-org/api@gh-pages/countries.json',
@@ -2333,6 +2338,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   // وضعیت مسیر شبکه: کدام آینه‌های iptv-org از این دستگاه در دسترس‌اند.
   // سایت خودش VPN اجرا نمی‌کند؛ این نشانگر فقط می‌گوید مسیر باز است یا نه.
   var SAT_MIRROR_LABELS = {
+    'sat': 'خودِ سایت',
     'iptv-org.github.io': 'GitHub Pages',
     'cdn.jsdelivr.net': 'jsDelivr',
     'fastly.jsdelivr.net': 'jsDelivr (Fastly)',
@@ -2343,6 +2349,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   };
 
   function satMirrorLabel(base) {
+    if (base === 'sat') return 'خودِ سایت';
     try {
       var host = new URL(base).hostname;
       return SAT_MIRROR_LABELS[host] || host;
@@ -2618,12 +2625,17 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (!satState.list.length || satState.verifying === token) return;
     // هنگام پخش یا وقتی بخش بسته است، بررسی پس‌زمینه اجرا نمی‌شود تا پهنای باند پخش گرفته نشود.
     if (satState.hls || satSectionCollapsed()) return;
+    // در اتصال کم‌مصرف یا ۲G آزمایش شبکه‌ها اجرا نمی‌شود؛ آزمایش تنها هنگام پخش انجام می‌شود.
+    var conn = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+    if (conn && (conn.saveData || /(^|-)2g$/.test(String(conn.effectiveType || '')))) return;
+    // تنها شبکه‌های نمایش‌داده‌شده آزمایش می‌شوند، نه کل فهرست چندصدتایی.
+    var queue = ((satState.shown && satState.shown.length) ? satState.shown : satState.list).slice(0, 48);
     satState.verifying = token;
-    var deadline = Date.now() + 60000;
-    for (var i = 0; i < satState.list.length; i++) {
+    var deadline = Date.now() + 45000;
+    for (var i = 0; i < queue.length; i++) {
       if (token !== satState.token || Date.now() > deadline || document.hidden) break;
-      if (satState.hls) break;
-      var entry = satState.list[i];
+      if (satState.hls || satSectionCollapsed()) break;
+      var entry = queue[i];
       var key = satEntryKey(entry);
       if (!key || satState.dead[key]) continue;
       // eslint-disable-next-line no-await-in-loop
@@ -3269,9 +3281,34 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         renderSat();
       });
     }
-    ensureSatCountries(0);
-    probeRouteStatus();
-    setInterval(probeRouteStatus, 300000);
+    // فهرست شبکه‌ها و بررسی آینه‌ها تا وقتی بخش ماهواره باز و در دید نباشد آغاز نمی‌شود؛
+    // وگرنه پیش از نمایش خبرها ده‌ها درخواست به میزبان‌های خارجی فرستاده می‌شد.
+    var satBooted = false;
+    function satBoot() {
+      if (satBooted || satSectionCollapsed()) return;
+      satBooted = true;
+      ensureSatCountries(0);
+      probeRouteStatus();
+      setInterval(probeRouteStatus, 300000);
+    }
+    (function watchSatSection() {
+      var section = $('sat-tv');
+      var panelEl = section && section.querySelector('.panel');
+      if (!section || !panelEl) return;
+      panelEl.addEventListener('click', function () { setTimeout(satBoot, 0); });
+      if ('IntersectionObserver' in window) {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) { if (entry.isIntersecting) satBoot(); });
+        }, { rootMargin: '400px' });
+        io.observe(section);
+      }
+      // اگر بخش از ابتدا در دید بود ولی کاربر کاری نکرد، پس از بارشدن صفحه یک‌بار امتحان شود
+      window.addEventListener('load', function () {
+        setTimeout(function () {
+          if (section.getBoundingClientRect().top < window.innerHeight) satBoot();
+        }, 1200);
+      });
+    })();
   })();
 
   // مهر نسخه: کامیت و زمان انتشار را از version.json (ساختهٔ گردش‌کار) می‌خواند

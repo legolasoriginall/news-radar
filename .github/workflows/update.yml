@@ -102,6 +102,27 @@ jobs:
           cp AdultVod.m3u _site/
           cp data.json _site/
           cp news.xlsx _site/
+          # فهرست‌های پخش ماهواره به‌صورت محلی هم منتشر می‌شوند تا بازکردن این بخش به
+          # میزبان‌های خارجی که از ایران کند یا بسته‌اند وابسته نباشد. اگر دانلود نشد،
+          # سایت همان آینه‌های عمومی را امتحان می‌کند و چیزی نمی‌شکند.
+          mkdir -p _site/sat/languages _site/sat/countries
+          while read -r url dest; do
+            ok=0
+            for attempt in 1 2 3; do
+              if curl -fsSL --max-time 45 "$url" -o "$dest"; then ok=1; break; fi
+              sleep $((attempt * 10))
+            done
+            if [ "$ok" = "1" ]; then
+              echo "فهرست محلی ساخته شد: $dest"
+            else
+              echo "دانلود $url ناموفق بود؛ از آینه‌های عمومی استفاده می‌شود." >&2
+              rm -f "$dest"
+            fi
+          done <<'LIST'
+          https://iptv-org.github.io/api/countries.json _site/sat/countries.json
+          https://iptv-org.github.io/iptv/languages/fas.m3u _site/sat/languages/fas.m3u
+          https://iptv-org.github.io/iptv/countries/ir.m3u _site/sat/countries/ir.m3u
+          LIST
           # گزارش وضعیت زنجیره از اجرای قبلی (اگر وجود داشته باشد) هم منتشر می‌شود.
           if [ -f chain-log.json ]; then cp chain-log.json _site/; fi
           cp -r vendor _site/
