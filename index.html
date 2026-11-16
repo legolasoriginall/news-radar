@@ -302,6 +302,12 @@ body.sat-fs-lock { overflow: hidden; }
 .vpn-link.alt { background: #fff; color: #0f766e; border: 1px solid #0f766e; }
 .vpn-link.alt:hover { background: #f0fdfa; }
 .vpn-link[hidden] { display: none; }
+.vpn-fallback { margin: 12px 0 4px; padding: 10px 12px; border: 1px solid #f59e0b; background: #fffbeb; border-radius: 10px; color: #78350f; font-size: 12.5px; line-height: 1.8; }
+.vpn-fallback strong { display: block; margin-bottom: 2px; font-size: 13px; }
+.vpn-fallback p { margin: 2px 0 8px; }
+.vpn-fallback .vpn-link { background: #b45309; }
+.vpn-fallback .vpn-link:hover { background: #92400e; }
+.vpn-fallback[hidden] { display: none; }
 
 section { margin-top: 22px; }
 .panel { background: var(--panel); border-radius: var(--radius); padding: 20px 22px; box-shadow: var(--shadow); border: 1px solid rgba(16,24,40,.03); }
@@ -629,9 +635,14 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     <div class="vpn-body">
       <p>اپ <b>ArcVeepn</b> یک برنامهٔ اندرویدی است؛ مرورگر نمی‌تواند فایل APK را داخل صفحهٔ وب اجرا کند. برای استفاده، APK را دانلود و روی گوشی نصب کن، بعد از روشن‌کردن VPN این صفحه را دوباره باز کن.</p>
       <div class="vpn-actions">
-        <a class="vpn-link alt" id="vpn-open-app" href="intent://#Intent;package=com.vpeen.android;S.browser_fallback_url=https%3A%2F%2Fgithub.com%2FProxyArc%2FArcVeePN%2Freleases%2Fdownload%2Fv2.5%2FArcVeePN-2.5.apk;end" rel="noopener noreferrer" hidden>باز کردن اپ ArcVeepn ↗</a>
+        <a class="vpn-link alt" id="vpn-open-app" href="intent://#Intent;package=com.vpeen.android;end" rel="noopener noreferrer" hidden>باز کردن اپ ArcVeepn ↗</a>
         <a class="vpn-link" href="https://github.com/ProxyArc/ArcVeePN/releases/download/v2.5/ArcVeePN-2.5.apk" rel="noopener noreferrer">دانلود مستقیم APK · نسخهٔ ۲.۵ (۱۵ مگابایت)</a>
         <a class="vpn-link alt" href="https://github.com/ProxyArc/ArcVeePN/releases/latest" target="_blank" rel="noopener noreferrer">همهٔ نسخه‌ها در گیت‌هاب ↗</a>
+      </div>
+      <div class="vpn-fallback" id="vpn-app-fallback" role="status" aria-live="polite" hidden>
+        <strong>اپ باز نشد؟</strong>
+        <p>اگر ArcVeepn نصب نیست یا باز نشد، فایل APK را دانلود و نصب کن؛ بعد از نصب دوباره «باز کردن اپ» را بزن.</p>
+        <a class="vpn-link" href="https://github.com/ProxyArc/ArcVeePN/releases/download/v2.5/ArcVeePN-2.5.apk" rel="noopener noreferrer">دانلود APK و نصب دستی · ۱۵ مگابایت</a>
       </div>
       <ol>
         <li>روی «دانلود مستقیم APK» بزن و فایل را ذخیره کن.</li>
@@ -1640,12 +1651,27 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     var opener = $('vpn-btn');
     var closer = $('vpn-close');
     if (!overlay || !opener || !closer) return;
+    var appFallback = $("vpn-app-fallback");
+    var appTimer = 0;
+    function appVisibility() {
+      if (document.visibilityState === 'hidden') stopAppWatch();
+    }
+    function stopAppWatch() {
+      if (appTimer) { clearTimeout(appTimer); appTimer = 0; }
+      document.removeEventListener('visibilitychange', appVisibility);
+    }
+    function resetAppFallback() {
+      stopAppWatch();
+      if (appFallback) appFallback.hidden = true;
+    }
     function open() {
+      resetAppFallback();
       overlay.hidden = false;
       document.body.style.overflow = 'hidden';
       closer.focus();
     }
     function shut() {
+      resetAppFallback();
       overlay.hidden = true;
       document.body.style.overflow = '';
       opener.focus();
@@ -1657,7 +1683,18 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       if (event.key === 'Escape' && !overlay.hidden) shut();
     });
     var openApp = $('vpn-open-app');
-    if (openApp && /Android/i.test(navigator.userAgent)) openApp.hidden = false;
+    if (openApp && /Android/i.test(navigator.userAgent)) {
+      openApp.hidden = false;
+      openApp.addEventListener('click', function () {
+        if (!appFallback) return;
+        resetAppFallback();
+        document.addEventListener('visibilitychange', appVisibility);
+        appTimer = setTimeout(function () {
+          stopAppWatch();
+          if (!overlay.hidden) appFallback.hidden = false;
+        }, 2000);
+      });
+    }
   })();
 
   /* ---------------- پنل مدیر (قاب هم‌مبدأ) ---------------- */
