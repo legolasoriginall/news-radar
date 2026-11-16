@@ -1842,36 +1842,39 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   ];
 
   var liveState = { channel: 'iranintl', hls: null, script: null, retry: 0, watchdog: 0, currentSource: '' };
-  // پروکسی رسانه‌ای: اگر دامنهٔ پخش در ایران بسته باشد، پلی‌لیست و سگمنت‌ها
-  // از این Worker عبور می‌کنند. مسیر مستقیم هم بعد از آن می‌ماند تا اگر پروکسی
-  // در دسترس نبود، پخش با VPN یا شبکهٔ باز از دست نرود.
+  // پروکسی رسانه‌ای فقط مسیر جایگزین است: همهٔ مسیرهای مستقیم اول امتحان
+  // می‌شوند و سگمنت‌ها فقط وقتی از Worker عبور می‌کنند که مسیر مستقیم بسته
+  // باشد. این ترتیب مصرف سهمیهٔ پروکسی را کم می‌کند.
   var MEDIA_PROXY = 'https://site-53fbcd41632342a6aab96e4e5a8c573e.freebuff.page/';
   function proxiedMediaUrl(url) {
     if (!MEDIA_PROXY || !/^https?:\/\//i.test(String(url || ''))) return url;
     return MEDIA_PROXY + '?url=' + encodeURIComponent(url);
   }
-  function proxyFirstSources(sources) {
+  function isMediaProxyUrl(url) {
+    return Boolean(MEDIA_PROXY && String(url || '').indexOf(MEDIA_PROXY) === 0);
+  }
+  function sourcesWithFallback(sources) {
     var list = Array.isArray(sources) ? sources : [];
-    if (!MEDIA_PROXY) return list.slice();
     var out = [];
+    list.forEach(function (src) { if (out.indexOf(src) < 0) out.push(src); });
+    if (!MEDIA_PROXY) return out;
     list.forEach(function (src) {
       var proxied = proxiedMediaUrl(src);
       if (out.indexOf(proxied) < 0) out.push(proxied);
-      if (out.indexOf(src) < 0) out.push(src);
     });
     return out;
   }
-  function proxyFirstChannels(channels) {
+  function channelsWithFallback(channels) {
     if (!MEDIA_PROXY) return channels;
     return (channels || []).map(function (channel) {
       if (!channel) return channel;
       var copy = {};
       Object.keys(channel).forEach(function (key) { copy[key] = channel[key]; });
-      copy.sources = proxyFirstSources(channel.sources);
+      copy.sources = sourcesWithFallback(channel.sources);
       return copy;
     });
   }
-  var liveChannels = proxyFirstChannels(LIVE_CHANNELS);
+  var liveChannels = channelsWithFallback(LIVE_CHANNELS);
 
   function liveChannelById(id) {
     for (var i = 0; i < liveChannels.length; i++) {
@@ -1907,17 +1910,30 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   // در پایان مسیرهایی که تصویر نداده‌اند.
   function preferredSources(channel) {
     var saved = storeGet(liveSourceKey(channel.id), '');
+    var savedUsable = saved && !isMediaProxyUrl(saved) && liveVerdict(channel.id, saved) !== 'bad';
     var rank = { ok: 0, '': 1, bad: 2 };
-    var list = channel.sources.map(function (url, index) {
-      return { url: url, index: index, verdict: liveVerdict(channel.id, url) };
+    var direct = [];
+    var proxy = [];
+    channel.sources.forEach(function (url, index) {
+      var item = { url: url, index: index, verdict: liveVerdict(channel.id, url) };
+      (isMediaProxyUrl(url) ? proxy : direct).push(item);
     });
-    list.sort(function (a, b) {
-      if (a.url === saved && b.url !== saved) return -1;
-      if (b.url === saved && a.url !== saved) return 1;
-      if (rank[a.verdict] !== rank[b.verdict]) return rank[a.verdict] - rank[b.verdict];
-      return a.index - b.index;
-    });
-    return list.map(function (item) { return item.url; });
+    function byRank(list) {
+      list.sort(function (a, b) {
+        if (savedUsable && a.url === saved && b.url !== saved) return -1;
+        if (savedUsable && b.url === saved && a.url !== saved) return 1;
+        if (rank[a.verdict] !== rank[b.verdict]) return rank[a.verdict] - rank[b.verdict];
+        return a.index - b.index;
+      });
+      return list;
+    }
+    byRank(direct);
+    byRank(proxy);
+    // مسیرهای مستقیمِ تازه یا سالم قبل از پروکسی می‌آیند؛ پروکسی فقط وقتی
+    // جلو می‌افتد که همهٔ مسیرهای مستقیم در آزمون اخیر «بسته» تشخیص داده شده باشند.
+    var directReady = direct.filter(function (item) { return item.verdict !== 'bad'; });
+    var directClosed = direct.filter(function (item) { return item.verdict === 'bad'; });
+    return directReady.concat(proxy, directClosed).map(function (item) { return item.url; });
   }
 
   // یک مسیر را در ویدئوی بی‌صدا و پنهان واقعاً پخش می‌کند و می‌بیند فریم
@@ -1984,15 +2000,31 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     var channel = liveChannelById(channelId);
     if (!channel || !Array.isArray(channel.sources)) return;
     liveVerifyBusy = channelId;
+    var directOk = false;
     try {
       for (var i = 0; i < channel.sources.length; i++) {
         var url = channel.sources[i];
-        if (liveVerdict(channel.id, url)) continue;
+        var isProxy = isMediaProxyUrl(url);
+        // اگر یک مسیر مستقیم سالم پیدا شد، مسیرهای پروکسی این کانال را
+        // آزمایش نکن تا سهمیهٔ پروکسی فقط برای مسیرهای بسته مصرف شود.
+        if (isProxy && directOk) continue;
+        if (liveVerdict(channel.id, url)) {
+          if (!isProxy) directOk = true;
+          continue;
+        }
         var panel = document.querySelector('#live-tv .panel');
         if (document.hidden || (panel && panel.classList.contains('collapsed'))) break;
-        if (liveState.currentSource === url) { setLiveVerdict(channel.id, url, true); continue; }
+        if (liveState.currentSource === url) {
+          setLiveVerdict(channel.id, url, true);
+          if (!isProxy) directOk = true;
+          continue;
+        }
         var ok = await testLivePicture(url);
         setLiveVerdict(channel.id, url, ok);
+        if (ok) {
+          if (isProxy) break;
+          directOk = true;
+        }
       }
     } finally {
       liveVerifyBusy = '';
@@ -2011,7 +2043,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         return channel && channel.id && channel.name && Array.isArray(channel.sources) && channel.sources.length;
       });
       if (!usable.length) return;
-      liveChannels = proxyFirstChannels(usable);
+      liveChannels = channelsWithFallback(usable);
       if (!liveChannels.some(function (channel) { return channel.id === liveState.channel; })) {
         liveState.channel = liveChannels[0].id;
       }
@@ -3277,9 +3309,10 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var right = satIranFriendly(b) ? 0 : 1;
       return left - right;
     });
-    var expanded = proxyFirstSources(urls);
+    var expanded = sourcesWithFallback(urls);
     var saved = storeGet(satSourceKey(entry), '');
-    if (saved && expanded.indexOf(saved) >= 0) {
+    var savedIsProxy = isMediaProxyUrl(saved);
+    if (saved && !savedIsProxy && expanded.indexOf(saved) >= 0) {
       return [saved].concat(expanded.filter(function (url) { return url !== saved; }));
     }
     return expanded;
@@ -3352,7 +3385,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   // یک شبکه وقتی «بی‌پخش» حساب می‌شود که هیچ مسیری جواب ندهد و دست‌کم یکی
   // از مسیرها پاسخ قطعی خراب داده باشد؛ خطای صرفاً شبکه‌ای دلیل حذف نیست.
   async function satProbeEntry(entry) {
-    var urls = proxyFirstSources((entry.sources || []).slice(0, 3));
+    var urls = sourcesWithFallback((entry.sources || []).slice(0, 3));
     var sawBad = false;
     for (var i = 0; i < urls.length; i++) {
       // eslint-disable-next-line no-await-in-loop
