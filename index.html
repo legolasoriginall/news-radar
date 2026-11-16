@@ -1805,7 +1805,36 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   ];
 
   var liveState = { channel: 'iranintl', hls: null, script: null, retry: 0, watchdog: 0, currentSource: '' };
-  var liveChannels = LIVE_CHANNELS;
+  // پروکسی رسانه‌ای: اگر دامنهٔ پخش در ایران بسته باشد، پلی‌لیست و سگمنت‌ها
+  // از این Worker عبور می‌کنند. مسیر مستقیم هم بعد از آن می‌ماند تا اگر پروکسی
+  // در دسترس نبود، پخش با VPN یا شبکهٔ باز از دست نرود.
+  var MEDIA_PROXY = 'https://site-53fbcd41632342a6aab96e4e5a8c573e.freebuff.page/';
+  function proxiedMediaUrl(url) {
+    if (!MEDIA_PROXY || !/^https?:\/\//i.test(String(url || ''))) return url;
+    return MEDIA_PROXY + '?url=' + encodeURIComponent(url);
+  }
+  function proxyFirstSources(sources) {
+    var list = Array.isArray(sources) ? sources : [];
+    if (!MEDIA_PROXY) return list.slice();
+    var out = [];
+    list.forEach(function (src) {
+      var proxied = proxiedMediaUrl(src);
+      if (out.indexOf(proxied) < 0) out.push(proxied);
+      if (out.indexOf(src) < 0) out.push(src);
+    });
+    return out;
+  }
+  function proxyFirstChannels(channels) {
+    if (!MEDIA_PROXY) return channels;
+    return (channels || []).map(function (channel) {
+      if (!channel) return channel;
+      var copy = {};
+      Object.keys(channel).forEach(function (key) { copy[key] = channel[key]; });
+      copy.sources = proxyFirstSources(channel.sources);
+      return copy;
+    });
+  }
+  var liveChannels = proxyFirstChannels(LIVE_CHANNELS);
 
   function liveChannelById(id) {
     for (var i = 0; i < liveChannels.length; i++) {
@@ -1945,7 +1974,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         return channel && channel.id && channel.name && Array.isArray(channel.sources) && channel.sources.length;
       });
       if (!usable.length) return;
-      liveChannels = usable;
+      liveChannels = proxyFirstChannels(usable);
       if (!liveChannels.some(function (channel) { return channel.id === liveState.channel; })) {
         liveState.channel = liveChannels[0].id;
       }
@@ -3211,11 +3240,12 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var right = satIranFriendly(b) ? 0 : 1;
       return left - right;
     });
+    var expanded = proxyFirstSources(urls);
     var saved = storeGet(satSourceKey(entry), '');
-    if (saved && urls.indexOf(saved) >= 0) {
-      return [saved].concat(urls.filter(function (url) { return url !== saved; }));
+    if (saved && expanded.indexOf(saved) >= 0) {
+      return [saved].concat(expanded.filter(function (url) { return url !== saved; }));
     }
-    return urls;
+    return expanded;
   }
 
   // بررسی سریع یک نشانی قبل از پخش تا مسیرهای بسته سریع رد شوند
@@ -3285,7 +3315,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   // یک شبکه وقتی «بی‌پخش» حساب می‌شود که هیچ مسیری جواب ندهد و دست‌کم یکی
   // از مسیرها پاسخ قطعی خراب داده باشد؛ خطای صرفاً شبکه‌ای دلیل حذف نیست.
   async function satProbeEntry(entry) {
-    var urls = (entry.sources || []).slice(0, 3);
+    var urls = proxyFirstSources((entry.sources || []).slice(0, 3));
     var sawBad = false;
     for (var i = 0; i < urls.length; i++) {
       // eslint-disable-next-line no-await-in-loop
@@ -3701,6 +3731,16 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       })
       .catch(function () { /* بدون مهر هم صفحه کامل است */ });
   })();
+  // اگر تصویر یا لوگوی یک منبع مستقیم باز نشد، یک بار از پروکسی رسانه امتحان می‌شود.
+  document.addEventListener('error', function (event) {
+    var img = event.target;
+    if (!img || img.tagName !== 'IMG' || img.getAttribute('data-proxy-tried')) return;
+    var src = img.getAttribute('src') || '';
+    if (!/^https?:\/\//i.test(src) || !MEDIA_PROXY || src.indexOf(MEDIA_PROXY) === 0) return;
+    img.setAttribute('data-proxy-tried', '1');
+    img.src = proxiedMediaUrl(src);
+  }, true);
+
   (async function boot() {
     await fetchStatus();
     await loadData(true);
