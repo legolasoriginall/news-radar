@@ -1,25 +1,5 @@
 [
  {
-  "at": "2026-11-20T06:20:49.927Z",
-  "started_at": "2026-11-20T06:20:17Z",
-  "duration_ms": 32927,
-  "commit": "8a3f5a1",
-  "run": "44687056583",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
   "at": "2026-11-20T06:34:34.992Z",
   "started_at": "2026-11-20T06:34:04Z",
   "duration_ms": 30992,
@@ -1195,6 +1175,26 @@
   },
   "deploy": {
    "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-20T19:53:25.240Z",
+  "started_at": "2026-11-20T19:52:10Z",
+  "duration_ms": 75240,
+  "commit": "905f2ea",
+  "run": "44806099992",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 2,
    "ok": true
   },
   "url": "https://legolasoriginall.github.io/news-radar/"
