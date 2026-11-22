@@ -33,6 +33,7 @@ body {
   margin: 0; background: var(--bg); color: var(--ink);
   font-family: "Vazirmatn", "IRANSansX", "IRANSans", "Segoe UI", Tahoma, Arial, sans-serif;
   font-size: 15px; line-height: 1.75;
+  padding-bottom: calc(72px + env(safe-area-inset-bottom, 0px));
 }
 a { color: inherit; text-decoration: none; }
 a:hover { text-decoration: underline; }
@@ -440,8 +441,30 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 .skeleton { color: var(--muted); text-align: center; padding: 60px 20px; }
 .skeleton .ring { width: 34px; height: 34px; border: 3px solid #e2e8f0; border-top-color: var(--teal); border-radius: 50%; margin: 0 auto 12px; animation: spin 1s linear infinite; }
 .error-box { background: #fef2f2; border: 1px solid #fecaca; color: #991b1b; border-radius: 12px; padding: 12px 14px; font-size: 13px; display: none; margin-top: 10px; }
-.toast { position: fixed; inset-inline-start: 18px; bottom: 18px; background: var(--navy); color: #fff; padding: 10px 16px; border-radius: 12px; font-size: 13px; box-shadow: 0 10px 30px rgba(16,24,40,.25); transform: translateY(160%); transition: transform .3s; z-index: 50; }
+.toast { position: fixed; inset-inline-start: 18px; bottom: calc(80px + env(safe-area-inset-bottom, 0px)); background: var(--navy); color: #fff; padding: 10px 16px; border-radius: 12px; font-size: 13px; box-shadow: 0 10px 30px rgba(16,24,40,.25); transform: translateY(160%); transition: transform .3s; z-index: 50; }
 .toast.show { transform: translateY(0); }
+/* نوار پایین ثابت: دسترسی سریع به بخش‌های اصلی */
+.quick-bar {
+  position: fixed; inset-inline: 0; bottom: 0; z-index: 70;
+  display: flex; align-items: stretch; justify-content: center; gap: 4px;
+  padding: 6px 10px calc(6px + env(safe-area-inset-bottom, 0px));
+  background: rgba(11,31,58,.94); backdrop-filter: blur(10px);
+  border-top: 1px solid rgba(255,255,255,.14);
+  box-shadow: 0 -10px 26px rgba(16,24,40,.22);
+}
+.quick-bar .qb-item {
+  flex: 1 1 0; min-width: 0; max-width: 210px;
+  display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  padding: 6px 4px; border: 0; border-radius: 10px; background: transparent;
+  color: rgba(255,255,255,.82); font-family: inherit; font-size: 11.5px; line-height: 1.3;
+  text-decoration: none; cursor: pointer; transition: background .15s, color .15s;
+}
+.quick-bar .qb-item:hover, .quick-bar .qb-item:focus-visible { background: rgba(255,255,255,.12); color: #fff; text-decoration: none; }
+.quick-bar .qb-item:focus-visible { outline: 2px solid #5eead4; outline-offset: -2px; }
+.quick-bar .qb-ico { font-size: 17px; line-height: 1; }
+@media (min-width: 761px) {
+  .quick-bar .qb-item { flex-direction: row; gap: 7px; font-size: 12.5px; }
+}
 
 @media (max-width: 1020px) {
   .grid-2 { grid-template-columns: 1fr; }
@@ -455,7 +478,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 }
 @media print {
   .hero { background: #fff; color: #000; padding-bottom: 10px; }
-  .actions, .more-wrap, .toast { display: none; }
+  .actions, .more-wrap, .toast, .quick-bar { display: none; }
   body { background: #fff; }
   .news { break-inside: avoid; }
   .panel { box-shadow: none; }
@@ -574,7 +597,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     </div>
   </section>
 
-  <section>
+  <section id="telegram">
     <div class="panel">
       <div class="panel-head">
         <h2><span class="ico">✆</span> خبرهای تلگرام</h2>
@@ -654,6 +677,14 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     </div>
   </div>
 </div>
+
+<nav class="quick-bar" id="quick-bar" aria-label="دسترسی سریع به بخش‌ها">
+  <a class="qb-item" href="#sat-tv"><span class="qb-ico" aria-hidden="true">🛰</span><span>ماهواره</span></a>
+  <a class="qb-item" href="#telegram"><span class="qb-ico" aria-hidden="true">✆</span><span>تلگرام</span></a>
+  <a class="qb-item" href="#feed"><span class="qb-ico" aria-hidden="true">☰</span><span>خبر</span></a>
+  <a class="qb-item" href="#market"><span class="qb-ico" aria-hidden="true">⚖</span><span>طلا و دلار</span></a>
+  <button class="qb-item" id="qb-settings" type="button" data-admin-open><span class="qb-ico" aria-hidden="true">⚙</span><span>تنظیمات</span></button>
+</nav>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
