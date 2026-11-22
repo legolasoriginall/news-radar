@@ -523,7 +523,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 .quick-bar .qb-item:hover, .quick-bar .qb-item:focus-visible { background: rgba(255,255,255,.12); color: #fff; text-decoration: none; }
 .quick-bar .qb-item:focus-visible { outline: 2px solid #5eead4; outline-offset: -2px; }
 .quick-bar .qb-ico { font-size: 17px; line-height: 1; }
-.quick-bar .qb-item.is-active { background: rgba(94,234,212,.16); color: #fff; }
+.quick-bar .qb-item.is-active { background: rgba(94,234,212,.22); color: #fff; font-weight: 700; box-shadow: inset 0 0 0 1px rgba(94,234,212,.45); }
 .quick-bar .qb-item.is-active .qb-ico { color: #5eead4; }
 @media (min-width: 761px) {
   .quick-bar .qb-item { flex-direction: row; gap: 7px; font-size: 12.5px; }
@@ -4457,7 +4457,13 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       if (target) items.push({ link: link, target: target });
     });
     if (!items.length) return;
+    // بخش آخر از نظر ترتیب صفحه (نه ترتیب نوار) برای هایلایت انتهای صفحه.
+    var lastInPage = items[0];
+    items.forEach(function (item) {
+      if (lastInPage.target.compareDocumentPosition(item.target) & 4) lastInPage = item;
+    });
     var activeLink = null;
+    var locked = null;
     var queued = false;
     function apply(link) {
       if (link === activeLink) return;
@@ -4474,8 +4480,19 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }
     function update() {
       queued = false;
-      // خط مرجع کمی بالاتر از میانهٔ صفحه؛ بخشی که از آن گذشته باشیم «جاری» است.
-      var line = window.innerHeight * 0.4;
+      // انتخاب کاربر تا اولین اسکرول دستی قفل می‌ماند؛ بخش‌های کوتاهی مثل
+      // «طلا و دلار» یا «خبر» جمع‌شده به‌اندازه‌ای بلند نیستند که خط ۴۰٪ را رد کنند.
+      if (locked) { apply(locked.link); return; }
+      var viewport = window.innerHeight;
+      // در انتهای صفحه بخش آخر جاری است؛ وگرنه بخش‌های کوتاه پایانی هرگز
+      // از خط مرجع رد نمی‌شوند و هایلایت روی بخش قبلی جا می‌ماند.
+      if (window.scrollY + viewport >= document.documentElement.scrollHeight - 2) {
+        apply(lastInPage.link);
+        return;
+      }
+      // خط مرجع نزدیک بالای صفحه؛ با خط میانه، بخش‌های کوتاه (مثل بخش تازه‌بارشده)
+      // رد می‌شدند و نوار روی بخش بلند بعدی می‌پرید.
+      var line = Math.min(200, viewport * 0.3);
       var best = null;
       var bestTop = -Infinity;
       items.forEach(function (item) {
@@ -4488,6 +4505,31 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       if (queued) return;
       queued = true;
       window.requestAnimationFrame(update);
+    }
+    function lockTo(link) {
+      locked = null;
+      items.forEach(function (item) { if (item.link === link) locked = item; });
+      update();
+    }
+    function unlock() {
+      if (!locked) return;
+      locked = null;
+      schedule();
+    }
+    bar.addEventListener('click', function (event) {
+      var link = event.target && event.target.closest ? event.target.closest('a.qb-item[href^="#"]') : null;
+      if (link) lockTo(link);
+    });
+    // هر اسکرول دستی قفل انتخاب کاربر را باز می‌کند تا هایلایت دوباره با موقعیت صفحه هم‌گام شود.
+    ['wheel', 'touchmove', 'keydown'].forEach(function (name) {
+      window.addEventListener(name, unlock, { passive: true });
+    });
+    // بخش‌ها با محتوای تنبل (تلگرام، ماهواره، خبرها) بعد از اسکرول بلندتر می‌شوند؛
+    // بدون این بازمحاسبه، هایلایت روی بخش قبلی جا می‌ماند.
+    if ('ResizeObserver' in window) {
+      var observer = new ResizeObserver(schedule);
+      items.forEach(function (item) { observer.observe(item.target); });
+      observer.observe(document.body);
     }
     window.addEventListener('scroll', schedule, { passive: true });
     window.addEventListener('resize', schedule);
