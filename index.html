@@ -371,6 +371,17 @@ section { margin-top: 22px; }
 
 .langbar { display: flex; height: 12px; border-radius: 99px; overflow: hidden; background: #eef2f7; margin: 8px 0 4px; }
 .langbar span { display: block; height: 100%; }
+.today-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 18px; }
+.today-block { margin-top: 18px; }
+.today-grid .today-block { margin-top: 0; }
+.today-block h3 { font-size: 13.5px; margin: 0 0 10px; color: var(--ink); }
+.keyword-cloud { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; }
+.kw { color: #0f766e; line-height: 1.55; }
+.kw:hover { color: #115e59; }
+#topic-share .topic-row { grid-template-columns: 92px 1fr 66px 46px; cursor: default; }
+@media (max-width: 720px) {
+  .today-grid { grid-template-columns: minmax(0, 1fr); }
+}
 .hourly { display: flex; align-items: flex-end; gap: 3px; height: 96px; margin-top: 10px; }
 .hourly .h { flex: 1; background: linear-gradient(180deg, #0ea5e9, #0d9488); border-radius: 3px 3px 0 0; min-height: 2px; position: relative; }
 .hourly .h:hover { filter: brightness(1.15); }
@@ -527,6 +538,32 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
 <main class="wrap">
   <div class="error-box" id="error-box"></div>
+
+  <section id="today">
+    <div class="panel">
+      <div class="panel-head">
+        <h2><span class="ico">✦</span> تصویر کلی امروز</h2>
+        <span class="hint" id="today-hint"></span>
+      </div>
+      <p class="headline" id="today-headline" hidden></p>
+      <ul class="summary-list" id="today-lines" hidden></ul>
+      <div class="today-grid">
+        <div class="today-block">
+          <h3>ابر کلیدواژه‌ها</h3>
+          <div class="keyword-cloud" id="keyword-cloud"></div>
+        </div>
+        <div class="today-block">
+          <h3>سهم موضوع‌ها</h3>
+          <div id="topic-share"></div>
+        </div>
+      </div>
+      <div class="today-block">
+        <h3>پخش خبر در ۲۴ ساعت گذشته</h3>
+        <div class="hourly" id="hourly-chart"></div>
+        <div class="hourly-axis" id="hourly-axis"></div>
+      </div>
+    </div>
+  </section>
 
   <section id="market">
     <div class="panel">
@@ -1193,10 +1230,62 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (link.getAttribute('href') !== target) link.setAttribute('href', target);
   }
 
+  function renderToday() {
+    var data = state.data;
+    if (!data) return;
+    var analysis = data.analysis || {};
+    var headlineEl = $('today-headline');
+    var headline = analysis.headline || '';
+    headlineEl.textContent = headline;
+    headlineEl.hidden = !headline;
+
+    // خطوط تحلیلی همان چیزی است که pipeline ساخته و تا حالا جایی دیده نمی‌شد.
+    var lines = Array.isArray(analysis.lines) ? analysis.lines : [];
+    var linesEl = $('today-lines');
+    linesEl.innerHTML = lines.map(function (line) { return '<li>' + esc(line) + '</li>'; }).join('');
+    linesEl.hidden = !lines.length;
+
+    var keywords = Array.isArray(data.keywords) ? data.keywords.slice(0, 36) : [];
+    $('keyword-cloud').innerHTML = keywords.map(function (item) {
+      var scale = Math.max(0, Math.min(100, Number(item.size_percent) || 0));
+      var size = Math.round(11 + scale * 0.11); // ۱۱ تا ۲۲ پیکسل
+      var weight = scale >= 60 ? 700 : 500;
+      return '<span class="kw" style="font-size:' + size + 'px;font-weight:' + weight + '" title="' +
+        esc(fmt(item.count) + ' خبر') + '">' + esc(item.word) + '</span>';
+    }).join('');
+
+    var topics = (Array.isArray(data.topics) ? data.topics : []).slice(0, 8);
+    $('topic-share').innerHTML = topics.map(function (topic) {
+      var percent = Math.max(0, Math.min(100, Number(topic.percent) || 0));
+      return '<div class="topic-row">' +
+        '<span class="topic-name">' + esc(topic.name) + '</span>' +
+        '<div class="topic-bar"><span style="width:' + Math.max(2, percent) + '%"></span></div>' +
+        '<span class="topic-count">' + fmt(topic.count) + ' خبر</span>' +
+        '<span class="topic-count">' + pctText(percent, 1) + '</span>' +
+        '</div>';
+    }).join('');
+
+    var buckets = Array.isArray((data.hourly || {}).buckets) ? data.hourly.buckets : [];
+    $('hourly-chart').innerHTML = buckets.map(function (bucket) {
+      var height = Math.max(2, Math.min(100, Number(bucket.height_percent) || 0));
+      return '<span class="h" style="height:' + height + '%" title="' +
+        esc(clockText(bucket.hour) + ' — ' + fmt(bucket.count) + ' خبر') + '"></span>';
+    }).join('');
+    var axisEl = $('hourly-axis');
+    axisEl.innerHTML = buckets.length
+      ? '<span>' + esc(clockText(buckets[0].hour)) + '</span><span>' + esc(clockText(buckets[buckets.length - 1].hour)) + '</span>'
+      : '';
+    var total = Number((data.stats && data.stats.total) || 0);
+    $('today-hint').textContent = total
+      ? fmt(total) + ' خبر در ' + clockText(data.generated_at)
+      : '';
+  }
+
   function renderAll() {
     if (!state.data) { renderSkeleton(); return; }
     syncDownloadLinks();
     renderClockOnly();
+    renderToday();
     renderMarkets();
     renderTelegram();
     renderStories();

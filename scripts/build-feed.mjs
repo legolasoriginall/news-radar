@@ -26,8 +26,9 @@ const DETAIL_KEYS = ['summary', 'summary_fa', 'sources', 'telegram', 'importance
 const STORY_KEYS = ['title', 'title_fa', 'url', 'telegram', 'published', 'sentiment',
   'primary_source', 'source_count'];
 // source_health فقط در سلامت منابع پنل مدیر و صفحهٔ وضعیت لازم است و در فید نمی‌آید.
+// analysis/keywords/hourly پشتوانهٔ بخش «تصویر کلی امروز» است (حدود ۹ کیلوبایت).
 const FEED_KEYS = ['generated_at', 'next_update_at', 'update_interval_minutes', 'stats', 'markets',
-  'topics', 'translations', 'settings'];
+  'topics', 'analysis', 'keywords', 'hourly', 'translations', 'settings'];
 const HEALTH_KEYS = ['id', 'name', 'lang', 'ok', 'elapsed_ms', 'success_percent', 'count', 'error', 'via', 'mirror'];
 const STAT_KEYS = ['total', 'stories', 'multi_source_stories', 'fresh_24h', 'sources_ok', 'sources_total'];
 

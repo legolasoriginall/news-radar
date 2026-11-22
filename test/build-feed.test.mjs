@@ -36,6 +36,10 @@ function sampleData(count) {
     markets: { items: [{ label: 'دلار', value: 60000, unit: 'تومان', change_percent: 1.2 }] },
     topics: [{ name: 'موضوع', count: 3 }],
     translations: { provider: 'MyMemory' },
+    analysis: { headline: 'تیتر تحلیل', lines: ['خط یک', 'خط دو'], findings: [] },
+    keywords: [{ word: 'ایران', count: 10, percent: 5, size_percent: 100 }],
+    keyword_counts: { 'ایران': 10 },
+    hourly: { buckets: [{ hour: '2026-11-20T10:00:00.000Z', count: 3, percent: 1, height_percent: 10 }] },
     source_health: [{ id: 's1', name: 'منبع', ok: true, password: 'نباید منتشر شود' }],
     summary_lines: ['خط اول'],
     stories: Array.from({ length: 20 }, (unused, index) => ({
@@ -66,9 +70,12 @@ test('فهرست کارت‌ها سبک است و خلاصه/منابع/تلگر
   assert.equal(card.keywords, undefined);
   assert.deepEqual(card.topics, [{ name: 'موضوع 0' }]);
   assert.deepEqual(card.translation, { is_translation: true });
-  // فیلدهای زیادی از دادهٔ اصلی (تحلیل، کلیدواژه‌ها، hourly) به فهرست نمی‌رسند.
-  assert.equal(built.feed.keywords, undefined);
-  assert.equal(built.feed.analysis, undefined);
+  // بخش «تصویر کلی امروز» از همین فهرست خوانده می‌شود، پس تحلیل و کلیدواژه‌ها می‌آیند.
+  assert.equal(built.feed.analysis.headline, 'تیتر تحلیل');
+  assert.equal(built.feed.keywords[0].word, 'ایران');
+  assert.equal(built.feed.hourly.buckets[0].count, 3);
+  // ولی داده‌های سنگین و تکراری به فهرست نمی‌رسند.
+  assert.equal(built.feed.keyword_counts, undefined);
   // سلامت منابع فقط در health.json می‌آید.
   assert.equal(built.feed.source_health, undefined);
 });
