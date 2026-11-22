@@ -420,6 +420,7 @@ section { margin-top: 22px; }
 .news.is-read .news-title a { color: #98a2b3; }
 .news.is-read .news-sum { color: #98a2b3; }
 .news.is-saved { background: #fffdf5; }
+.news-detail-note { margin: 0; font-size: 12.3px; color: var(--muted); }
 .badge.read { background: #f8fafc; border-color: #e2e8f0; color: #64748b; }
 .news-actions { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .news-act { border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 2px 11px; font: inherit; font-size: 11.5px; color: #475467; cursor: pointer; }
@@ -842,6 +843,40 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (!key || readSet.has(key)) return;
     readSet.add(key);
     saveFeedSet(READ_KEY, readSet, READ_LIMIT);
+  }
+
+  /* ---------------- جزئیات خبر (تنبل، فایل جدا) ---------------- */
+
+  // خلاصه، منابع، پیوند تلگرام و امتیازها در detail/<uid>.json می‌مانند تا
+  // بارگذاری اولیه فقط فهرست سبک کارت‌ها را بگیرد.
+  var detailCache = {};   // کلید خبر -> جزئیات؛ false یعنی خواندن ناموفق بود
+  var detailBusy = {};
+  var openDetails = {};
+
+  function cardWithDetail(article) {
+    var extra = detailCache[feedKey(article)];
+    if (!extra || typeof extra !== 'object') return article;
+    var merged = {};
+    Object.keys(article).forEach(function (name) { merged[name] = article[name]; });
+    Object.keys(extra).forEach(function (name) {
+      if (extra[name] !== undefined && extra[name] !== null) merged[name] = extra[name];
+    });
+    return merged;
+  }
+
+  async function loadArticleDetail(key) {
+    if (!key || detailBusy[key] || (detailCache[key] && detailCache[key] !== false)) return;
+    detailBusy[key] = true;
+    try {
+      var res = await fetch('detail/' + encodeURIComponent(key) + '.json', { cache: 'no-cache' });
+      if (!res.ok) throw new Error('HTTP ' + res.status);
+      var json = await res.json();
+      detailCache[key] = (json && json.detail && typeof json.detail === 'object') ? json.detail : {};
+    } catch (error) {
+      detailCache[key] = false;
+    }
+    detailBusy[key] = false;
+    renderFeed();
   }
 
   /* ---------------- بخش‌های بازشو (فِلش مانند) ---------------- */
@@ -1684,35 +1719,45 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     var visible = list.slice(0, state.page);
 
     $('feed-list').innerHTML = visible.map(function (article) {
-      var isTranslation = article.translation && article.translation.is_translation;
-      var titleText = article.title_fa || article.title;
-      var summaryText = article.lang === 'fa' ? (article.summary_fa || article.summary || '') : (article.summary_fa || '');
-      var tags = (article.topics || []).slice(0, 3).map(function (topic) {
-        return '<span>' + esc(topic.name) + '</span>';
-      }).join('');
       var feedId = feedKey(article);
       var isRead = readSet.has(feedId);
       var isSaved = savedSet.has(feedId);
+      var detailOpen = !!openDetails[feedId];
+      var card = detailOpen ? cardWithDetail(article) : article;
+      // فقط در نسخهٔ تقسیم‌شده؛ در اجرای محلی خلاصه از همان data.json می‌آید.
+      var canLoadDetail = !detailOpen && FEED_FILE !== 'data.json' &&
+        !card.summary && !card.summary_fa && !(card.sources && card.sources.length);
+      var isTranslation = card.translation && card.translation.is_translation;
+      var titleText = card.title_fa || card.title;
+      var summaryText = card.lang === 'fa' ? (card.summary_fa || card.summary || '') : (card.summary_fa || '');
+      var tags = (card.topics || []).slice(0, 3).map(function (topic) {
+        return '<span>' + esc(topic.name) + '</span>';
+      }).join('');
+      var detailNote = detailOpen && !summaryText
+        ? '<p class="news-detail-note">' + (detailCache[feedId] === false ? 'جزئیات این خبر در دسترس نیست.' : 'در حال خواندن جزئیات…') + '</p>'
+        : '';
       return '<li class="news' + (isRead ? ' is-read' : '') + (isSaved ? ' is-saved' : '') + '">' +
         '<div class="news-top">' +
-          '<span>' + esc(article.source_name) + '</span><span>·</span>' +
-          '<span title="' + esc(dateTime(article.published)) + '">' + esc(timeAgo(article.published)) + '</span><span>·</span>' +
-          '<span>' + (article.lang === 'fa' ? 'فارسی' : 'انگلیسی') + '</span>' +
-          (isTranslation ? '<span class="badge tr">ترجمه</span>' : (article.lang === 'en' ? '<span class="badge">در انتظار ترجمه</span>' : '')) +
-          (article.is_new ? '<span class="badge new">تازه</span>' : '') +
+          '<span>' + esc(card.source_name) + '</span><span>·</span>' +
+          '<span title="' + esc(dateTime(card.published)) + '">' + esc(timeAgo(card.published)) + '</span><span>·</span>' +
+          '<span>' + (card.lang === 'fa' ? 'فارسی' : 'انگلیسی') + '</span>' +
+          (isTranslation ? '<span class="badge tr">ترجمه</span>' : (card.lang === 'en' ? '<span class="badge">در انتظار ترجمه</span>' : '')) +
+          (card.is_new ? '<span class="badge new">تازه</span>' : '') +
           (isRead ? '<span class="badge read">خوانده‌شده</span>' : '') +
-          (article.telegram ? '<a class="badge tg" href="' + safeUrl(article.telegram.post_url) + '" target="_blank" rel="noopener noreferrer nofollow" title="پیوند پست در تلگرام: ' + esc(article.telegram.channel_name || '') + '">تلگرام ↗</a>' : '') +
-          ((article.source_count || 1) > 1 ? '<span class="badge coverage">' + fmt(article.source_count) + ' منبع</span>' : '') +
+          (card.telegram ? '<a class="badge tg" href="' + safeUrl(card.telegram.post_url) + '" target="_blank" rel="noopener noreferrer nofollow" title="پیوند پست در تلگرام: ' + esc(card.telegram.channel_name || '') + '">تلگرام ↗</a>' : '') +
+          ((card.source_count || 1) > 1 ? '<span class="badge coverage">' + fmt(card.source_count) + ' منبع</span>' : '') +
         '</div>' +
-        '<h3 class="news-title"><a href="' + safeUrl(article.link) + '" data-feed-key="' + esc(feedId) + '" target="_blank" rel="noopener noreferrer nofollow">' + esc(titleText) + '</a></h3>' +
-        (isTranslation ? '<div class="news-original">' + esc(article.title) + '</div>' : '') +
-        (summaryText ? '<p class="news-sum">' + esc(summaryText) + (isTranslation && article.summary ? '<span class="orig">' + esc(article.summary) + '</span>' : '') + '</p>' : '') +
+        '<h3 class="news-title"><a href="' + safeUrl(card.link) + '" data-feed-key="' + esc(feedId) + '" target="_blank" rel="noopener noreferrer nofollow">' + esc(titleText) + '</a></h3>' +
+        (isTranslation ? '<div class="news-original">' + esc(card.title) + '</div>' : '') +
+        (summaryText ? '<p class="news-sum">' + esc(summaryText) + (isTranslation && card.summary ? '<span class="orig">' + esc(card.summary) + '</span>' : '') + '</p>' : '') +
+        detailNote +
         '<div class="news-foot"><div class="news-tags">' + tags + '</div>' +
-          ((article.sources || []).length > 1 ? '<div class="news-sources">منابع این خبر: <b>' + article.sources.map(esc).join('، ') + '</b></div>' : '') +
+          ((card.sources || []).length > 1 ? '<div class="news-sources">منابع این خبر: <b>' + card.sources.map(esc).join('، ') + '</b></div>' : '') +
         '</div>' +
         '<div class="news-actions">' +
           '<button class="news-act read-act" type="button" data-act="read" data-key="' + esc(feedId) + '" aria-pressed="' + (isRead ? 'true' : 'false') + '">' + (isRead ? 'خوانده‌شده ✓' : 'خواندم') + '</button>' +
           '<button class="news-act save-act" type="button" data-act="save" data-key="' + esc(feedId) + '" aria-pressed="' + (isSaved ? 'true' : 'false') + '">' + (isSaved ? 'ذخیره‌شده ★' : 'ذخیره') + '</button>' +
+          (canLoadDetail || detailOpen ? '<button class="news-act detail-act" type="button" data-act="detail" data-key="' + esc(feedId) + '" aria-pressed="' + (detailOpen ? 'true' : 'false') + '">' + (detailOpen ? 'بستن جزئیات' : 'جزئیات') + '</button>' : '') +
         '</div>' +
         '</li>';
     }).join('');
@@ -1874,7 +1919,19 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (button) {
       var key = button.getAttribute('data-key') || '';
       if (!key) return;
-      if (button.getAttribute('data-act') === 'save') {
+      var action = button.getAttribute('data-act');
+      if (action === 'detail') {
+        if (openDetails[key]) {
+          delete openDetails[key];
+          renderFeed();
+        } else {
+          openDetails[key] = true;
+          renderFeed();
+          if (!detailCache[key]) loadArticleDetail(key);
+        }
+        return;
+      }
+      if (action === 'save') {
         var saved = toggleFeedSet(savedSet, key, SAVED_KEY, SAVED_LIMIT);
         toast(saved ? 'خبر ذخیره شد' : 'از ذخیره‌ها برداشته شد');
       } else {

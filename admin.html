@@ -1377,8 +1377,12 @@ label.muted { display: inline-flex; align-items: center; min-height: 44px; }
 
   async function loadSourceHealth() {
     try {
-      var res = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
-      if (!res.ok) throw new Error('HTTP ' + res.status);
+      // site دادهٔ کامل را منتشر نمی‌کند؛ نسخهٔ سبک سلامت منابع اول خوانده می‌شود.
+      var res = await fetch('health.json?_=' + Date.now(), { cache: 'no-store' });
+      if (!res.ok) {
+        res = await fetch('data.json?_=' + Date.now(), { cache: 'no-store' });
+        if (!res.ok) throw new Error('HTTP ' + res.status);
+      }
       var data = await res.json();
       renderAdminSourceHealth(data);
     } catch (error) {

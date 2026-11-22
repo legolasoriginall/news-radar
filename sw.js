@@ -1,12 +1,12 @@
 /* سرویس‌ورکر رصد خبر
  * هدف: بازدید دوباره روی اتصال کند (ایران) بدون رفت‌وبرگشت اضافه باز شود.
- * - فایل داده (feed.json و data.json) با «تازه‌سازی در پس‌زمینه» از دیسک خوانده می‌شود؛
+ * - فایل داده (feed.json، detail/*.json و data.json محلی) با «تازه‌سازی در پس‌زمینه» از دیسک خوانده می‌شود؛
  *   یعنی صفحه فوراً با نسخهٔ ذخیره‌شده بالا می‌آید و نسخهٔ تازه در پس‌زمینه جایگزین می‌شود.
  * - خود صفحه (ناوبری) از شبکه و با بازپرسی شرطی می‌آید تا انتشار تازه دیده شود،
  *   و اگر شبکه نبود نسخهٔ ذخیره‌شده نمایش داده می‌شود.
  * نام کش‌ها با نام مخزن شروع می‌شود چون دامنهٔ github.io بین همهٔ پروژه‌ها مشترک است.
  */
-const VERSION = 'news-radar-v5';
+const VERSION = 'news-radar-v6';
 const SHELL_CACHE = VERSION + '-shell';
 const DATA_CACHE = VERSION + '-data';
 
@@ -59,7 +59,9 @@ self.addEventListener('fetch', (event) => {
   // مسیرهای پویا کش نمی‌شوند
   if (url.pathname.indexOf('/api/') !== -1) return;
 
-  if (DATA_FILES.indexOf(url.pathname) !== -1 || /\/feed-more-\d+\.json$/.test(url.pathname)) {
+  // جزئیات هر خبر فایل مستقل است و فقط با باز کردن «جزئیات» درخواست می‌شود.
+  if (DATA_FILES.indexOf(url.pathname) !== -1 || /\/feed-more-\d+\.json$/.test(url.pathname) ||
+    /\/detail\/[^/]+\.json$/.test(url.pathname)) {
     event.respondWith(staleWhileRevalidate(event, url));
     return;
   }
