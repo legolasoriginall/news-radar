@@ -2102,9 +2102,70 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     renderFeed();
   }
 
+  /* ---------------- حفظ فوکوس دکمه‌های خبر پس از ترسیم دوباره ---------------- */
+
+  // با هر «خواندم»، «ذخیره» یا «جزئیات» کل فهرست از نو ساخته می‌شود و خودِ
+  // دکمهٔ فشرده‌شده از بین می‌رود؛ پیش از ترسیم، جای دکمه ذخیره و پس از آن
+  // همان دکمه در نسخهٔ تازه فوکوس می‌گیرد تا کاربر با Tab جابه‌جا نشود.
+  var feedFocusMemo = null;
+
+  function captureFeedFocus() {
+    var list = $('feed-list');
+    var active = document.activeElement;
+    if (!list || !active || !active.classList || !list.contains(active) || !active.classList.contains('news-act')) {
+      feedFocusMemo = null;
+      return;
+    }
+    var card = active.closest ? active.closest('li.news') : null;
+    var cards = list.querySelectorAll('li.news');
+    var index = card ? Array.prototype.indexOf.call(cards, card) : -1;
+    feedFocusMemo = {
+      act: active.getAttribute('data-act') || '',
+      key: active.getAttribute('data-key') || '',
+      index: index
+    };
+  }
+
+  function restoreFeedFocus() {
+    var memo = feedFocusMemo;
+    feedFocusMemo = null;
+    if (!memo) return;
+    var list = $('feed-list');
+    if (!list) return;
+    var target = null;
+    var buttons = list.querySelectorAll('.news-act');
+    var i;
+    for (i = 0; i < buttons.length; i++) {
+      if (buttons[i].getAttribute('data-key') === memo.key && buttons[i].getAttribute('data-act') === memo.act) {
+        target = buttons[i];
+        break;
+      }
+    }
+    // اگر کارت از فهرست رفته باشد (مثلاً با فیلتر خوانده‌نشده‌ها)، همان دکمه روی
+    // کارتی که جایش را گرفته فوکوس می‌گیرد.
+    if (!target && memo.index >= 0) {
+      var cards = list.querySelectorAll('li.news');
+      for (i = memo.index; i >= 0 && !target; i--) {
+        var card = cards[i];
+        if (!card) continue;
+        var cardButtons = card.querySelectorAll('.news-act');
+        if (!cardButtons.length) continue;
+        for (var j = 0; j < cardButtons.length; j++) {
+          if (cardButtons[j].getAttribute('data-act') === memo.act) { target = cardButtons[j]; break; }
+        }
+        if (!target) target = cardButtons[0];
+      }
+    }
+    // وقتی فهرست کامل خالی شده، فوکوس به دکمه‌ای می‌رود که باعث پنهان‌شدن خبر شده.
+    if (!target && state.unreadOnly) target = $('filter-unread');
+    if (!target) return;
+    try { target.focus({ preventScroll: true }); } catch (error) { target.focus(); }
+  }
+
   function renderFeed() {
     var data = state.data;
     if (!data) return;
+    captureFeedFocus();
     var filtered = hasActiveFilters();
     var list = filteredArticles();
     var visible = list.slice(0, state.page);
@@ -2199,6 +2260,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       unreadPill.textContent = fmt(unread) + ' خوانده‌نشده';
       unreadPill.hidden = !list.length;
     }
+    restoreFeedFocus();
   }
 
   /* ---------------- راهنمای VPN (ArcVeepn) ---------------- */
