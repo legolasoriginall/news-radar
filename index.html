@@ -471,6 +471,13 @@ section { margin-top: 22px; }
 .feed-filter-unread[aria-pressed="true"] { background: #ecfdf5; border-color: #5eead4; color: #047857; font-weight: 700; }
 .feed-filter-unread[aria-pressed="true"]:hover { background: #d1fae5; }
 .feed-filter-unread:focus-visible { outline: 2px solid #5eead4; outline-offset: 1px; }
+.feed-filter-saved { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 6px 12px; font: inherit; font-size: 12.5px; color: #475467; cursor: pointer; min-height: 36px; display: inline-flex; align-items: center; gap: 6px; }
+.feed-filter-saved:hover { background: #fffbeb; }
+.feed-filter-saved[aria-pressed="true"] { background: #fffbeb; border-color: #fde68a; color: #92400e; font-weight: 700; }
+.feed-filter-saved[aria-pressed="true"]:hover { background: #fef3c7; }
+.feed-filter-saved:focus-visible { outline: 2px solid #fde68a; outline-offset: 1px; }
+.feed-filter-saved .filter-count { font-size: 11px; font-weight: 700; background: #fffbeb; border: 1px solid #fde68a; color: #92400e; border-radius: 999px; padding: 0 7px; min-width: 20px; text-align: center; font-variant-numeric: tabular-nums; }
+.feed-filter-saved[aria-pressed="true"] .filter-count { background: #fff; }
 .feed-filter-note { font-size: 11.8px; color: var(--muted); flex-basis: 100%; }
 .news.is-read .news-title a { color: #98a2b3; }
 .news.is-read .news-sum { color: #98a2b3; }
@@ -738,6 +745,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
           <option value="720">۳۰ روز گذشته</option>
         </select>
         <button class="feed-filter-unread" id="filter-unread" type="button" aria-pressed="false">فقط خوانده‌نشده‌ها</button>
+        <button class="feed-filter-saved" id="filter-saved" type="button" aria-pressed="false" aria-label="فقط خبرهای ذخیره‌شده">فقط ذخیره‌شده‌ها <span class="filter-count" id="filter-saved-count">۰</span></button>
         <button class="feed-filter-clear" id="filter-clear" type="button">پاک کردن فیلترها</button>
         <span class="feed-filter-note" id="filter-note"></span>
       </div>
@@ -832,7 +840,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     lastAttempt: 0,
     source: 'unknown',
     filters: { q: '', topic: '', source: '', lang: '', period: '' },
-    unreadOnly: false
+    unreadOnly: false,
+    savedOnly: false
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -1971,7 +1980,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   }
 
   function hasActiveFilters() {
-    return !!state.unreadOnly || FILTER_KEYS.some(function (key) { return !!state.filters[key]; });
+    return !!state.unreadOnly || !!state.savedOnly || FILTER_KEYS.some(function (key) { return !!state.filters[key]; });
   }
 
   function readFiltersFromUrl() {
@@ -1998,6 +2007,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
   function matchesFilters(article) {
     if (state.unreadOnly && readSet.has(feedKey(article))) return false;
+    if (state.savedOnly && !savedSet.has(feedKey(article))) return false;
     var filters = state.filters;
     if (filters.lang && article.lang !== filters.lang) return false;
     if (filters.source && article.source_name !== filters.source) return false;
@@ -2076,6 +2086,13 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }
   }
 
+  function syncSavedFilter() {
+    var saved = $('filter-saved');
+    if (saved) saved.setAttribute('aria-pressed', state.savedOnly ? 'true' : 'false');
+    var count = $('filter-saved-count');
+    if (count) count.textContent = fmt(savedSet.size);
+  }
+
   function syncFilterInputs() {
     var query = $('filter-q');
     // وقتی کاربر در حال تایپ است، بازنویسی مقدار باعث پریدن مکان‌نما می‌شود.
@@ -2086,6 +2103,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     });
     var unread = $('filter-unread');
     if (unread) unread.setAttribute('aria-pressed', state.unreadOnly ? 'true' : 'false');
+    syncSavedFilter();
   }
 
   async function applyFilters() {
@@ -2158,6 +2176,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }
     // وقتی فهرست کامل خالی شده، فوکوس به دکمه‌ای می‌رود که باعث پنهان‌شدن خبر شده.
     if (!target && state.unreadOnly) target = $('filter-unread');
+    if (!target && state.savedOnly) target = $('filter-saved');
     if (!target) return;
     try { target.focus({ preventScroll: true }); } catch (error) { target.focus(); }
   }
@@ -2222,7 +2241,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (moreDone) totalKnown = list.length;
     $('empty').style.display = list.length ? 'none' : 'block';
     if (!list.length) $('empty').textContent = filtered
-      ? (state.unreadOnly ? 'خبر خوانده‌نشده‌ای با این فیلترها نیست.' : 'خبری با این فیلترها پیدا نشد.')
+      ? (state.savedOnly ? 'خبر ذخیره‌شده‌ای با این فیلترها نیست.' : (state.unreadOnly ? 'خبر خوانده‌نشده‌ای با این فیلترها نیست.' : 'خبری با این فیلترها پیدا نشد.'))
       : 'خبری برای نمایش نیست.';
     // دکمه تا وقتی خبر نمایش‌داده‌نشده هست یا (بدون فیلتر) قطعهٔ بعدی آرشیو باقی است می‌ماند؛
     // با فیلتر هم می‌شود آرشیو را جلوتر گشت.
@@ -2235,7 +2254,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }
     var noteEl = $('filter-note');
     if (noteEl) {
-      var activeCount = FILTER_KEYS.filter(function (key) { return !!state.filters[key]; }).length + (state.unreadOnly ? 1 : 0);
+      var activeCount = FILTER_KEYS.filter(function (key) { return !!state.filters[key]; }).length + (state.unreadOnly ? 1 : 0) + (state.savedOnly ? 1 : 0);
       noteEl.textContent = activeCount
         ? fmt(activeCount) + ' فیلتر فعال روی ' + fmt((data.articles || []).length) + ' خبر بارگذاری‌شده'
         : '';
@@ -2255,6 +2274,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       ? 'فیلتر فعال · ' + fmt(list.length) + ' نتیجه از ' + fmt((data.articles || []).length) + ' خبر بارگذاری‌شده'
       : 'همهٔ خبرها بدون محدودیت زمانی · ' + fmt(totalKnown) + ' خبر';
     var unread = list.reduce(function (sum, article) { return readSet.has(feedKey(article)) ? sum : sum + 1; }, 0);
+    syncSavedFilter();
     var unreadPill = $('unread-count');
     if (unreadPill) {
       unreadPill.textContent = fmt(unread) + ' خوانده‌نشده';
@@ -2444,11 +2464,20 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         applyFilters();
       });
     }
+    var savedBtn = $('filter-saved');
+    if (savedBtn) {
+      savedBtn.addEventListener('click', function () {
+        state.savedOnly = !state.savedOnly;
+        syncFilterInputs();
+        applyFilters();
+      });
+    }
     var clear = $('filter-clear');
     if (clear) {
       clear.addEventListener('click', function () {
         state.filters = { q: '', topic: '', source: '', lang: '', period: '' };
         state.unreadOnly = false;
+        state.savedOnly = false;
         syncFilterInputs();
         applyFilters();
       });
