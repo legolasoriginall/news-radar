@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { parseSourceInput, parseChannelInput, parseChannelHandle, looksLikeFeed, feedItemCount } from '../src/custom.mjs';
+import { parseSourceInput, parseChannelInput, parseLiveInput, parseChannelHandle, looksLikeFeed, feedItemCount } from '../src/custom.mjs';
 import { SOURCES, addSource, removeSource } from '../src/sources.mjs';
 import { TELEGRAM_CHANNELS, addTelegramChannel, removeTelegramChannel } from '../src/telegram.mjs';
 
@@ -79,4 +79,28 @@ test('افزودن و حذف کانال اختصاصی کار می‌کند و �
   assert.equal(removeTelegramChannel(added.id), true);
   assert.equal(TELEGRAM_CHANNELS.length, base);
   assert.equal(removeTelegramChannel(TELEGRAM_CHANNELS[0].id), false);
+});
+
+test('ورودی کانال پخش زنده اعتبارسنجی می‌شود و جایگزین‌ها تصفیه می‌شوند', () => {
+  const result = parseLiveInput({
+    name: ' شبکهٔ خدمت ',
+    url: 'https://example.org/live/stream.m3u8',
+    fallbacks: ['https://example.org/live/backup.m3u8', 'https://example.org/live/backup.m3u8'],
+    watch: 'https://example.org/live',
+  });
+  assert.equal(result.ok, true);
+  assert.equal(result.channel.name, 'شبکهٔ خدمت');
+  assert.equal(result.channel.url, 'https://example.org/live/stream.m3u8');
+  assert.deepEqual(result.channel.fallbacks, ['https://example.org/live/backup.m3u8']);
+  assert.equal(result.channel.watch, 'https://example.org/live');
+});
+
+test('آدرس غیر HLS یا فیلد نامعتبر کانال زنده رد می‌شود', () => {
+  assert.equal(parseLiveInput({ name: 'x', url: 'https://example.org/live/stream.mp4' }).ok, false);
+  assert.equal(parseLiveInput({ name: 'x', url: 'ftp://example.org/stream.m3u8' }).ok, false);
+  assert.equal(parseLiveInput({ name: '', url: 'https://example.org/stream.m3u8' }).ok, false);
+  assert.equal(parseLiveInput({ name: 'x', url: 'https://example.org/stream.m3u8', fallbacks: ['https://example.org/bad.mp4'] }).ok, false);
+  assert.equal(parseLiveInput({ name: 'x', url: 'https://example.org/stream.m3u8', watch: 'not-a-url' }).ok, false);
+  const many = parseLiveInput({ name: 'x', url: 'https://example.org/stream.m3u8', fallbacks: Array.from({ length: 6 }, (_, i) => 'https://example.org/f' + i + '.m3u8') });
+  assert.equal(many.ok, false);
 });

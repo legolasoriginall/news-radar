@@ -2031,24 +2031,50 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }
   }
 
-  // فهرست مسیرها از سرور تازه می‌شود؛ در میزبان ایستا همان فهرست پیش‌فرض می‌ماند
-  async function loadLiveChannels() {
-    if (STATIC_HOST) return; // میزبان ایستا: همان فهرست پیش‌فرض کافی است
+  // کانال‌های زندهٔ اختصاصی از همان فایل منابع اختصاصی خوانده می‌شوند تا در میزبان
+  // ایستا هم دیده شوند؛ در میزبان سرور، /api/live همان فهرست را برمی‌گرداند.
+  async function loadCustomLiveChannels() {
+    var list = [];
     try {
-      var response = await fetch('/api/live', { cache: 'no-store' });
-      if (!response.ok) return;
-      var payload = await response.json();
-      if (!payload || !Array.isArray(payload.channels)) return;
-      var usable = payload.channels.filter(function (channel) {
-        return channel && channel.id && channel.name && Array.isArray(channel.sources) && channel.sources.length;
+      var response = await fetch('custom-sources.json?_=' + Date.now(), { cache: 'no-store' });
+      if (!response.ok) return list;
+      var config = await response.json();
+      (config.live || []).forEach(function (channel) {
+        if (!channel || !channel.id || !channel.name || !channel.url) return;
+        list.push({ id: channel.id, name: channel.name, watch: channel.watch || '', sources: [channel.url].concat(channel.fallbacks || []), custom: true });
       });
-      if (!usable.length) return;
-      liveChannels = channelsWithFallback(usable);
-      if (!liveChannels.some(function (channel) { return channel.id === liveState.channel; })) {
-        liveState.channel = liveChannels[0].id;
-      }
-      renderLiveTabs();
-    } catch (e) { /* بدون شبکه یا میزبان ایستا: فهرست پیش‌فرض */ }
+    } catch (e) { /* فایلی نیست یا خوانده نشد */ }
+    return list;
+  }
+
+  // فهرست مسیرها از سرور تازه می‌شود؛ در میزبان ایستا از فایل اختصاصی می‌آید
+  async function loadLiveChannels() {
+    if (!STATIC_HOST) {
+      try {
+        var response = await fetch('/api/live', { cache: 'no-store' });
+        if (response.ok) {
+          var payload = await response.json();
+          var usable = payload && payload.channels ? payload.channels.filter(function (channel) {
+            return channel && channel.id && channel.name && Array.isArray(channel.sources) && channel.sources.length;
+          }) : [];
+          if (usable.length) {
+            liveChannels = channelsWithFallback(usable);
+            if (!liveChannels.some(function (channel) { return channel.id === liveState.channel; })) {
+              liveState.channel = liveChannels[0].id;
+            }
+            renderLiveTabs();
+            return;
+          }
+        }
+      } catch (e) { /* بدون شبکه: به فهرست پیش‌فرض برمی‌گردد */ }
+    }
+    var custom = await loadCustomLiveChannels();
+    if (!custom.length) return;
+    liveChannels = channelsWithFallback(LIVE_CHANNELS.concat(custom));
+    if (!liveChannels.some(function (channel) { return channel.id === liveState.channel; })) {
+      liveState.channel = liveChannels[0].id;
+    }
+    renderLiveTabs();
   }
 
   function renderLiveTabs() {

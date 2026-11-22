@@ -274,6 +274,24 @@ label.muted { display: inline-flex; align-items: center; min-height: 44px; }
       <p class="muted">افزودنی‌ها در <code>.custom-sources.json</code> (خارج از گیت) ذخیره می‌شوند و از به‌روزرسانی بعدی خودکار در سایت دیده می‌شوند.</p>
     </div>
 
+    <div class="card" id="live-custom-card" style="margin-bottom:14px">
+      <h2 style="font-size:15px;margin:0 0 4px">کانال پخش زندهٔ اختصاصی</h2>
+      <p class="muted" id="live-custom-info">هنوز کانالی اضافه نشده است. آدرس اصلی باید لینک HLS با پسوند .m3u8 باشد؛ مسیرهای جایگزین اختیاری‌اند و سلامت هر مسیر پیش از ذخیره آزموده می‌شود.</p>
+      <div class="row" style="margin-top:10px">
+        <input class="field" id="lv-name" placeholder="نام شبکه (مثلاً شبکهٔ خودم)">
+        <input class="field" id="lv-url" placeholder="https://…/stream.m3u8" dir="ltr">
+      </div>
+      <div class="row" style="margin-top:8px">
+        <textarea id="lv-fallbacks" class="field" rows="3" dir="ltr" placeholder="مسیرهای جایگزین (اختیاری): هر خط یک لینک .m3u8"></textarea>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <input class="field" id="lv-watch" placeholder="آدرس صفحهٔ رسمی — اختیاری" dir="ltr">
+        <button id="lv-add">افزودن و آزمون مسیر</button>
+        <span class="muted" id="lv-msg"></span>
+      </div>
+      <ul class="custom-list" id="live-custom-list"></ul>
+    </div>
+
     <div class="card" id="advanced-card" style="margin-bottom:14px">
       <h2 style="font-size:15px;margin:0 0 4px">تنظیمات کامل (settings.json)</h2>
       <p class="muted">همهٔ کلیدهای پیکربندی همین‌جاست؛ ذخیرهٔ این فایل بازسازی خودکار سایت را شروع می‌کند. کلیدهای آستانه‌ها باید عدد باشند (سکوت ۱ تا ۷۲۰، قیمت ۱ تا ۱۶۸).</p>
@@ -1401,6 +1419,7 @@ label.muted { display: inline-flex; align-items: center; min-height: 44px; }
     renderLivePaths();
     loadSourceHealth();
     setInterval(loadSourceHealth, 60000);
+    loadCustom();
     window.addEventListener('storage', function (event) {
       if (event.key === 'newsradar:liveCurrent' || event.key === 'newsradar:liveVerified') renderLivePaths();
     });
@@ -1632,12 +1651,14 @@ label.muted { display: inline-flex; align-items: center; min-height: 44px; }
         list.textContent = '';
         var sources = repo.data.sources || [];
         var channels = repo.data.channels || [];
-        var count = sources.length + channels.length;
+        var liveItems = repo.data.live || [];
+        var count = sources.length + channels.length + liveItems.length;
         el('custom-info').textContent = count
-          ? count + ' مورد اختصاصی ذخیره شده در مخزن (' + sources.length + ' منبع و ' + channels.length + ' کانال)'
+          ? count + ' مورد اختصاصی ذخیره شده در مخزن (' + sources.length + ' منبع، ' + channels.length + ' کانال و ' + liveItems.length + ' کانال زنده)'
           : 'هنوز چیزی اضافه نشده؛ افزودنی‌ها پس از بازسازی سایت دیده می‌شوند.';
         sources.forEach(function (source) { addCustomRow('source', source, source.name + ' — ' + source.url); });
         channels.forEach(function (channel) { addCustomRow('channel', channel, channel.name + ' — @' + channel.handle); });
+        liveItems.forEach(function (item) { addLiveRow(item); });
         if (!count) {
           var empty = document.createElement('li');
           empty.className = 'muted';
@@ -1653,12 +1674,13 @@ label.muted { display: inline-flex; align-items: center; min-height: 44px; }
       var payload = await api('/admin/api/custom');
       var list = el('custom-list');
       list.textContent = '';
-      var count = (payload.sources || []).length + (payload.channels || []).length;
+      var count = (payload.sources || []).length + (payload.channels || []).length + (payload.live || []).length;
       el('custom-info').textContent = count
-        ? count + ' مورد اختصاصی از این پنل اضافه شده (' + payload.totals.sources + ' منبع و ' + payload.totals.channels + ' کانال فعال)'
+        ? count + ' مورد اختصاصی از این پنل اضافه شده (' + payload.totals.sources + ' منبع، ' + payload.totals.channels + ' کانال فعال و ' + (payload.live || []).length + ' کانال زنده)'
         : 'هنوز چیزی اضافه نشده؛ کل فهرست ' + payload.totals.sources + ' منبع و ' + payload.totals.channels + ' کانال است.';
       (payload.sources || []).forEach(function (source) { addCustomRow('source', source, source.name + ' — ' + source.url); });
       (payload.channels || []).forEach(function (channel) { addCustomRow('channel', channel, channel.name + ' — @' + channel.handle); });
+      (payload.live || []).forEach(function (item) { addLiveRow(item); });
       if (!count) {
         var empty = document.createElement('li');
         empty.className = 'muted';
@@ -1697,6 +1719,34 @@ label.muted { display: inline-flex; align-items: center; min-height: 44px; }
     row.appendChild(text);
     row.appendChild(button);
     el('custom-list').appendChild(row);
+  }
+
+  function addLiveRow(item) {
+    var row = document.createElement('li');
+    var text = document.createElement('span');
+    text.textContent = 'کانال زنده: ' + item.name + ' — ' + item.url;
+    var button = document.createElement('button');
+    button.className = 'del';
+    button.textContent = 'حذف';
+    button.addEventListener('click', async function () {
+      button.disabled = true;
+      try {
+        if (github.static) {
+          var repo = await readRepoCustom();
+          repo.data.live = (repo.data.live || []).filter(function (x) { return x.id !== item.id; });
+          await saveRepoCustom(repo.data);
+        } else {
+          await api('/admin/api/custom/live/remove', { method: 'POST', body: JSON.stringify({ id: item.id }) });
+        }
+        loadCustom();
+      } catch (error) {
+        el('live-custom-info').textContent = error.message || 'حذف ممکن نشد';
+        button.disabled = false;
+      }
+    });
+    row.appendChild(text);
+    row.appendChild(button);
+    el('live-custom-list').appendChild(row);
   }
 
   el('src-add').addEventListener('click', async function () {
@@ -1788,6 +1838,46 @@ label.muted { display: inline-flex; align-items: center; min-height: 44px; }
       el('tg-msg').textContent = error.message || 'افزودن ممکن نشد';
     } finally {
       el('tg-add').disabled = false;
+    }
+  });
+
+  el('lv-add').addEventListener('click', async function () {
+    var msg = el('lv-msg');
+    var name = el('lv-name').value.trim();
+    var url = el('lv-url').value.trim();
+    var fallbacks = el('lv-fallbacks').value.split(/\r?\n/).map(function (line) { return line.trim(); }).filter(Boolean);
+    var watch = el('lv-watch').value.trim();
+    if (!name || !url) { msg.textContent = 'نام و آدرس اصلی لازم است'; return; }
+    try { new URL(url); } catch (e) { msg.textContent = 'آدرس اصلی معتبر نیست'; return; }
+    msg.textContent = 'در حال ذخیره…';
+    el('lv-add').disabled = true;
+    try {
+      if (github.static) {
+        var repo = await readRepoCustom();
+        repo.data.live = Array.isArray(repo.data.live) ? repo.data.live : [];
+        if (repo.data.live.some(function (c) { return String(c.url || '').toLowerCase() === url.toLowerCase(); })) {
+          throw new Error('این آدرس از قبل در فهرست هست');
+        }
+        repo.data.live.push({ id: 'live_' + Math.random().toString(36).slice(2, 10), name: name, url: url, fallbacks: fallbacks.slice(0, 5), watch: watch, custom: true });
+        await saveRepoCustom(repo.data);
+        msg.textContent = 'ذخیره شد؛ سلامت مسیرها هنگام پخش در سایت بررسی می‌شود و از بازسازی سایت دیده می‌شود.';
+      } else {
+        var result = await api('/admin/api/custom/live', {
+          method: 'POST',
+          body: JSON.stringify({ name: name, url: url, fallbacks: fallbacks, watch: watch })
+        });
+        var okCount = (result.probes || []).filter(function (p) { return p.ok; }).length;
+        msg.textContent = 'افزوده شد · ' + okCount + ' از ' + (result.probes || []).length + ' مسیر سالم' + (result.note ? ' · ' + result.note : '');
+      }
+      el('lv-name').value = '';
+      el('lv-url').value = '';
+      el('lv-fallbacks').value = '';
+      el('lv-watch').value = '';
+      loadCustom();
+    } catch (error) {
+      msg.textContent = error.message || 'افزودن ممکن نشد';
+    } finally {
+      el('lv-add').disabled = false;
     }
   });
 

@@ -86,6 +86,41 @@ export function parseChannelInput({ handle, name, weight } = {}) {
   };
 }
 
+const LIVE_URL_RE = /^https?:\/\/[^\s#?]+\.m3u8(\?[^\s]*)?$/i;
+
+/** ورودی فرم «کانال پخش زنده» را به رکوردی سازگار با فهرست کانال‌ها تبدیل می‌کند. */
+export function parseLiveInput({ name, url, fallbacks, watch } = {}) {
+  const cleanName = String(name || '').trim().slice(0, 60);
+  if (!cleanName) return fail('نام شبکه را بده');
+  const rawUrl = String(url || '').trim();
+  if (!LIVE_URL_RE.test(rawUrl)) return fail('آدرس اصلی باید یک لینک HLS معتبر با پسوند .m3u8 باشد');
+  let rawFallbacks = fallbacks;
+  if (typeof rawFallbacks === 'string') rawFallbacks = rawFallbacks.split(/\r?\n/);
+  const list = Array.isArray(rawFallbacks) ? rawFallbacks : [];
+  if (list.length > 5) return fail('حداکثر ۵ مسیر جایگزین مجاز است');
+  const cleanFallbacks = [];
+  for (const item of list) {
+    const value = String(item || '').trim();
+    if (!value) continue;
+    if (!LIVE_URL_RE.test(value)) return fail('مسیر جایگزین باید لینک HLS معتبر با پسوند .m3u8 باشد');
+    if (!cleanFallbacks.includes(value)) cleanFallbacks.push(value);
+  }
+  let cleanWatch = '';
+  if (watch != null && String(watch).trim()) {
+    try {
+      const parsed = new URL(String(watch).trim());
+      if (!/^https?:$/.test(parsed.protocol)) throw new Error('protocol');
+      cleanWatch = parsed.toString();
+    } catch {
+      return fail('آدرس صفحهٔ رسمی معتبر نیست');
+    }
+  }
+  return {
+    ok: true,
+    channel: { name: cleanName, url: rawUrl, fallbacks: cleanFallbacks, watch: cleanWatch },
+  };
+}
+
 /** آیا پاسخ یک نشانی، خوراک RSS/Atom/RDF است. */
 export function looksLikeFeed(text) {
   const value = String(text || '').slice(0, 4000);

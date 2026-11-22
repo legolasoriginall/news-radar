@@ -7,7 +7,7 @@ import path from 'node:path';
 import { runPipeline, probeSource } from './pipeline.mjs';
 import { fetchMarkets, setStaleHours } from './src/markets.mjs';
 import { fetchTelegramFeeds, fetchTelegramFeed, addTelegramChannel, removeTelegramChannel, TELEGRAM_CHANNELS } from './src/telegram.mjs';
-import { parseSourceInput, parseChannelInput, looksLikeFeed, feedItemCount } from './src/custom.mjs';
+import { parseSourceInput, parseChannelInput, parseLiveInput, looksLikeFeed, feedItemCount } from './src/custom.mjs';
 import { firstUrlIn } from './src/web.mjs';
 import { resolveLiveChannels, probeStream, LIVE_CHANNELS } from './src/live.mjs';
 import {
@@ -443,6 +443,16 @@ async function getLiveTelegram() {
   return liveTelegram.inflight;
 }
 
+function customLiveChannels() {
+  return customState.live.map((channel) => ({
+    id: channel.id,
+    name: channel.name,
+    watch: channel.watch || '',
+    sources: [channel.url, ...(channel.fallbacks || [])],
+    custom: true,
+  }));
+}
+
 async function getLiveChannels() {
   if (liveChannelCache.payload && Date.now() - liveChannelCache.at < LIVE_CHANNELS_TTL_MS) {
     return liveChannelCache.payload;
@@ -451,19 +461,21 @@ async function getLiveChannels() {
   liveChannelCache.inflight = (async () => {
     try {
       const payload = await resolveLiveChannels();
+      payload.channels = payload.channels.concat(customLiveChannels());
       liveChannelCache.payload = payload;
       liveChannelCache.at = Date.now();
       return payload;
     } catch (error) {
       return {
-        channels: (liveChannelCache.payload?.channels || []).length
+        channels: ((liveChannelCache.payload?.channels || []).length
           ? liveChannelCache.payload.channels
           : LIVE_CHANNELS.map((channel) => ({
               id: channel.id,
               name: channel.name,
               watch: channel.watch || '',
               sources: channel.fallbacks || [],
-            })),
+            }))
+        ).concat(customLiveChannels()),
         fetched_at: new Date().toISOString(),
         error: String(error?.message || error),
       };
@@ -874,7 +886,7 @@ async function checkAlerts({ probeStreams = true, notify = true } = {}) {
 
 // منابع و کانال‌های اختصاصی که مدیر از پنل اضافه کرده است.
 const CUSTOM_FILE = path.join(path.resolve('.'), '.custom-sources.json');
-const customState = { sources: [], channels: [] };
+const customState = { sources: [], channels: [], live: [] };
 
 async function loadCustomConfig() {
   let saved = null;
@@ -887,6 +899,9 @@ async function loadCustomConfig() {
     customState.channels = Array.isArray(saved?.channels) ? saved.channels : [];
     for (const source of customState.sources) addSource({ ...source, custom: true });
     for (const channel of customState.channels) addTelegramChannel({ ...channel, custom: true });
+    customState.live = Array.isArray(saved?.live)
+      ? saved.live.filter((item) => item && item.id && item.name && /^https?:\/\//.test(String(item.url || '')))
+      : [];
   } catch {
     /* هنوز چیزی اضافه نشده */
   }
@@ -1104,8 +1119,78 @@ async function handleRequest(req, res) {
     sendJson(res, 200, {
       sources: customState.sources,
       channels: customState.channels,
+      live: customState.live,
       totals: { sources: SOURCES.length, channels: TELEGRAM_CHANNELS.length },
     });
+    return;
+  }
+
+  if (pathname === '/admin/api/custom/live' && req.method === 'POST') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    const body = await readJsonBody(req).catch(() => ({}));
+    const parsed = parseLiveInput(body);
+    if (!parsed.ok) {
+      sendJson(res, 400, { error: parsed.error });
+      return;
+    }
+    const duplicate = customState.live.find((item) => String(item.url).toLowerCase() === parsed.channel.url.toLowerCase());
+    if (duplicate) {
+      sendJson(res, 409, { error: `این آدرس از قبل در فهرست هست: ${duplicate.name}` });
+      return;
+    }
+    // سلامت هر مسیر پیش از ذخیره با همان probeStream که صفحهٔ اصلی استفاده می‌کند آزموده می‌شود.
+    const candidates = [parsed.channel.url, ...parsed.channel.fallbacks];
+    const probes = [];
+    for (const url of candidates) {
+      // eslint-disable-next-line no-await-in-loop
+      probes.push({ url, ok: await probeStream(url, { timeoutMs: 8000 }) });
+    }
+    if (!probes.some((probe) => probe.ok)) {
+      sendJson(res, 400, { error: 'هیچ مسیری پخش سالم نداد؛ کانال ذخیره نشد', probes });
+      return;
+    }
+    const channel = {
+      id: `live_${Math.random().toString(36).slice(2, 10)}`,
+      name: parsed.channel.name,
+      url: parsed.channel.url,
+      fallbacks: parsed.channel.fallbacks,
+      watch: parsed.channel.watch,
+      custom: true,
+    };
+    customState.live = [...customState.live.filter((item) => item.id !== channel.id), channel];
+    await saveCustomConfig();
+    // کش عمومی /api/live را خالی می‌کنیم تا کانال تازه همان لحظه دیده شود.
+    liveChannelCache.payload = null;
+    liveChannelCache.at = 0;
+    sendJson(res, 200, {
+      ok: true,
+      channel,
+      probes,
+      note: 'از پخش زندهٔ سایت دیده می‌شود؛ مسیرهای سالم اول فهرست می‌آیند',
+    });
+    return;
+  }
+
+  if (pathname === '/admin/api/custom/live/remove' && req.method === 'POST') {
+    if (!isAdmin(req)) {
+      sendJson(res, 401, { error: 'دسترسی مدیر لازم است' });
+      return;
+    }
+    const body = await readJsonBody(req).catch(() => ({}));
+    const id = String(body.id || '');
+    const before = customState.live.length;
+    customState.live = customState.live.filter((item) => item.id !== id);
+    if (customState.live.length === before) {
+      sendJson(res, 404, { error: 'کانال پیدا نشد یا از فهرست پیش‌فرض است' });
+      return;
+    }
+    await saveCustomConfig();
+    liveChannelCache.payload = null;
+    liveChannelCache.at = 0;
+    sendJson(res, 200, { ok: true });
     return;
   }
 
