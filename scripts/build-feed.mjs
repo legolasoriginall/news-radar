@@ -121,6 +121,11 @@ export function buildFeed(data, options = {}) {
     deferred: true,
   };
 
+  // فهرست کوتاه منابع برای منوی فیلتر فید؛ فقط شناسه و نام، بدون خطا یا آینه.
+  feed.sources = (Array.isArray(data.source_health) ? data.source_health : [])
+    .map((source) => ({ id: source.id, name: source.name }))
+    .filter((source) => source && source.name);
+
   const rest = cards.slice(head);
   const chunks = [];
   for (let i = 0; i * chunkSize < rest.length; i += 1) {

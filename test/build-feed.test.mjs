@@ -112,6 +112,8 @@ test('قصه‌ها محدود و سبک‌اند و فیلد حساس سلام�
   assert.deepEqual(built.feed.stories[0].sources, [{ name: 'منبع یک' }]);
   assert.equal(built.health.source_health[0].password, undefined);
   assert.equal(built.summary.stats.total, 4);
+  // فهرست سبک منابع برای فیلتر فید؛ فیلد حساس سلامت منابع با آن نمی‌آید.
+  assert.deepEqual(built.feed.sources[0], { id: 's1', name: 'منبع' });
   assert.equal(built.feed.telegram.deferred, true);
   assert.equal(built.feed.telegram.posts.length, 0);
   assert.equal(built.telegram.telegram.posts.length, 1);

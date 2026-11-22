@@ -428,6 +428,15 @@ section { margin-top: 22px; }
 .archive-end { text-align: center; margin-top: 10px; color: var(--muted); font-size: 12.5px; }
 .counter { font-size: 12px; color: var(--muted); text-align: center; margin-top: 8px; }
 .unread-pill { font-size: 11.5px; font-weight: 700; background: #ecfdf5; border: 1px solid #a7f3d0; color: #047857; border-radius: 999px; padding: 2px 10px; white-space: nowrap; }
+.feed-filters { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 0 0 14px; }
+.feed-filters input[type="search"],
+.feed-filters select { font: inherit; font-size: 12.8px; color: #344054; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px 10px; min-height: 36px; max-width: 100%; }
+.feed-filters input[type="search"] { flex: 1 1 180px; min-width: 0; }
+.feed-filters input[type="search"]:focus,
+.feed-filters select:focus { outline: 2px solid #99f6e4; outline-offset: 1px; }
+.feed-filter-clear { border: 1px solid var(--line); background: #fff; border-radius: 10px; padding: 6px 12px; font: inherit; font-size: 12.5px; color: #475467; cursor: pointer; min-height: 36px; }
+.feed-filter-clear:hover { background: #f8fafc; }
+.feed-filter-note { font-size: 11.8px; color: var(--muted); flex-basis: 100%; }
 .news.is-read .news-title a { color: #98a2b3; }
 .news.is-read .news-sum { color: #98a2b3; }
 .news.is-saved { background: #fffdf5; }
@@ -677,6 +686,25 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         <span class="unread-pill" id="unread-count" hidden></span>
         <span class="hint" id="feed-hint"></span>
       </div>
+      <div class="feed-filters" id="feed-filters" role="search" aria-label="جستجو و فیلتر خبرها">
+        <input id="filter-q" type="search" placeholder="جستجو در عنوان و منبع…" aria-label="جستجوی خبر" autocomplete="off">
+        <select id="filter-topic" aria-label="موضوع"><option value="">همهٔ موضوع‌ها</option></select>
+        <select id="filter-source" aria-label="منبع"><option value="">همهٔ منابع</option></select>
+        <select id="filter-lang" aria-label="زبان">
+          <option value="">همهٔ زبان‌ها</option>
+          <option value="fa">فارسی</option>
+          <option value="en">انگلیسی</option>
+        </select>
+        <select id="filter-period" aria-label="بازهٔ زمانی">
+          <option value="">همهٔ زمان‌ها</option>
+          <option value="24">۲۴ ساعت گذشته</option>
+          <option value="72">۳ روز گذشته</option>
+          <option value="168">۷ روز گذشته</option>
+          <option value="720">۳۰ روز گذشته</option>
+        </select>
+        <button class="feed-filter-clear" id="filter-clear" type="button">پاک کردن فیلترها</button>
+        <span class="feed-filter-note" id="filter-note"></span>
+      </div>
       <ul class="feed" id="feed-list"></ul>
       <div class="empty" id="empty">خبری با این فیلترها پیدا نشد.</div>
       <div class="more-wrap"><button class="more" id="more" type="button">نمایش بیشتر</button></div>
@@ -756,7 +784,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     nextUpdate: 0,
     busy: false,
     lastAttempt: 0,
-    source: 'unknown'
+    source: 'unknown',
+    filters: { q: '', topic: '', source: '', lang: '', period: '' }
   };
 
   var $ = function (id) { return document.getElementById(id); };
@@ -1289,6 +1318,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     renderMarkets();
     renderTelegram();
     renderStories();
+    renderFilterOptions();
+    syncFilterInputs();
     renderFeed();
     var note = $('method-note');
     if (note && state.data.translations) {
@@ -1795,15 +1826,154 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }).join('');
   }
 
+  /* ---------------- جستجو و فیلتر فید ---------------- */
+
+  // کلیدهای فیلتر در URL می‌مانند تا هر نما با یک پیوند قابل اشتراک باشد.
+  var FILTER_KEYS = ['q', 'topic', 'source', 'lang', 'period'];
+  var FILTER_PERIOD_HOURS = { '24': 24, '72': 72, '168': 168, '720': 720 };
+
+  function normalizeText(value) {
+    return String(value === null || value === undefined ? '' : value)
+      .toLowerCase()
+      .replace(/ي/g, 'ی').replace(/ك/g, 'ک').replace(/ۀ/g, 'ه')
+      .replace(/\u200c/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  function hasActiveFilters() {
+    return FILTER_KEYS.some(function (key) { return !!state.filters[key]; });
+  }
+
+  function readFiltersFromUrl() {
+    var params;
+    try { params = new URLSearchParams(location.search); } catch (e) { return; }
+    FILTER_KEYS.forEach(function (key) {
+      var value = params.get(key);
+      state.filters[key] = value ? String(value) : '';
+    });
+    if (state.filters.period && !FILTER_PERIOD_HOURS[state.filters.period]) state.filters.period = '';
+  }
+
+  function writeFiltersToUrl() {
+    try {
+      var params = new URLSearchParams();
+      FILTER_KEYS.forEach(function (key) { if (state.filters[key]) params.set(key, state.filters[key]); });
+      var query = params.toString();
+      var next = location.pathname + (query ? '?' + query : '') + location.hash;
+      if (next !== location.pathname + location.search + location.hash) {
+        history.replaceState(null, '', next);
+      }
+    } catch (e) { /* تاریخچهٔ مرورگر در دسترس نیست */ }
+  }
+
+  function matchesFilters(article) {
+    var filters = state.filters;
+    if (filters.lang && article.lang !== filters.lang) return false;
+    if (filters.source && article.source_name !== filters.source) return false;
+    if (filters.topic) {
+      var wanted = normalizeText(filters.topic);
+      var topics = article.topics || [];
+      var hasTopic = topics.some(function (topic) {
+        var name = topic && (topic.name || topic);
+        return normalizeText(name) === wanted;
+      });
+      if (!hasTopic) return false;
+    }
+    if (filters.period) {
+      var hours = FILTER_PERIOD_HOURS[filters.period];
+      var ts = new Date(article.published).getTime();
+      if (!isFinite(ts) || Date.now() - ts > hours * 3600000) return false;
+    }
+    if (filters.q) {
+      var parts = [article.title, article.title_fa, article.source_name];
+      var detail = detailCache[feedKey(article)];
+      if (detail && typeof detail === 'object') parts.push(detail.summary, detail.summary_fa);
+      var haystack = normalizeText(parts.join(' '));
+      var words = normalizeText(filters.q).split(' ');
+      for (var i = 0; i < words.length; i += 1) {
+        if (words[i] && haystack.indexOf(words[i]) === -1) return false;
+      }
+    }
+    return true;
+  }
+
   function filteredArticles() {
     var data = state.data;
     if (!data) return [];
-    return data.articles.slice().sort(function (a, b) { return new Date(b.published) - new Date(a.published); });
+    var list = data.articles.slice().sort(function (a, b) { return new Date(b.published) - new Date(a.published); });
+    return hasActiveFilters() ? list.filter(matchesFilters) : list;
+  }
+
+  function renderFilterOptions() {
+    var data = state.data;
+    if (!data) return;
+    var topicSelect = $('filter-topic');
+    if (topicSelect && topicSelect.options.length <= 1) {
+      (Array.isArray(data.topics) ? data.topics : []).forEach(function (topic) {
+        if (!topic || !topic.name) return;
+        var option = document.createElement('option');
+        option.value = topic.name;
+        option.textContent = topic.name;
+        topicSelect.appendChild(option);
+      });
+    }
+    var sourceSelect = $('filter-source');
+    if (sourceSelect && sourceSelect.options.length <= 1) {
+      var names = [];
+      var seen = {};
+      // نسخهٔ سایت فهرست سبک منابع را دارد؛ اجرای محلی از source_health می‌آید.
+      var sourceList = Array.isArray(data.sources) ? data.sources : (Array.isArray(data.source_health) ? data.source_health : []);
+      sourceList.forEach(function (source) {
+        var name = source && (source.name || source);
+        if (!name || seen[name]) return;
+        seen[name] = true;
+        names.push(name);
+      });
+      (data.articles || []).forEach(function (article) {
+        if (article.source_name && !seen[article.source_name]) {
+          seen[article.source_name] = true;
+          names.push(article.source_name);
+        }
+      });
+      names.sort(function (a, b) { return String(a).localeCompare(String(b), 'fa'); });
+      names.forEach(function (name) {
+        var option = document.createElement('option');
+        option.value = name;
+        option.textContent = name;
+        sourceSelect.appendChild(option);
+      });
+    }
+  }
+
+  function syncFilterInputs() {
+    var query = $('filter-q');
+    // وقتی کاربر در حال تایپ است، بازنویسی مقدار باعث پریدن مکان‌نما می‌شود.
+    if (query && document.activeElement !== query) query.value = state.filters.q;
+    ['topic', 'source', 'lang', 'period'].forEach(function (key) {
+      var input = $('filter-' + key);
+      if (input) input.value = state.filters[key];
+    });
+  }
+
+  async function applyFilters() {
+    writeFiltersToUrl();
+    // فیلتر روی آرشیو بارگذاری‌شده کار می‌کند؛ اگر نتیجه کم بود، تا دو قطعهٔ بعدی هم خوانده می‌شود.
+    if (!state.data) return;
+    var guard = 0;
+    while (hasActiveFilters() && filteredArticles().length < state.page && !moreDone && guard < 2) {
+      var before = (state.data.articles || []).length;
+      await ensureMoreArticles();
+      guard += 1;
+      if ((state.data.articles || []).length === before) break;
+    }
+    renderFeed();
   }
 
   function renderFeed() {
     var data = state.data;
     if (!data) return;
+    var filtered = hasActiveFilters();
     var list = filteredArticles();
     var visible = list.slice(0, state.page);
 
@@ -1853,18 +2023,27 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
 
     // کل آرشیو (stats.total) مبناست، نه خبرهای بارگذاری‌شده؛ وگرنه با خواندن
     // مرحله‌ای، شمارنده و دکمهٔ «نمایش بیشتر» زودتر از موعد متوقف می‌شدند.
-    var totalKnown = Math.max(list.length, Number((data.stats && data.stats.total) || 0));
+    var totalKnown = filtered ? list.length : Math.max(list.length, Number((data.stats && data.stats.total) || 0));
     // با پایان آرشیو، مبنای شمارنده همان چیزی است که واقعاً بارگذاری شده؛ گاهی
     // یک خبر تکراری حذف می‌شود و stats.total یکی بیشتر از فهرست نمایش‌دادنی است.
     if (moreDone) totalKnown = list.length;
     $('empty').style.display = list.length ? 'none' : 'block';
-    // دکمه تا وقتی خبر خوانده‌شدهٔ نمایش‌داده‌نشده هست یا قطعهٔ بعدی آرشیو باقی است می‌ماند.
+    if (!list.length) $('empty').textContent = filtered ? 'خبری با این فیلترها پیدا نشد.' : 'خبری برای نمایش نیست.';
+    // دکمه تا وقتی خبر نمایش‌داده‌نشده هست یا (بدون فیلتر) قطعهٔ بعدی آرشیو باقی است می‌ماند؛
+    // با فیلتر هم می‌شود آرشیو را جلوتر گشت.
     var hasHidden = state.page < list.length;
-    $('more').style.display = hasHidden || (!moreDone && totalKnown > state.page) ? 'inline-block' : 'none';
+    $('more').style.display = hasHidden || (!moreDone && (filtered || totalKnown > state.page)) ? 'inline-block' : 'none';
     if ($('more').style.display !== 'none') {
       var predictedStep = connectionStep();
       var shownStep = Math.max(MORE_STEP_MIN, Math.min(MORE_STEP_MAX, predictedStep || moreStep));
-      $('more').textContent = 'نمایش بیشتر (' + fmt(shownStep) + ' خبر)';
+      $('more').textContent = filtered ? 'گشتن در آرشیو بیشتر' : 'نمایش بیشتر (' + fmt(shownStep) + ' خبر)';
+    }
+    var noteEl = $('filter-note');
+    if (noteEl) {
+      var activeCount = FILTER_KEYS.filter(function (key) { return !!state.filters[key]; }).length;
+      noteEl.textContent = activeCount
+        ? fmt(activeCount) + ' فیلتر فعال روی ' + fmt((data.articles || []).length) + ' خبر بارگذاری‌شده'
+        : '';
     }
     var archiveEnd = $('archive-end');
     if (archiveEnd) {
@@ -1873,9 +2052,13 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       archiveEnd.style.display = allLoaded ? 'block' : 'none';
     }
     $('counter').textContent = list.length
-      ? 'نمایش ' + fmt(Math.min(state.page, list.length)) + ' از ' + fmt(totalKnown) + ' خبر'
+      ? (filtered
+        ? 'نمایش ' + fmt(Math.min(state.page, list.length)) + ' از ' + fmt(list.length) + ' نتیجه'
+        : 'نمایش ' + fmt(Math.min(state.page, list.length)) + ' از ' + fmt(totalKnown) + ' خبر')
       : '';
-    $('feed-hint').textContent = 'همهٔ خبرها بدون محدودیت زمانی · ' + fmt(totalKnown) + ' خبر';
+    $('feed-hint').textContent = filtered
+      ? 'فیلتر فعال · ' + fmt(list.length) + ' نتیجه از ' + fmt((data.articles || []).length) + ' خبر بارگذاری‌شده'
+      : 'همهٔ خبرها بدون محدودیت زمانی · ' + fmt(totalKnown) + ' خبر';
     var unread = list.reduce(function (sum, article) { return readSet.has(feedKey(article)) ? sum : sum + 1; }, 0);
     var unreadPill = $('unread-count');
     if (unreadPill) {
@@ -2036,6 +2219,36 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       setTimeout(renderFeed, 0);
     }
   });
+
+  (function initFeedFilters() {
+    var box = $('feed-filters');
+    if (!box) return;
+    var timer = 0;
+    var query = $('filter-q');
+    if (query) {
+      query.addEventListener('input', function () {
+        state.filters.q = query.value.trim();
+        clearTimeout(timer);
+        timer = setTimeout(applyFilters, 220);
+      });
+    }
+    ['topic', 'source', 'lang', 'period'].forEach(function (key) {
+      var input = $('filter-' + key);
+      if (!input) return;
+      input.addEventListener('change', function () {
+        state.filters[key] = input.value;
+        applyFilters();
+      });
+    });
+    var clear = $('filter-clear');
+    if (clear) {
+      clear.addEventListener('click', function () {
+        state.filters = { q: '', topic: '', source: '', lang: '', period: '' };
+        syncFilterInputs();
+        applyFilters();
+      });
+    }
+  })();
 
   $('more').addEventListener('click', async function () {
     if (!state.data) return;
@@ -4162,6 +4375,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   })();
 
   (async function boot() {
+    readFiltersFromUrl();
     await fetchStatus();
     await loadData(true);
     connectEvents();
