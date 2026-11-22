@@ -1,7 +1,7 @@
 // تست تنظیم خوشه‌بندی قصه‌های چندمنبعی روی نمونه‌های واقعی‌مانند
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { clusterArticles } from '../src/analyze.mjs';
+import { clusterArticles, buildStories } from '../src/analyze.mjs';
 
 let counter = 0;
 function makeArticle({ title, source = 's1', link, clusterTitle = '' }) {
@@ -58,6 +58,22 @@ test('عنوان‌های نامرتبط با واژه‌های عمومی یک�
   const same = clusters.find((cluster) => cluster.members.some((member) => member.uid === first.uid));
   assert.ok(same);
   assert.equal(same.members.some((member) => member.uid === second.uid), false);
+});
+
+test('قصه لینک و زمان انتشار هر خبر و همهٔ منابع را نگه می‌دارد', () => {
+  const first = makeArticle({ title: 'زمین‌لرزه شدید جنوب ترکیه را لرزاند', source: 'irna' });
+  const second = makeArticle({ title: 'زمین‌لرزه شدید در جنوب ترکیه خسارت برجای گذاشت', source: 'reuters' });
+  const clusters = clusterArticles([...fillers, first, second]);
+  const stories = buildStories(clusters, 202);
+  const story = stories.find((item) => item.members.some((member) => member.uid === first.uid));
+  assert.ok(story);
+  assert.equal(story.source_count, 2);
+  assert.deepEqual(story.sources.map((source) => source.name).sort(), ['irna', 'reuters']);
+  const member = story.members.find((item) => item.uid === second.uid);
+  assert.equal(member.url, second.link);
+  assert.equal(member.published, second.published);
+  assert.equal(member.source_name, 'reuters');
+  assert.equal(story.members.length, 2);
 });
 
 test('پست تلگرام با متن بلند به قصهٔ همان رویداد در خبرها وصل می‌شود', () => {

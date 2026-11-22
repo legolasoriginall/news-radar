@@ -50,7 +50,14 @@ function sampleData(count) {
       sentiment: -0.4,
       primary_source: 'منبع',
       source_count: 2,
-      sources: [{ id: 's1', name: 'منبع یک', url: 'https://example.com/1' }],
+      sources: [
+        { id: 's1', name: 'منبع یک', url: 'https://example.com/1' },
+        { id: 's2', name: 'منبع دو', url: 'https://example.com/2' },
+      ],
+      members: [
+        { uid: 'm1', source_name: 'منبع یک', title: 'خبر یک', url: 'https://example.com/1', published: '2026-11-20T10:00:00.000Z', lang: 'fa' },
+        { uid: 'm2', source_name: 'منبع دو', title: 'خبر دو', url: 'https://example.com/2', published: '2026-11-20T11:00:00.000Z', lang: 'en' },
+      ],
       importance: 3,
     })),
     telegram: { posts: [{ id: 1, text: 'پست' }], channels: [{ id: 'ch1', name: 'کانال' }] },
@@ -109,7 +116,13 @@ test('قصه‌ها محدود و سبک‌اند و فیلد حساس سلام�
   const built = buildFeed(sampleData(4));
   assert.equal(built.feed.stories.length, 12);
   assert.equal(built.feed.stories[0].title_original, undefined);
-  assert.deepEqual(built.feed.stories[0].sources, [{ name: 'منبع یک' }]);
+  assert.deepEqual(built.feed.stories[0].sources, [
+    { id: 's1', name: 'منبع یک', url: 'https://example.com/1' },
+    { id: 's2', name: 'منبع دو', url: 'https://example.com/2' },
+  ]);
+  assert.deepEqual(built.feed.stories[0].members.map((member) => member.url), ['https://example.com/1', 'https://example.com/2']);
+  assert.equal(built.feed.stories[0].members[0].published, '2026-11-20T10:00:00.000Z');
+  assert.equal(built.feed.stories[0].members_count, undefined);
   assert.equal(built.health.source_health[0].password, undefined);
   assert.equal(built.summary.stats.total, 4);
   // فهرست سبک منابع برای فیلتر فید؛ فیلد حساس سلامت منابع با آن نمی‌آید.
@@ -117,6 +130,17 @@ test('قصه‌ها محدود و سبک‌اند و فیلد حساس سلام�
   assert.equal(built.feed.telegram.deferred, true);
   assert.equal(built.feed.telegram.posts.length, 0);
   assert.equal(built.telegram.telegram.posts.length, 1);
+});
+
+test('قصهٔ بدون اعضا از فهرست منابع یک ردیف زمانی می‌سازد', () => {
+  const data = sampleData(2);
+  data.stories[0].members = [];
+  const built = buildFeed(data);
+  const story = built.feed.stories[0];
+  assert.deepEqual(story.members, [
+    { source_name: 'منبع یک', url: 'https://example.com/1', published: '2026-11-20T10:00:00.000Z' },
+    { source_name: 'منبع دو', url: 'https://example.com/2', published: '2026-11-20T10:00:00.000Z' },
+  ]);
 });
 
 test('نوشتن روی دیسک فایل‌های مورد انتظار و نه data.json را می‌سازد', () => {

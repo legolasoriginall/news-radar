@@ -401,6 +401,36 @@ section { margin-top: 22px; }
 .badge.tg:hover { background: #bae6fd; }
 .src-chips { display: flex; flex-wrap: wrap; gap: 4px; }
 .src-chips span { background: #fff; border: 1px solid var(--line); border-radius: 999px; padding: 0 8px; font-size: 11px; color: #475467; }
+.story-open { align-self: flex-start; border: 1px solid #99f6e4; background: #f0fdfa; color: #0f766e; border-radius: 9px; padding: 4px 12px; font: inherit; font-size: 12px; font-weight: 700; cursor: pointer; }
+.story-open:hover { background: #ccfbf1; }
+.story-open:focus-visible { outline: 2px solid #5eead4; outline-offset: 2px; }
+.story-overlay { position: fixed; inset: 0; z-index: 95; background: rgba(15,23,42,.55); backdrop-filter: blur(2px); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.story-overlay[hidden] { display: none; }
+.story-sheet { width: min(680px, 100%); max-height: min(88vh, 900px); background: #fff; border-radius: 16px; overflow: hidden; box-shadow: 0 24px 60px rgba(15,23,42,.35); display: flex; flex-direction: column; }
+.story-sheet-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 12px 16px; background: #0f172a; color: #fff; }
+.story-sheet-head h2 { font-size: 14.5px; line-height: 1.8; margin: 0; }
+.story-sheet-head h2 a { color: #fff; }
+.story-sheet-head button { flex: none; border: 1px solid rgba(255,255,255,.35); background: #1e293b; color: #fff; width: 34px; height: 34px; border-radius: 9px; cursor: pointer; font-size: 14px; line-height: 1; }
+.story-sheet-head button:hover { background: #334155; }
+.story-sheet-body { padding: 16px; overflow-y: auto; font-size: 13px; line-height: 1.9; color: #1e293b; }
+.story-sheet-body h3 { font-size: 12.5px; color: var(--muted); margin: 16px 0 8px; }
+.story-sheet-body h3:first-child { margin-top: 0; }
+.story-facts { display: flex; flex-wrap: wrap; gap: 6px; }
+.story-facts span { background: #f8fafc; border: 1px solid var(--line); border-radius: 999px; padding: 1px 9px; font-size: 11.5px; color: #475467; }
+.story-source-list, .story-timeline { list-style: none; margin: 0; padding: 0; }
+.story-source-list li { display: flex; gap: 8px; align-items: baseline; padding: 6px 0; border-bottom: 1px dashed var(--line); }
+.story-source-list li:last-child { border-bottom: 0; }
+.story-source-list a { color: #0f766e; }
+.story-source-list span { color: var(--muted); font-size: 11.5px; }
+.story-timeline { position: relative; margin-top: 4px; padding-inline-start: 16px; }
+.story-timeline::before { content: ""; position: absolute; inset-block: 6px; inset-inline-start: 5px; width: 2px; background: #e2e8f0; }
+.story-timeline li { position: relative; padding: 6px 0; }
+.story-timeline li::before { content: ""; position: absolute; inset-inline-start: -15px; top: 13px; width: 8px; height: 8px; border-radius: 50%; background: #0d9488; border: 2px solid #fff; box-shadow: 0 0 0 1px #99f6e4; }
+.story-timeline time { display: block; font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.story-timeline a { display: block; font-size: 12.8px; line-height: 1.8; color: var(--ink); }
+.story-timeline a:hover { color: var(--teal); }
+.story-timeline .story-src { font-size: 11.3px; color: #0f766e; }
+.story-empty { color: var(--muted); font-size: 12.5px; }
 
 
 .feed { list-style: none; margin: 0; padding: 0; }
@@ -764,6 +794,16 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   <a class="qb-item" href="#market"><span class="qb-ico" aria-hidden="true">⚖</span><span>طلا و دلار</span></a>
   <button class="qb-item" id="qb-settings" type="button" data-admin-open><span class="qb-ico" aria-hidden="true">⚙</span><span>تنظیمات</span></button>
 </nav>
+
+<div class="story-overlay" id="story-overlay" hidden>
+  <div class="story-sheet" role="dialog" aria-modal="true" aria-labelledby="story-title">
+    <div class="story-sheet-head">
+      <h2 id="story-title"></h2>
+      <button type="button" id="story-close" aria-label="بستن نمای قصه">✕</button>
+    </div>
+    <div class="story-sheet-body" id="story-body"></div>
+  </div>
+</div>
 
 <div class="toast" id="toast" role="status" aria-live="polite"></div>
 
@@ -1811,7 +1851,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   function renderStories() {
     var stories = (state.data.stories || []).slice(0, 10);
     $('stories-hint').textContent = fmt(state.data.stats.stories) + ' قصهٔ متمایز · ' + fmt(state.data.stats.multi_source_stories) + ' قصهٔ چندمنبعی';
-    $('stories').innerHTML = stories.map(function (story) {
+    $('stories').innerHTML = stories.map(function (story, index) {
       var chips = (story.sources || []).slice(0, 5).map(function (source) { return '<span>' + esc(source.name) + '</span>'; }).join('');
       return '<article class="story">' +
         '<div class="story-meta">' +
@@ -1822,9 +1862,91 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         '<h3><a href="' + safeUrl(story.url) + '" target="_blank" rel="noopener noreferrer nofollow">' + esc(story.title) + '</a></h3>' +
         '<div class="src-chips">' + chips + '</div>' +
         '<div class="story-meta"><span>منبع اصلی: ' + esc(story.primary_source) + '</span>' + (story.sentiment < -0.15 ? '<span class="badge coverage">لحن منفی</span>' : '') + '</div>' +
+        '<button class="story-open" type="button" data-story="' + index + '">منابع و خط زمانی</button>' +
         '</article>';
     }).join('');
   }
+
+  /* ---------------- نمای جزئیات قصه: منابع، پیوند هر خبر و خط زمانی ---------------- */
+
+  var lastStoryFocus = null;
+
+  function storyMembers(story) {
+    var members = Array.isArray(story.members) ? story.members.slice() : [];
+    return members
+      .filter(function (member) { return member && (member.url || member.title || member.source_name); })
+      .sort(function (a, b) { return new Date(a.published || 0) - new Date(b.published || 0); });
+  }
+
+  function renderStoryDetail(story) {
+    $('story-title').innerHTML = '<a href="' + safeUrl(story.url) + '" target="_blank" rel="noopener noreferrer nofollow">' + esc(story.title) + '</a>';
+    var sources = (story.sources || []).filter(function (source) { return source && source.name; });
+    var members = storyMembers(story);
+    var count = story.members_count || members.length;
+    var html = '<div class="story-facts">' +
+      '<span>' + fmt(story.source_count) + ' منبع</span>' +
+      '<span>' + fmt(count) + ' خبر</span>' +
+      (story.importance ? '<span>اهمیت ' + pctText(story.importance, 1) + '</span>' : '') +
+      '<span>آخرین انتشار ' + esc(timeAgo(story.published)) + '</span>' +
+      '</div>';
+
+    html += '<h3>منابع پوشش‌دهنده</h3>';
+    if (sources.length) {
+      html += '<ul class="story-source-list">' + sources.map(function (source) {
+        var name = safeUrl(source.url) !== '#'
+          ? '<a href="' + safeUrl(source.url) + '" target="_blank" rel="noopener noreferrer nofollow">' + esc(source.name) + ' ↗</a>'
+          : '<span>' + esc(source.name) + '</span>';
+        return '<li>' + name + '</li>';
+      }).join('') + '</ul>';
+    } else {
+      html += '<p class="story-empty">منبعی برای این قصه ثبت نشده است.</p>';
+    }
+
+    html += '<h3>خط زمانی انتشار</h3>';
+    if (members.length) {
+      html += '<ol class="story-timeline">' + members.map(function (member) {
+        var title = member.title || member.source_name || 'خبر';
+        return '<li>' +
+          '<time datetime="' + esc(member.published || '') + '">' + esc(dateTime(member.published)) + '</time>' +
+          '<a href="' + safeUrl(member.url) + '" target="_blank" rel="noopener noreferrer nofollow">' + esc(title) + '</a>' +
+          '<span class="story-src">' + esc(member.source_name || '') + '</span>' +
+          '</li>';
+      }).join('') + '</ol>';
+    } else {
+      html += '<p class="story-empty">خط زمانی این قصه در به‌روزرسانی بعدی ساخته می‌شود.</p>';
+    }
+    $('story-body').innerHTML = html;
+  }
+
+  function openStoryDetail(index) {
+    var stories = (state.data && state.data.stories) || [];
+    var story = stories[index];
+    if (!story) return;
+    renderStoryDetail(story);
+    lastStoryFocus = document.activeElement;
+    $('story-overlay').hidden = false;
+    $('story-body').scrollTop = 0;
+    $('story-close').focus();
+  }
+
+  function closeStoryDetail() {
+    $('story-overlay').hidden = true;
+    if (lastStoryFocus && lastStoryFocus.focus) lastStoryFocus.focus();
+  }
+
+  (function initStoryDetail() {
+    var overlay = $('story-overlay');
+    if (!overlay) return;
+    $('stories').addEventListener('click', function (event) {
+      var button = event.target && event.target.closest ? event.target.closest('[data-story]') : null;
+      if (button) openStoryDetail(Number(button.getAttribute('data-story')));
+    });
+    $('story-close').addEventListener('click', closeStoryDetail);
+    overlay.addEventListener('click', function (event) { if (event.target === overlay) closeStoryDetail(); });
+    document.addEventListener('keydown', function (event) {
+      if (event.key === 'Escape' && !overlay.hidden) closeStoryDetail();
+    });
+  })();
 
   /* ---------------- جستجو و فیلتر فید ---------------- */
 

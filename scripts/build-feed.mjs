@@ -24,7 +24,8 @@ const DETAIL_KEYS = ['summary', 'summary_fa', 'sources', 'telegram', 'importance
   'coverage_percent', 'cluster_size', 'sentiment', 'sentiment_label', 'keywords', 'age_hours',
   'translation', 'title_original'];
 const STORY_KEYS = ['title', 'title_fa', 'url', 'telegram', 'published', 'sentiment',
-  'primary_source', 'source_count'];
+  'primary_source', 'source_count', 'members_count', 'importance'];
+const STORY_MEMBER_KEYS = ['uid', 'source_name', 'title', 'url', 'published', 'lang'];
 // source_health فقط در سلامت منابع پنل مدیر و صفحهٔ وضعیت لازم است و در فید نمی‌آید.
 // analysis/keywords/hourly پشتوانهٔ بخش «تصویر کلی امروز» است (حدود ۹ کیلوبایت).
 const FEED_KEYS = ['generated_at', 'next_update_at', 'update_interval_minutes', 'stats', 'markets',
@@ -63,7 +64,19 @@ function detailOf(article) {
 
 function storyOf(story) {
   const out = pick(story, STORY_KEYS);
-  if (Array.isArray(story.sources)) out.sources = story.sources.map((src) => (src && src.name ? { name: src.name } : src));
+  const sources = Array.isArray(story.sources) ? story.sources.filter(Boolean) : [];
+  out.sources = sources.map((source) => pick(source, ['id', 'name', 'url']));
+  // هر خبر عضو قصه با پیوند و زمان انتشار؛ دادهٔ قدیمی بدون members
+  // با یک ردیف برای هر منبع جایگزین می‌شود تا نمای جزئیات خالی نماند.
+  const members = Array.isArray(story.members) ? story.members : [];
+  out.members = members.length
+    ? members.filter((member) => member && (member.url || member.title))
+      .map((member) => pick(member, STORY_MEMBER_KEYS))
+    : out.sources.filter((source) => source.url).map((source) => ({
+      source_name: source.name,
+      url: source.url,
+      published: story.published,
+    }));
   return out;
 }
 

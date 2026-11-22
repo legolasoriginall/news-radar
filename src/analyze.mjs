@@ -387,7 +387,18 @@ export function buildStories(clusters, totalArticles) {
         })(),
         members_count: members.length,
         source_count: sources.length,
-        sources: sources.slice(0, 8),
+        // همهٔ منابع پوشش‌دهنده (نه فقط هشت‌تای اول) برای نمای جزئیات قصه
+        sources,
+        // هر خبر عضو قصه با لینک و زمان انتشارش، تا خط زمانی و پیوند هر خبر ساخته شود
+        members: members.slice(0, 40).map((member) => ({
+          uid: member.uid,
+          source_id: member.source_id,
+          source_name: member.source_name,
+          title: member.title_fa || member.title,
+          url: member.link,
+          lang: member.lang,
+          published: member.published,
+        })),
         importance: Number(Math.max(...members.map((m) => m.importance || 0)).toFixed(1)),
         published: maxPublished,
         topics: primary.topics.map((t) => t.name),
