@@ -2121,6 +2121,20 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     syncSavedFilter();
   }
 
+  // ذخیره‌ها در localStorage ممکن است به خبرهایی اشاره کنند که در قطعه‌های
+  // بارگذاری‌نشدهٔ آرشیو هستند؛ شمارش آن‌ها مبنای «چقدر دیگر باید بخوانیم» است.
+  function savedKeysMissing() {
+    if (!savedSet.size || !state.data) return 0;
+    var seen = {};
+    (state.data.articles || []).forEach(function (article) {
+      var key = feedKey(article);
+      if (savedSet.has(key)) seen[key] = true;
+    });
+    var missing = 0;
+    savedSet.forEach(function (key) { if (!seen[key]) missing += 1; });
+    return missing;
+  }
+
   async function applyFilters() {
     writeFiltersToUrl();
     // فیلتر روی آرشیو بارگذاری‌شده کار می‌کند؛ اگر نتیجه کم بود، تا دو قطعهٔ بعدی هم خوانده می‌شود.
@@ -2131,6 +2145,17 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       await ensureMoreArticles();
       guard += 1;
       if ((state.data.articles || []).length === before) break;
+    }
+    // با فیلتر «فقط ذخیره‌شده‌ها» همهٔ خبرهای ذخیره‌شده باید پیدا شوند، نه فقط
+    // آن‌هایی که در قطعه‌های نخست آرشیو هستند.
+    if (state.savedOnly) {
+      var savedGuard = 0;
+      while (!moreDone && savedKeysMissing() > 0 && savedGuard < 12) {
+        var beforeSaved = (state.data.articles || []).length;
+        await ensureMoreArticles();
+        savedGuard += 1;
+        if ((state.data.articles || []).length === beforeSaved) break;
+      }
     }
     renderFeed();
   }
@@ -2292,7 +2317,10 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     syncSavedFilter();
     var unreadPill = $('unread-count');
     if (unreadPill) {
-      unreadPill.textContent = fmt(unread) + ' خوانده‌نشده';
+      // با فیلتر فعال، شمارنده همان نتایج فیلترشده را می‌شمارد تا با فهرست
+      // نمایش‌داده‌شده یکی بماند (مثلاً فقط ذخیره‌شده‌ها).
+      unreadPill.textContent = fmt(unread) + ' خوانده‌نشده' + (filtered ? ' از نتایج' : '');
+      unreadPill.title = filtered ? 'خوانده‌نشده در نتایج فیلتر فعلی' : 'خوانده‌نشده در خبرهای بارگذاری‌شده';
       unreadPill.hidden = !list.length;
     }
     restoreFeedFocus();
