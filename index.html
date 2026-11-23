@@ -1991,12 +1991,16 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       state.filters[key] = value ? String(value) : '';
     });
     if (state.filters.period && !FILTER_PERIOD_HOURS[state.filters.period]) state.filters.period = '';
+    state.unreadOnly = params.get('unread') === '1';
+    state.savedOnly = params.get('saved') === '1';
   }
 
   function writeFiltersToUrl() {
     try {
       var params = new URLSearchParams();
       FILTER_KEYS.forEach(function (key) { if (state.filters[key]) params.set(key, state.filters[key]); });
+      if (state.unreadOnly) params.set('unread', '1');
+      if (state.savedOnly) params.set('saved', '1');
       var query = params.toString();
       var next = location.pathname + (query ? '?' + query : '') + location.hash;
       if (next !== location.pathname + location.search + location.hash) {
@@ -4776,6 +4780,9 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     readFiltersFromUrl();
     await fetchStatus();
     await loadData(true);
+    // پیوند اشتراکی باید همان نمای فیلترشده را بسازد؛ فیلتر سریع ذخیره‌شده‌ها
+    // ممکن است خبرهایش در قطعه‌های بارگذاری‌نشدهٔ آرشیو باشد.
+    if (hasActiveFilters()) await applyFilters();
     connectEvents();
     startLiveMarkets();
     startTelegram();
