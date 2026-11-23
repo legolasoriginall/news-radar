@@ -227,6 +227,11 @@ body.sat-fs-lock { overflow: hidden; }
 .live-adult-toggle[aria-expanded="true"] { background: #9a3412; border-color: #9a3412; color: #fff; }
 .live-adult { background: #fffaf3; border-color: #fde2c8; color: #7c2d12; }
 .live-adult.active { background: #7c2d12; border-color: #7c2d12; color: #fff; }
+  .live-vod-row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0 2px; }
+  .live-vod-row[hidden] { display: none; }
+  .live-vod-row label { font-weight: 700; color: #7c2d12; }
+  .live-vod-row select { max-width: 100%; min-width: 220px; padding: 6px 8px; border: 1px solid #fde2c8; border-radius: 10px; background: #fffaf3; color: #7c2d12; font: inherit; }
+  .live-vod-hint { color: #9a3412; font-size: 12px; }
 .tg-feed { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
 .tg-item { border: 1px solid #e6eaf0; border-radius: 10px; padding: 10px 12px; background: #fcfdff; }
 .tg-item.fresh { border-color: #a7f3d0; background: #f3fdf8; }
@@ -650,6 +655,11 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         <span class="hint" id="live-hint">پخش زندهٔ ۲۴ ساعته</span>
       </div>
       <div class="tg-filters" id="live-tabs" role="tablist" aria-label="انتخاب شبکهٔ زنده"></div>
+      <div class="live-vod-row" id="live-vod-row" hidden>
+        <label for="live-vod-select">کلیپ ۱۸+</label>
+        <select id="live-vod-select" data-live-vod aria-label="انتخاب کلیپ ۱۸+"></select>
+        <span class="live-vod-hint" id="live-vod-hint"></span>
+      </div>
       <div class="live-wrap" id="live-wrap">
         <video id="live-video" class="live-video" controls playsinline hidden></video>
         <button class="live-start" id="live-start" type="button">
@@ -659,7 +669,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         </button>
       </div>
       <p class="live-fallback" id="live-fallback" hidden></p>
-      <div class="market-note live-note">پخش‌ها از مسیرهای CDN عمومی (نه دامنهٔ خود شبکه‌ها و نه یوتیوب) می‌آیند و اگر یکی پاسخ نداد، خودکار مسیر بعدی امتحان می‌شود · <a href="https://www.manoto.com/live" target="_blank" rel="noopener noreferrer">منوتو ↗</a> · <a href="https://www.bbc.com/persian/tv" target="_blank" rel="noopener noreferrer">بی‌بی‌سی فارسی ↗</a></div>
+      <div class="market-note live-note">پخش‌ها از مسیرهای CDN عمومی (نه دامنهٔ خود شبکه‌ها و نه یوتیوب) می‌آیند و اگر یکی پاسخ نداد، خودکار مسیر بعدی امتحان می‌شود. کانال‌های ۱۸+ از فایل‌های Adult.m3u و AdultVod.m3u همین مخزن خوانده می‌شوند و از مسیر پروکسی رسانه پخش می‌شوند · <a href="https://www.manoto.com/live" target="_blank" rel="noopener noreferrer">منوتو ↗</a> · <a href="https://www.bbc.com/persian/tv" target="_blank" rel="noopener noreferrer">بی‌بی‌سی فارسی ↗</a></div>
     </div>
   </section>
 
@@ -2565,8 +2575,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       ],
       watch: 'https://yourtime.tv/'
     },
-  // گروه ۱۸+: فقط نشانی‌های تأییدشده از Adult.m3u و AdultVod.m3u (بررسی فهرست
-  // پخش و نخستین سگمنت در ۲۰۲۶-۱۱-۲۲). مسیرهای بی‌پاسخ اصلاً نیامده‌اند.
+  // فهرست پشتیبان گروه ۱۸+ (تنها وقتی فایل‌های مخزن خوانده نشوند). نسخهٔ اصلی
+  // هنگام بارگذاری از Adult.m3u و AdultVod.m3u همین مخزن ساخته می‌شود.
     {
       id: 'adult-anal',
       name: 'Anal',
@@ -3022,9 +3032,113 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       return copy;
     });
   }
-  var liveChannels = channelsWithFallback(LIVE_CHANNELS);
+  // کانال‌های ۱۸+ از فایل‌های همین مخزن خوانده می‌شوند تا همیشه با فایل‌ها
+  // یکی باشند؛ فهرست ثابت بالای فایل فقط نقش پشتیبان دارد.
+  var liveBase = LIVE_CHANNELS;
+  var liveAdultPlaylist = { live: null, vod: null, liveBusy: false, vodBusy: false };
+
+  function composeLiveChannels(base) {
+    var list = (base || []).slice();
+    if (liveAdultPlaylist.live) {
+      list = list.filter(function (channel) {
+        return channel.group !== '18+' && channel.group !== '18+ کلیپ';
+      });
+      list = list.concat(liveAdultPlaylist.live);
+      if (liveAdultPlaylist.vod) list = list.concat(liveAdultPlaylist.vod);
+    }
+    return channelsWithFallback(list);
+  }
+
+  var liveChannels = composeLiveChannels(liveBase);
   // گروه ۱۸+ پیش‌فرض بسته است؛ فقط با کلیک کاربر باز می‌شود.
   var liveAdultOpen = false;
+
+  // شناسهٔ پایدار بر پایهٔ نشانی تا انتخاب کاربر بعد از بازخوانی هم بماند.
+  function livePlaylistId(prefix, url) {
+    return prefix + '-' + String(url || '').replace(/^https?:\/\//i, '')
+      .replace(/[^a-z0-9]+/gi, '-').replace(/^-+|-+$/g, '').toLowerCase();
+  }
+
+  // یک فایل m3u مخزن را به کانال‌های بخش زنده تبدیل می‌کند؛ هر نشانی فقط یک بار.
+  function livePlaylistChannels(text, group, prefix) {
+    var seen = {};
+    var out = [];
+    parseM3uText(String(text || '').replace(/#EXTINF/g, '\n#EXTINF')).forEach(function (entry) {
+      if (!entry || !entry.url || seen[entry.url]) return;
+      seen[entry.url] = true;
+      out.push({
+        id: livePlaylistId(prefix, entry.url),
+        name: entry.name || entry.url,
+        group: group,
+        sources: [entry.url],
+        watch: ''
+      });
+    });
+    return out;
+  }
+
+  // فایل‌های ۱۸+ فقط وقتی لازم است خوانده می‌شوند (AdultVod چند مگابایت است).
+  async function loadAdultPlaylist(kind) {
+    var isVod = kind === 'vod';
+    if (isVod ? (liveAdultPlaylist.vod || liveAdultPlaylist.vodBusy) : (liveAdultPlaylist.live || liveAdultPlaylist.liveBusy)) return;
+    if (isVod) liveAdultPlaylist.vodBusy = true; else liveAdultPlaylist.liveBusy = true;
+    try {
+      var response = await fetch(isVod ? 'AdultVod.m3u' : 'Adult.m3u', { cache: 'no-store' });
+      if (!response.ok) return;
+      var list = livePlaylistChannels(await response.text(), isVod ? '18+ کلیپ' : '18+', isVod ? 'adultvod' : 'adult');
+      if (!list.length) return;
+      if (isVod) liveAdultPlaylist.vod = list; else liveAdultPlaylist.live = list;
+      liveChannels = composeLiveChannels(liveBase);
+      var wanted = storeGet('newsradar:liveChannel', '');
+      if (wanted && liveChannels.some(function (channel) { return channel.id === wanted; })) {
+        liveState.channel = wanted;
+      } else if (!liveChannels.some(function (channel) { return channel.id === liveState.channel; })) {
+        liveState.channel = liveChannels[0].id;
+        storeSet('newsradar:liveChannel', liveState.channel);
+      }
+      var activeChannel = liveChannelById(liveState.channel);
+      if (activeChannel && (activeChannel.group === '18+' || activeChannel.group === '18+ کلیپ')) liveAdultOpen = true;
+      if (isVod) buildVodOptions();
+      renderLiveTabs();
+    } catch (e) { /* فایل نبود یا شبکه قطع بود؛ فهرست پشتیبان می‌ماند */ }
+    finally {
+      if (isVod) liveAdultPlaylist.vodBusy = false; else liveAdultPlaylist.liveBusy = false;
+    }
+  }
+
+  // گزینه‌های کلیپ‌ها یک بار ساخته می‌شود؛ هزاران گزینه در یک انتخابگر جا می‌شود
+  // و هیچ تبی برای هر کلیپ ساخته نمی‌شود تا نوار کانال‌ها شلوغ نشود.
+  function buildVodOptions() {
+    var select = $('live-vod-select');
+    var hint = $('live-vod-hint');
+    var vod = liveAdultPlaylist.vod || [];
+    if (!select) return;
+    if (!vod.length) {
+      select.innerHTML = '<option value="">کلیپ‌ها خوانده نشد</option>';
+      if (hint) hint.textContent = '';
+      return;
+    }
+    if (select.getAttribute('data-count') !== String(vod.length)) {
+      var html = ['<option value="">انتخاب کلیپ…</option>'];
+      vod.forEach(function (channel) {
+        html.push('<option value="' + channel.id + '">' + esc(channel.name) + '</option>');
+      });
+      select.innerHTML = html.join('');
+      select.setAttribute('data-count', String(vod.length));
+    }
+    if (hint) hint.textContent = faDigits(String(vod.length)) + ' کلیپ از AdultVod.m3u (VOD، نه زنده)';
+    var current = liveChannelById(liveState.channel);
+    select.value = current && current.group === '18+ کلیپ' ? current.id : '';
+  }
+
+  function renderLiveVodPicker() {
+    var row = $('live-vod-row');
+    if (!row) return;
+    var current = liveChannelById(liveState.channel);
+    var isVod = Boolean(current && current.group === '18+ کلیپ');
+    row.hidden = !(liveAdultOpen && (liveAdultPlaylist.vod || isVod));
+    if (!row.hidden) buildVodOptions();
+  }
 
   function liveChannelById(id) {
     for (var i = 0; i < liveChannels.length; i++) {
@@ -3208,7 +3322,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
             return channel && channel.id && channel.name && Array.isArray(channel.sources) && channel.sources.length;
           }) : [];
           if (usable.length) {
-            liveChannels = channelsWithFallback(usable);
+            liveBase = usable;
+            liveChannels = composeLiveChannels(liveBase);
             if (!liveChannels.some(function (channel) { return channel.id === liveState.channel; })) {
               liveState.channel = liveChannels[0].id;
             }
@@ -3220,7 +3335,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }
     var custom = await loadCustomLiveChannels();
     if (!custom.length) return;
-    liveChannels = channelsWithFallback(LIVE_CHANNELS.concat(custom));
+    liveBase = LIVE_CHANNELS.concat(custom);
+    liveChannels = composeLiveChannels(liveBase);
     if (!liveChannels.some(function (channel) { return channel.id === liveState.channel; })) {
       liveState.channel = liveChannels[0].id;
     }
@@ -3232,21 +3348,26 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (!box) return;
     var normal = [];
     var adult = [];
+    var vodCount = 0;
     liveChannels.forEach(function (channel) {
-      (channel.group === '18+' ? adult : normal).push(channel);
+      if (channel.group === '18+ کلیپ') { vodCount += 1; return; }
+      if (channel.group === '18+') { adult.push(channel); return; }
+      normal.push(channel);
     });
     function tabButton(channel) {
       var active = channel.id === liveState.channel;
       return '<button type="button" role="tab" aria-selected="' + active + '" class="tg-filter' + (active ? ' active' : '') + (channel.group === '18+' ? ' live-adult' : '') + '" data-live="' + channel.id + '">' + esc(channel.name) + '</button>';
     }
     var html = normal.map(tabButton).join('');
-    if (adult.length) {
+    if (adult.length || vodCount) {
       html += '<button type="button" class="tg-filter live-adult-toggle" data-live-adult-toggle aria-expanded="' + (liveAdultOpen ? 'true' : 'false') + '">' + (liveAdultOpen ? '۱۸+ ✕' : '۱۸+ ' + faDigits(String(adult.length))) + '</button>';
       if (liveAdultOpen) html += adult.map(tabButton).join('');
     }
     box.innerHTML = html;
+    var current = liveChannelById(liveState.channel);
     var hint = $('live-hint');
-    if (hint) hint.textContent = 'پخش زنده · ' + liveChannelById(liveState.channel).name;
+    if (hint) hint.textContent = (current.group === '18+ کلیپ' ? 'کلیپ ۱۸+ · ' : 'پخش زنده · ') + current.name;
+    renderLiveVodPicker();
   }
 
   // نسخهٔ محلی hls.js از خود سایت سرو می‌شود و مسیر اصلی است. فقط یک آدرس CDN
@@ -3586,7 +3707,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         if (liveAutoResumeEnabled()) storeSet('newsradar:livePlaying', channel.id);
         setLiveFallback(channel, false);
         var hint = $('live-hint');
-        if (hint) hint.textContent = 'پخش زنده · ' + channel.name;
+        if (hint) hint.textContent = (channel.group === '18+ کلیپ' ? 'کلیپ ۱۸+ · ' : 'پخش زنده · ') + channel.name;
         var startBtn = $('live-start');
         if (startBtn) startBtn.hidden = true;
         var label = $('live-start-label');
@@ -3643,6 +3764,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     startLiveSource({
       id: channel.id,
       name: channel.name,
+      group: channel.group,
       sources: preferredSources(channel)
     }, 0);
   }
@@ -3653,7 +3775,10 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (!box || !start) return;
     var saved = storeGet('newsradar:liveChannel', 'iranintl');
     liveState.channel = liveChannelById(saved).id;
-    liveAdultOpen = liveChannelById(liveState.channel).group === '18+';
+    var savedChannel = liveChannelById(liveState.channel);
+    // اگر آخرین انتخاب کاربر از گروه ۱۸+ بوده، همان گروه باز می‌ماند حتی پیش از
+    // رسیدن فهرست فایل‌ها (شناسهٔ ذخیره‌شده ممکن است هنوز در فهرست نباشد).
+    liveAdultOpen = savedChannel.group === '18+' || savedChannel.group === '18+ کلیپ' || /^adult(vod)?-/.test(String(saved));
     renderLiveTabs();
     // اگر پیش از بازخوانی همین شبکه در حال پخش بود، پخش‌کننده دوباره ساخته می‌شود.
     var resumeChannel = storeGet('newsradar:livePlaying', '');
@@ -3688,11 +3813,12 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       var toggle = event.target.closest ? event.target.closest('[data-live-adult-toggle]') : null;
       if (toggle) {
         liveAdultOpen = !liveAdultOpen;
+        if (liveAdultOpen) { loadAdultPlaylist('live'); loadAdultPlaylist('vod'); }
         if (!liveAdultOpen) {
           var current = liveChannelById(liveState.channel);
-          if (current && current.group === '18+') {
+          if (current && (current.group === '18+' || current.group === '18+ کلیپ')) {
             var first = null;
-            liveChannels.forEach(function (channel) { if (!first && channel.group !== '18+') first = channel; });
+            liveChannels.forEach(function (channel) { if (!first && channel.group !== '18+' && channel.group !== '18+ کلیپ') first = channel; });
             if (first) {
               liveState.channel = first.id;
               storeSet('newsradar:liveChannel', liveState.channel);
@@ -3715,6 +3841,27 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       stopLivePlayback();
     });
     start.addEventListener('click', playLive);
+    loadAdultPlaylist('live');
+    if (savedChannel.group === '18+ کلیپ' || /^adultvod-/.test(String(saved))) loadAdultPlaylist('vod');
+    var vodRow = $('live-vod-row');
+    if (vodRow) {
+      vodRow.addEventListener('change', function (event) {
+        var select = event.target.closest ? event.target.closest('[data-live-vod]') : null;
+        if (!select || !select.value) return;
+        liveState.channel = select.value;
+        storeSet('newsradar:liveChannel', liveState.channel);
+        storeDel('newsradar:livePlaying');
+        resumePending = false;
+        stopLivePlayback();
+        var channel = liveChannelById(liveState.channel);
+        var hint = $('live-hint');
+        var startBtn = $('live-start');
+        var label = $('live-start-label');
+        if (startBtn) startBtn.hidden = false;
+        if (label) label.textContent = 'پخش «' + channel.name + '»';
+        if (hint) hint.textContent = 'کلیپ ۱۸+ · ' + channel.name;
+      });
+    }
     loadLiveChannels();
     setInterval(loadLiveChannels, 10 * 60 * 1000);
     // اگر کاربر در تب دیگری (پنل مدیر) ادامهٔ خودکار را خاموش کرد، اینجا هم واکنش نشان داده می‌شود.
