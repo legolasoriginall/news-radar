@@ -2086,6 +2086,75 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     }
   }
 
+  // در گزینه‌های موضوع و منبع، شمار خبرهای هم‌خوان با بقیهٔ فیلترهای فعال
+  // کنار نام گزینه می‌آید تا پیش از انتخاب هم معلوم باشد کدام گزینه نتیجه دارد.
+  function filterOptionCounts() {
+    var counts = { topics: {}, sources: {}, total: 0 };
+    var data = state.data;
+    if (!data) return counts;
+    var filters = state.filters;
+    var wantedTopic = filters.topic ? normalizeText(filters.topic) : '';
+    var wantedSource = filters.source || '';
+    var words = filters.q ? normalizeText(filters.q).split(' ') : [];
+    var hours = filters.period ? FILTER_PERIOD_HOURS[filters.period] : 0;
+    var now = Date.now();
+    (data.articles || []).forEach(function (article) {
+      if (state.unreadOnly && readSet.has(feedKey(article))) return;
+      if (state.savedOnly && !savedSet.has(feedKey(article))) return;
+      if (filters.lang && article.lang !== filters.lang) return;
+      if (hours) {
+        var ts = new Date(article.published).getTime();
+        if (!isFinite(ts) || now - ts > hours * 3600000) return;
+      }
+      if (words.length) {
+        var parts = [article.title, article.title_fa, article.source_name];
+        var detail = detailCache[feedKey(article)];
+        if (detail && typeof detail === 'object') parts.push(detail.summary, detail.summary_fa);
+        var haystack = normalizeText(parts.join(' '));
+        for (var i = 0; i < words.length; i += 1) {
+          if (words[i] && haystack.indexOf(words[i]) === -1) return;
+        }
+      }
+      var sourceName = article.source_name || '';
+      var hasSource = !wantedSource || sourceName === wantedSource;
+      var hasTopic = !wantedTopic;
+      var topicNames = [];
+      (article.topics || []).forEach(function (topic) {
+        var name = topic && (topic.name || topic);
+        if (!name) return;
+        topicNames.push(name);
+        if (wantedTopic && normalizeText(name) === wantedTopic) hasTopic = true;
+      });
+      // شمار هر موضوع با فیلتر منبع و بقیهٔ فیلترها سنجیده می‌شود و شمار هر
+      // منبع با فیلتر موضوع؛ پس خودِ گزینه در شمارشش دخالت نمی‌کند.
+      if (hasSource) {
+        topicNames.forEach(function (name) {
+          counts.topics[name] = (counts.topics[name] || 0) + 1;
+        });
+      }
+      if (hasTopic && sourceName) counts.sources[sourceName] = (counts.sources[sourceName] || 0) + 1;
+      if (hasTopic && hasSource) counts.total += 1;
+    });
+    return counts;
+  }
+
+  function applyOptionCounts(select, map, total) {
+    if (!select) return;
+    Array.prototype.forEach.call(select.options, function (option) {
+      // برچسب اصلی یک بار نگه داشته می‌شود تا شمارش روی شمارش انبار نشود.
+      if (!option.getAttribute('data-label')) option.setAttribute('data-label', option.textContent);
+      var label = option.getAttribute('data-label');
+      var count = option.value ? (map[option.value] || 0) : total;
+      option.textContent = label + ' (' + fmt(count) + ')';
+    });
+  }
+
+  function updateFilterOptionCounts() {
+    var counts = filterOptionCounts();
+    applyOptionCounts($('filter-topic'), counts.topics, counts.total);
+    applyOptionCounts($('filter-source'), counts.sources, counts.total);
+  }
+
   function syncSavedFilter() {
     var saved = $('filter-saved');
     if (saved) saved.setAttribute('aria-pressed', state.savedOnly ? 'true' : 'false');
@@ -2209,6 +2278,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   function renderFeed() {
     var data = state.data;
     if (!data) return;
+    updateFilterOptionCounts();
     captureFeedFocus();
     var filtered = hasActiveFilters();
     var list = filteredArticles();
