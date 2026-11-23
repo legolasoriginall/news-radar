@@ -1,1025 +1,5 @@
 [
  {
-  "at": "2026-11-22T12:47:06.102Z",
-  "started_at": "2026-11-22T12:46:36Z",
-  "duration_ms": 30102,
-  "commit": "00cf796",
-  "run": "45024007339",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T13:00:55.522Z",
-  "started_at": "2026-11-22T13:00:22Z",
-  "duration_ms": 33522,
-  "commit": "3ea1ca3",
-  "run": "45025153491",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T13:14:48.657Z",
-  "started_at": "2026-11-22T13:14:12Z",
-  "duration_ms": 36657,
-  "commit": "830ed6a",
-  "run": "45026389801",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T13:28:37.153Z",
-  "started_at": "2026-11-22T13:28:04Z",
-  "duration_ms": 33153,
-  "commit": "9274aa7",
-  "run": "45027611885",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T13:42:25.497Z",
-  "started_at": "2026-11-22T13:41:52Z",
-  "duration_ms": 33497,
-  "commit": "a9626a6",
-  "run": "45028821593",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T13:56:13.488Z",
-  "started_at": "2026-11-22T13:55:41Z",
-  "duration_ms": 32488,
-  "commit": "f3911ce",
-  "run": "45030018227",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T14:10:54.372Z",
-  "started_at": "2026-11-22T14:09:34Z",
-  "duration_ms": 80372,
-  "commit": "c3acf97",
-  "run": "45031250798",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 2,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T14:25:34.364Z",
-  "started_at": "2026-11-22T14:24:10Z",
-  "duration_ms": 84364,
-  "commit": "6632e80",
-  "run": "45032603195",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 2,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T14:40:01.581Z",
-  "started_at": "2026-11-22T14:38:49Z",
-  "duration_ms": 72581,
-  "commit": "ddf0295",
-  "run": "45033928021",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 2,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T14:53:44.495Z",
-  "started_at": "2026-11-22T14:53:15Z",
-  "duration_ms": 29495,
-  "commit": "ba5dc9e",
-  "run": "45035226568",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T15:07:30.916Z",
-  "started_at": "2026-11-22T15:07:03Z",
-  "duration_ms": 27916,
-  "commit": "52b2e79",
-  "run": "45036476028",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T15:10:03.439Z",
-  "started_at": "2026-11-22T15:09:32Z",
-  "duration_ms": 31439,
-  "commit": "ed8a6d6",
-  "run": "45036696143",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T15:23:50.917Z",
-  "started_at": "2026-11-22T15:23:18Z",
-  "duration_ms": 32918,
-  "commit": "e8fda14",
-  "run": "45038009329",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T15:37:39.700Z",
-  "started_at": "2026-11-22T15:37:06Z",
-  "duration_ms": 33700,
-  "commit": "f9c6d9d",
-  "run": "45039291868",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T15:51:22.140Z",
-  "started_at": "2026-11-22T15:50:53Z",
-  "duration_ms": 29140,
-  "commit": "d73f849",
-  "run": "45040527627",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T16:05:09.260Z",
-  "started_at": "2026-11-22T16:04:35Z",
-  "duration_ms": 34260,
-  "commit": "19d4d70",
-  "run": "45041764306",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T16:19:39.754Z",
-  "started_at": "2026-11-22T16:18:23Z",
-  "duration_ms": 76754,
-  "commit": "5e99470",
-  "run": "45043059955",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 2,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T16:33:00.309Z",
-  "started_at": "2026-11-22T16:32:55Z",
-  "duration_ms": 5310,
-  "commit": "35d918a",
-  "run": "45044431601",
-  "data": {
-   "attempts": 0,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 0,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 0,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T16:46:42.346Z",
-  "started_at": "2026-11-22T16:46:14Z",
-  "duration_ms": 28346,
-  "commit": "5baf25e",
-  "run": "45045656514",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T17:00:27.135Z",
-  "started_at": "2026-11-22T16:59:57Z",
-  "duration_ms": 30135,
-  "commit": "d0e66a5",
-  "run": "45046888333",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T17:14:13.867Z",
-  "started_at": "2026-11-22T17:13:41Z",
-  "duration_ms": 32867,
-  "commit": "bcdb363",
-  "run": "45048227139",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T17:28:00.221Z",
-  "started_at": "2026-11-22T17:27:27Z",
-  "duration_ms": 33221,
-  "commit": "d234b30",
-  "run": "45049526386",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T17:41:49.415Z",
-  "started_at": "2026-11-22T17:41:20Z",
-  "duration_ms": 29415,
-  "commit": "107d58d",
-  "run": "45050816159",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T17:55:38.091Z",
-  "started_at": "2026-11-22T17:55:05Z",
-  "duration_ms": 33092,
-  "commit": "a75d0e6",
-  "run": "45052081282",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T18:10:13.107Z",
-  "started_at": "2026-11-22T18:08:54Z",
-  "duration_ms": 79107,
-  "commit": "0f7807f",
-  "run": "45053371433",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 2,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T18:24:40.220Z",
-  "started_at": "2026-11-22T18:23:31Z",
-  "duration_ms": 69220,
-  "commit": "37ae372",
-  "run": "45054782906",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 2,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T18:38:23.450Z",
-  "started_at": "2026-11-22T18:37:54Z",
-  "duration_ms": 29450,
-  "commit": "c226664",
-  "run": "45056164569",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T18:52:03.853Z",
-  "started_at": "2026-11-22T18:51:36Z",
-  "duration_ms": 27854,
-  "commit": "887d4a0",
-  "run": "45057433743",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T19:05:44.313Z",
-  "started_at": "2026-11-22T19:05:16Z",
-  "duration_ms": 28313,
-  "commit": "78283ed",
-  "run": "45058706984",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T19:19:30.520Z",
-  "started_at": "2026-11-22T19:18:57Z",
-  "duration_ms": 33520,
-  "commit": "454c923",
-  "run": "45060028500",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T19:22:35.279Z",
-  "started_at": "2026-11-22T19:22:05Z",
-  "duration_ms": 30279,
-  "commit": "c7370f1",
-  "run": "45060310358",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T19:36:50.784Z",
-  "started_at": "2026-11-22T19:36:21Z",
-  "duration_ms": 29784,
-  "commit": "1ce7d3b",
-  "run": "45061692048",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T19:50:25.024Z",
-  "started_at": "2026-11-22T19:49:53Z",
-  "duration_ms": 32025,
-  "commit": "a1add39",
-  "run": "45062926560",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T20:04:10.355Z",
-  "started_at": "2026-11-22T20:03:40Z",
-  "duration_ms": 30355,
-  "commit": "4b01c59",
-  "run": "45064227889",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T20:16:43.237Z",
-  "started_at": "2026-11-22T20:15:25Z",
-  "duration_ms": 78237,
-  "commit": "8724ba0",
-  "run": "45065347169",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 2,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T20:26:36.103Z",
-  "started_at": "2026-11-22T20:23:15Z",
-  "duration_ms": 201103,
-  "commit": "8affa46",
-  "run": "45066110859",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 2,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T20:36:02.340Z",
-  "started_at": "2026-11-22T20:35:27Z",
-  "duration_ms": 35340,
-  "commit": "45a19f4",
-  "run": "45067248114",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T20:50:38.453Z",
-  "started_at": "2026-11-22T20:49:17Z",
-  "duration_ms": 81453,
-  "commit": "72c40e0",
-  "run": "45068567044",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 2,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T20:55:29.827Z",
-  "started_at": "2026-11-22T20:54:53Z",
-  "duration_ms": 36827,
-  "commit": "f6754e2",
-  "run": "45069063513",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T21:06:08.747Z",
-  "started_at": "2026-11-22T21:05:36Z",
-  "duration_ms": 32747,
-  "commit": "50227b4",
-  "run": "45070071035",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T21:19:48.703Z",
-  "started_at": "2026-11-22T21:19:25Z",
-  "duration_ms": 23703,
-  "commit": "1be17f3",
-  "run": "45071426559",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T21:29:49.777Z",
-  "started_at": "2026-11-22T21:29:21Z",
-  "duration_ms": 28777,
-  "commit": "f3155b7",
-  "run": "45072325871",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T21:43:39.554Z",
-  "started_at": "2026-11-22T21:43:05Z",
-  "duration_ms": 34555,
-  "commit": "4b61bca",
-  "run": "45073631951",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T21:48:49.170Z",
-  "started_at": "2026-11-22T21:48:15Z",
-  "duration_ms": 34170,
-  "commit": "5bffc6c",
-  "run": "45074089757",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T22:02:35.974Z",
-  "started_at": "2026-11-22T22:02:04Z",
-  "duration_ms": 31974,
-  "commit": "41a0d40",
-  "run": "45075364785",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T22:16:17.534Z",
-  "started_at": "2026-11-22T22:15:48Z",
-  "duration_ms": 29534,
-  "commit": "2041b18",
-  "run": "45076708517",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T22:18:59.389Z",
-  "started_at": "2026-11-22T22:18:26Z",
-  "duration_ms": 33389,
-  "commit": "a8a6b6a",
-  "run": "45076934100",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T22:32:43.534Z",
-  "started_at": "2026-11-22T22:32:14Z",
-  "duration_ms": 29534,
-  "commit": "8a3b8b4",
-  "run": "45078246060",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T22:47:14.296Z",
-  "started_at": "2026-11-22T22:45:57Z",
-  "duration_ms": 77296,
-  "commit": "4cc20e4",
-  "run": "45079507294",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 2,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T22:58:23.718Z",
-  "started_at": "2026-11-22T22:57:53Z",
-  "duration_ms": 30718,
-  "commit": "f9bc82a",
-  "run": "45080564076",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
-  "at": "2026-11-22T23:12:15.259Z",
-  "started_at": "2026-11-22T23:11:44Z",
-  "duration_ms": 31259,
-  "commit": "a0c2121",
-  "run": "45081880487",
-  "data": {
-   "attempts": 1,
-   "ok": true
-  },
-  "artifact": {
-   "attempts": 1,
-   "ok": true
-  },
-  "deploy": {
-   "attempts": 1,
-   "ok": true
-  },
-  "url": "https://legolasoriginall.github.io/news-radar/"
- },
- {
   "at": "2026-11-22T23:26:02.191Z",
   "started_at": "2026-11-22T23:25:30Z",
   "duration_ms": 32191,
@@ -1185,6 +165,1026 @@
   "duration_ms": 28909,
   "commit": "0a6f3e2",
   "run": "45092649536",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T01:13:32.737Z",
+  "started_at": "2026-11-23T01:13:01Z",
+  "duration_ms": 31737,
+  "commit": "45274c6",
+  "run": "45093239920",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T01:27:23.031Z",
+  "started_at": "2026-11-23T01:26:52Z",
+  "duration_ms": 31031,
+  "commit": "cc29848",
+  "run": "45094598015",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T01:41:06.428Z",
+  "started_at": "2026-11-23T01:40:36Z",
+  "duration_ms": 30429,
+  "commit": "833e11c",
+  "run": "45095877827",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T01:46:35.717Z",
+  "started_at": "2026-11-23T01:46:05Z",
+  "duration_ms": 30718,
+  "commit": "240c2dd",
+  "run": "45096370865",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T02:02:00.939Z",
+  "started_at": "2026-11-23T01:59:52Z",
+  "duration_ms": 128940,
+  "commit": "e2c0655",
+  "run": "45097623656",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T02:15:46.917Z",
+  "started_at": "2026-11-23T02:15:15Z",
+  "duration_ms": 31917,
+  "commit": "0f848b5",
+  "run": "45099108585",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T02:29:30.257Z",
+  "started_at": "2026-11-23T02:29:02Z",
+  "duration_ms": 28257,
+  "commit": "a346be5",
+  "run": "45100438781",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T02:43:14.169Z",
+  "started_at": "2026-11-23T02:42:48Z",
+  "duration_ms": 26169,
+  "commit": "5af1cdb",
+  "run": "45101741796",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T02:56:52.681Z",
+  "started_at": "2026-11-23T02:56:26Z",
+  "duration_ms": 26682,
+  "commit": "915599b",
+  "run": "45103009261",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T03:10:36.876Z",
+  "started_at": "2026-11-23T03:10:06Z",
+  "duration_ms": 30876,
+  "commit": "d4f274a",
+  "run": "45104326971",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T03:24:23.097Z",
+  "started_at": "2026-11-23T03:23:52Z",
+  "duration_ms": 31097,
+  "commit": "61dc64e",
+  "run": "45105714100",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T03:38:07.219Z",
+  "started_at": "2026-11-23T03:37:38Z",
+  "duration_ms": 29220,
+  "commit": "a35a8fb",
+  "run": "45107069327",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T03:51:55.359Z",
+  "started_at": "2026-11-23T03:51:22Z",
+  "duration_ms": 33359,
+  "commit": "4bc34fd",
+  "run": "45108380744",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T04:05:38.955Z",
+  "started_at": "2026-11-23T04:05:10Z",
+  "duration_ms": 28956,
+  "commit": "43dfa02",
+  "run": "45109673306",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T04:20:07.447Z",
+  "started_at": "2026-11-23T04:18:53Z",
+  "duration_ms": 74447,
+  "commit": "d80c4c1",
+  "run": "45111071772",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 2,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T04:34:33.258Z",
+  "started_at": "2026-11-23T04:33:22Z",
+  "duration_ms": 71258,
+  "commit": "259f0f7",
+  "run": "45112532576",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 2,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T04:49:38.668Z",
+  "started_at": "2026-11-23T04:47:50Z",
+  "duration_ms": 108668,
+  "commit": "76777c4",
+  "run": "45113936533",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 2,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T05:04:07.343Z",
+  "started_at": "2026-11-23T05:02:58Z",
+  "duration_ms": 69343,
+  "commit": "3daff7b",
+  "run": "45115340410",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T05:18:05.175Z",
+  "started_at": "2026-11-23T05:17:22Z",
+  "duration_ms": 43175,
+  "commit": "db2435f",
+  "run": "45116799984",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T05:31:50.386Z",
+  "started_at": "2026-11-23T05:31:19Z",
+  "duration_ms": 31386,
+  "commit": "d75bcea",
+  "run": "45118280580",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T05:45:45.064Z",
+  "started_at": "2026-11-23T05:45:08Z",
+  "duration_ms": 37064,
+  "commit": "6c8e0cc",
+  "run": "45119690513",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T05:59:36.430Z",
+  "started_at": "2026-11-23T05:59:02Z",
+  "duration_ms": 34430,
+  "commit": "40ca9fe",
+  "run": "45121104663",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T06:14:05.803Z",
+  "started_at": "2026-11-23T06:12:51Z",
+  "duration_ms": 74803,
+  "commit": "f2d28b5",
+  "run": "45122582519",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 2,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T06:27:52.639Z",
+  "started_at": "2026-11-23T06:27:20Z",
+  "duration_ms": 32639,
+  "commit": "7b9fe61",
+  "run": "45124182164",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T06:42:24.388Z",
+  "started_at": "2026-11-23T06:41:07Z",
+  "duration_ms": 77388,
+  "commit": "b8df6b4",
+  "run": "45125741502",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 2,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T06:56:05.363Z",
+  "started_at": "2026-11-23T06:55:38Z",
+  "duration_ms": 27363,
+  "commit": "f36c6fe",
+  "run": "45127430042",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T07:09:48.454Z",
+  "started_at": "2026-11-23T07:09:18Z",
+  "duration_ms": 30454,
+  "commit": "6f77081",
+  "run": "45129016064",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T07:23:34.696Z",
+  "started_at": "2026-11-23T07:23:02Z",
+  "duration_ms": 32697,
+  "commit": "752678b",
+  "run": "45130658855",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T07:37:16.676Z",
+  "started_at": "2026-11-23T07:36:48Z",
+  "duration_ms": 28676,
+  "commit": "a03bd91",
+  "run": "45132352754",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T07:50:56.980Z",
+  "started_at": "2026-11-23T07:50:28Z",
+  "duration_ms": 28980,
+  "commit": "efa77cd",
+  "run": "45133999949",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T08:04:39.240Z",
+  "started_at": "2026-11-23T08:04:13Z",
+  "duration_ms": 26240,
+  "commit": "f2ef7eb",
+  "run": "45135643174",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T08:18:26.289Z",
+  "started_at": "2026-11-23T08:17:57Z",
+  "duration_ms": 29289,
+  "commit": "468b689",
+  "run": "45137451043",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T08:32:12.547Z",
+  "started_at": "2026-11-23T08:31:39Z",
+  "duration_ms": 33547,
+  "commit": "e0cc6f7",
+  "run": "45139308383",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T08:46:00.587Z",
+  "started_at": "2026-11-23T08:45:27Z",
+  "duration_ms": 33587,
+  "commit": "813ef96",
+  "run": "45141163930",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T08:59:46.067Z",
+  "started_at": "2026-11-23T08:59:16Z",
+  "duration_ms": 30067,
+  "commit": "31e3d8d",
+  "run": "45143016813",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T09:13:32.078Z",
+  "started_at": "2026-11-23T09:13:01Z",
+  "duration_ms": 31078,
+  "commit": "6c6bb45",
+  "run": "45144991578",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T09:27:23.527Z",
+  "started_at": "2026-11-23T09:26:48Z",
+  "duration_ms": 35528,
+  "commit": "44746e1",
+  "run": "45147055543",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T09:41:13.932Z",
+  "started_at": "2026-11-23T09:40:41Z",
+  "duration_ms": 32932,
+  "commit": "d44a9a2",
+  "run": "45149175533",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T09:55:05.524Z",
+  "started_at": "2026-11-23T09:54:35Z",
+  "duration_ms": 30524,
+  "commit": "ad6c9e4",
+  "run": "45151191467",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T10:08:55.640Z",
+  "started_at": "2026-11-23T10:08:23Z",
+  "duration_ms": 32640,
+  "commit": "a58b76e",
+  "run": "45153294401",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T10:22:43.167Z",
+  "started_at": "2026-11-23T10:22:11Z",
+  "duration_ms": 32167,
+  "commit": "b302826",
+  "run": "45155429879",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T10:31:02.509Z",
+  "started_at": "2026-11-23T10:30:29Z",
+  "duration_ms": 33510,
+  "commit": "97e464d",
+  "run": "45156652456",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T10:44:47.955Z",
+  "started_at": "2026-11-23T10:44:17Z",
+  "duration_ms": 30955,
+  "commit": "0a1902b",
+  "run": "45158775715",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T10:58:42.619Z",
+  "started_at": "2026-11-23T10:58:03Z",
+  "duration_ms": 39619,
+  "commit": "5150166",
+  "run": "45160809207",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T11:12:29.589Z",
+  "started_at": "2026-11-23T11:11:58Z",
+  "duration_ms": 31589,
+  "commit": "a2314b0",
+  "run": "45162940485",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T11:26:41.606Z",
+  "started_at": "2026-11-23T11:25:50Z",
+  "duration_ms": 51606,
+  "commit": "66f9049",
+  "run": "45165088034",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T11:40:34.350Z",
+  "started_at": "2026-11-23T11:39:59Z",
+  "duration_ms": 35350,
+  "commit": "8725ca1",
+  "run": "45167188599",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T11:54:16.286Z",
+  "started_at": "2026-11-23T11:53:50Z",
+  "duration_ms": 26286,
+  "commit": "c7ffacb",
+  "run": "45169224426",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T12:07:58.565Z",
+  "started_at": "2026-11-23T12:07:34Z",
+  "duration_ms": 24565,
+  "commit": "b248665",
+  "run": "45171287284",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T12:21:39.056Z",
+  "started_at": "2026-11-23T12:21:11Z",
+  "duration_ms": 28057,
+  "commit": "53ebce5",
+  "run": "45173450880",
+  "data": {
+   "attempts": 1,
+   "ok": true
+  },
+  "artifact": {
+   "attempts": 1,
+   "ok": true
+  },
+  "deploy": {
+   "attempts": 1,
+   "ok": true
+  },
+  "url": "https://legolasoriginall.github.io/news-radar/"
+ },
+ {
+  "at": "2026-11-23T12:36:18.939Z",
+  "started_at": "2026-11-23T12:35:46Z",
+  "duration_ms": 32939,
+  "commit": "15938de",
+  "run": "45175759130",
   "data": {
    "attempts": 1,
    "ok": true
