@@ -113,7 +113,7 @@ https://fash1043.cloudycdn.services/slive/_definst_/ftv_ftv_midnite_k1y_27049_mi
 #EXTINF:-1 tvg-id="" tvg-name="Jasmin TV" tvg-language="English" tvg-logo="" group-title="成人频道",Jasmin TV
 http://109.71.162.112:1935/live/sd.jasminchannel.stream/playlist.m3u8
 #EXTINF:-1 tvg-id="" tvg-name="Miami TV" tvg-language="English" tvg-logo="" group-title="成人频道",Miami TV
-http://59ec5453559f0.streamlock.net:1935/mexicotv/smil:miamitvmexicoROKU/chunklist_b1896000.m3u8
+https://59ec5453559f0.streamlock.net/miamitv/smil:95304/playlist.m3u8
 #EXTINF:-1 tvg-id="" tvg-name="AST TV 1" tvg-language="English" tvg-logo="" group-title="成人频道",AST TV 1
 https://www.ast.tv/stream/1/ultra.m3u8
 #EXTINF:-1 tvg-id="" tvg-name="AST TV 2" tvg-language="English" tvg-logo="" group-title="成人频道",AST TV 2
@@ -122,3 +122,11 @@ https://www.ast.tv/stream/2/ultra.m3u8
 http://stream.visit-x.tv:1935/vxtv/live_720p/playlist.m3u8
 #EXTINF:-1 tvg-id="" tvg-name="Akamai Live" tvg-language="English" tvg-logo="" group-title="成人频道",Akamai Live
 http://hlsliveamdgl1-lh.akamaihd.net//hlsdvrlive_1@584096/master
+#EXTINF:-1 tvg-id="" tvg-name="Babes TV HD" tvg-language="English" tvg-logo="" group-title="成人频道",Babes TV HD
+https://cdn4.skygo.mn/live/disk1/Babes/HLSv3-FTA/Babes.m3u8
+#EXTINF:-1 tvg-id="" tvg-name="Eroxxx HD TV" tvg-language="English" tvg-logo="" group-title="成人频道",Eroxxx HD TV
+https://webtvstream.bhtelecom.ba/eroxxx.m3u8
+#EXTINF:-1 tvg-id="" tvg-name="SunBeach TV" tvg-language="English" tvg-logo="" group-title="成人频道",SunBeach TV
+https://59ec5453559f0.streamlock.net/mexicotv/smil:miamitvmexico/playlist.m3u8
+#EXTINF:-1 tvg-id="" tvg-name="MiamiTV Latino" tvg-language="English" tvg-logo="" group-title="成人频道",MiamiTV Latino
+https://59ec5453559f0.streamlock.net/Latino/smil:80302/playlist.m3u8
