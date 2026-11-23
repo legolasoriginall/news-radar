@@ -222,6 +222,11 @@ body.sat-fs-lock { overflow: hidden; }
 .tg-filter { border: 1px solid #dbe3ec; background: #f8fafc; color: #334155; border-radius: 999px; padding: 5px 11px; min-height: 32px; font-size: 11.5px; cursor: pointer; font-family: inherit; }
 .tg-filter.active { background: #0f766e; border-color: #0f766e; color: #fff; font-weight: 700; }
 .tg-filter small { opacity: 0.75; font-size: 10.5px; }
+/* گروه ۱۸+: پیش از بازشدن فقط یک دکمهٔ کوچک دیده می‌شود تا نوار کانال‌ها شلوغ نشود */
+.live-adult-toggle { background: #fff7ed; border-color: #fed7aa; color: #9a3412; font-weight: 700; }
+.live-adult-toggle[aria-expanded="true"] { background: #9a3412; border-color: #9a3412; color: #fff; }
+.live-adult { background: #fffaf3; border-color: #fde2c8; color: #7c2d12; }
+.live-adult.active { background: #7c2d12; border-color: #7c2d12; color: #fff; }
 .tg-feed { list-style: none; padding: 0; margin: 12px 0 0; display: grid; gap: 8px; }
 .tg-item { border: 1px solid #e6eaf0; border-radius: 10px; padding: 10px 12px; background: #fcfdff; }
 .tg-item.fresh { border-color: #a7f3d0; background: #f3fdf8; }
@@ -2559,7 +2564,429 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
         'https://live.yourtime.tv/hls/stream.m3u8'
       ],
       watch: 'https://yourtime.tv/'
-    }
+    },
+  // گروه ۱۸+: فقط نشانی‌های تأییدشده از Adult.m3u و AdultVod.m3u (بررسی فهرست
+  // پخش و نخستین سگمنت در ۲۰۲۶-۱۱-۲۲). مسیرهای بی‌پاسخ اصلاً نیامده‌اند.
+    {
+      id: 'adult-anal',
+      name: 'Anal',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/anal.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-asian',
+      name: 'Asian',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/asian.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-big-ass',
+      name: 'Big Ass',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/bigass.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-big-dick',
+      name: 'Big Dick',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/bigdick.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-big-tits',
+      name: 'Big Tits',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/bigtits.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-blonde',
+      name: 'Blonde',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/blonde.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-blowjob',
+      name: 'Blowjob',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/blowjob.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-brunette',
+      name: 'Brunette',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/brunette.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-compilation',
+      name: 'Compilation',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/compilation.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-cuckold',
+      name: 'Cuckold',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/cuckold.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-fetish',
+      name: 'Fetish',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/fetish.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-gangbang',
+      name: 'Gangbang',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/gangbang.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-gay',
+      name: 'Gay',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/gay.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-hardcore',
+      name: 'Hardcore',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/hardcore.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-interracial',
+      name: 'Interracial',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/interracial.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-latina',
+      name: 'Latina',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/latina.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-lesbian',
+      name: 'Lesbian',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/lesbian.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-live-cams',
+      name: 'Live Cams',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/livecams.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-milf',
+      name: 'MILF',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/milf.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-anal',
+      name: 'MyCamTV Anal',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/anal.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-arab-girls',
+      name: 'MyCamTV Arab Girls',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/arab.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-asian-girls',
+      name: 'MyCamTV Asian Girls',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/asian.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-big-ass-girls',
+      name: 'MyCamTV Big Ass Girls',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/bigass.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-blonde-girls',
+      name: 'MyCamTV Blonde Girls',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/blonde.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-blowjob',
+      name: 'MyCamTV Blowjob',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/blowjob.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-brunette-girls',
+      name: 'MyCamTV Brunette Girls',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/brunette.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-ebony-girls',
+      name: 'MyCamTV Ebony Girls',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/ebony.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-girls-squirt',
+      name: 'MyCamTV Girls Squirt',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/squirt.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-latina-girls',
+      name: 'MyCamTV Latina Girls',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/latina.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-mature',
+      name: 'MyCamTV Mature',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/bigtits.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-medium-girls',
+      name: 'MyCamTV Medium Girls',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/medium.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-milf',
+      name: 'MyCamTV MILF',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/milf.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-skinny-girls',
+      name: 'MyCamTV Skinny Girls',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/skinny.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-vod-1',
+      name: 'MyCamTV VOD #1',
+      group: '18+',
+      sources: ['https://vod.mycamtv.net/1.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-vod-100',
+      name: 'MyCamTV VOD #100',
+      group: '18+',
+      sources: ['https://vod.mycamtv.net/100.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-vod-1000',
+      name: 'MyCamTV VOD #1000',
+      group: '18+',
+      sources: ['https://vod.mycamtv.net/1000.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-vod-10000',
+      name: 'MyCamTV VOD #10000',
+      group: '18+',
+      sources: ['https://vod.mycamtv.net/10000.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-vod-14872',
+      name: 'MyCamTV VOD #14872',
+      group: '18+',
+      sources: ['https://vod.mycamtv.net/14872.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-vod-5000',
+      name: 'MyCamTV VOD #5000',
+      group: '18+',
+      sources: ['https://vod.mycamtv.net/5000.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-mycamtv-white-girls',
+      name: 'MyCamTV White Girls',
+      group: '18+',
+      sources: ['http://live.mycamtv.com/white.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-pornstar',
+      name: 'Pornstar',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/pornstar.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-pov',
+      name: 'POV',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/pov.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-big-ass',
+      name: 'RedTraffic Big Ass',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/bigass.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-big-dick',
+      name: 'RedTraffic Big Dick',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/bigdick.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-big-tits',
+      name: 'RedTraffic Big Tits',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/bigtits.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-cuckold',
+      name: 'RedTraffic Cuckold',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/cuckold.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-fetish',
+      name: 'RedTraffic Fetish',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/fetish.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-hardcore',
+      name: 'RedTraffic Hardcore',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/hardcore.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-interracial',
+      name: 'RedTraffic Interracial',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/interracial.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-latina',
+      name: 'RedTraffic Latina',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/latina.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-lesbian',
+      name: 'RedTraffic Lesbian',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/lesbian.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-milf',
+      name: 'RedTraffic MILF',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/milf.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-pornstar',
+      name: 'RedTraffic Pornstar',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/pornstar.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-pov',
+      name: 'RedTraffic POV',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/pov.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-russian',
+      name: 'RedTraffic Russian',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/russian.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-teen',
+      name: 'RedTraffic Teen',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/teen.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-redtraffic-threesome',
+      name: 'RedTraffic Threesome',
+      group: '18+',
+      sources: ['http://live.redtraffic.xyz/threesome.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-rough',
+      name: 'Rough',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/rough.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-russian',
+      name: 'Russian',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/russian.m3u8'],
+      watch: ''
+    },
+    {
+      id: 'adult-threesome',
+      name: 'Threesome',
+      group: '18+',
+      sources: ['http://cdn.adultiptv.net/threesome.m3u8'],
+      watch: ''
+    },
   ];
 
   var liveState = { channel: 'iranintl', hls: null, script: null, retry: 0, watchdog: 0, currentSource: '' };
@@ -2596,6 +3023,8 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     });
   }
   var liveChannels = channelsWithFallback(LIVE_CHANNELS);
+  // گروه ۱۸+ پیش‌فرض بسته است؛ فقط با کلیک کاربر باز می‌شود.
+  var liveAdultOpen = false;
 
   function liveChannelById(id) {
     for (var i = 0; i < liveChannels.length; i++) {
@@ -2801,10 +3230,21 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
   function renderLiveTabs() {
     var box = $('live-tabs');
     if (!box) return;
-    box.innerHTML = liveChannels.map(function (channel) {
+    var normal = [];
+    var adult = [];
+    liveChannels.forEach(function (channel) {
+      (channel.group === '18+' ? adult : normal).push(channel);
+    });
+    function tabButton(channel) {
       var active = channel.id === liveState.channel;
-      return '<button type="button" role="tab" aria-selected="' + active + '" class="tg-filter' + (active ? ' active' : '') + '" data-live="' + channel.id + '">' + esc(channel.name) + '</button>';
-    }).join('');
+      return '<button type="button" role="tab" aria-selected="' + active + '" class="tg-filter' + (active ? ' active' : '') + (channel.group === '18+' ? ' live-adult' : '') + '" data-live="' + channel.id + '">' + esc(channel.name) + '</button>';
+    }
+    var html = normal.map(tabButton).join('');
+    if (adult.length) {
+      html += '<button type="button" class="tg-filter live-adult-toggle" data-live-adult-toggle aria-expanded="' + (liveAdultOpen ? 'true' : 'false') + '">' + (liveAdultOpen ? '۱۸+ ✕' : '۱۸+ ' + faDigits(String(adult.length))) + '</button>';
+      if (liveAdultOpen) html += adult.map(tabButton).join('');
+    }
+    box.innerHTML = html;
     var hint = $('live-hint');
     if (hint) hint.textContent = 'پخش زنده · ' + liveChannelById(liveState.channel).name;
   }
@@ -3213,6 +3653,7 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
     if (!box || !start) return;
     var saved = storeGet('newsradar:liveChannel', 'iranintl');
     liveState.channel = liveChannelById(saved).id;
+    liveAdultOpen = liveChannelById(liveState.channel).group === '18+';
     renderLiveTabs();
     // اگر پیش از بازخوانی همین شبکه در حال پخش بود، پخش‌کننده دوباره ساخته می‌شود.
     var resumeChannel = storeGet('newsradar:livePlaying', '');
@@ -3244,6 +3685,26 @@ footer .build-stamp a:hover { color: #344054; border-bottom-color: #98a2b3; }
       }
     }
     box.addEventListener('click', function (event) {
+      var toggle = event.target.closest ? event.target.closest('[data-live-adult-toggle]') : null;
+      if (toggle) {
+        liveAdultOpen = !liveAdultOpen;
+        if (!liveAdultOpen) {
+          var current = liveChannelById(liveState.channel);
+          if (current && current.group === '18+') {
+            var first = null;
+            liveChannels.forEach(function (channel) { if (!first && channel.group !== '18+') first = channel; });
+            if (first) {
+              liveState.channel = first.id;
+              storeSet('newsradar:liveChannel', liveState.channel);
+              storeDel('newsradar:livePlaying');
+              resumePending = false;
+              stopLivePlayback();
+            }
+          }
+        }
+        renderLiveTabs();
+        return;
+      }
       var button = event.target.closest ? event.target.closest('[data-live]') : null;
       if (!button) return;
       liveState.channel = button.getAttribute('data-live');

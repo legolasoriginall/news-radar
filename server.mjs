@@ -9,7 +9,7 @@ import { fetchMarkets, setStaleHours } from './src/markets.mjs';
 import { fetchTelegramFeeds, fetchTelegramFeed, addTelegramChannel, removeTelegramChannel, TELEGRAM_CHANNELS } from './src/telegram.mjs';
 import { parseSourceInput, parseChannelInput, parseLiveInput, looksLikeFeed, feedItemCount } from './src/custom.mjs';
 import { firstUrlIn } from './src/web.mjs';
-import { resolveLiveChannels, probeStream, LIVE_CHANNELS } from './src/live.mjs';
+import { resolveLiveChannels, probeStream, LIVE_CHANNELS, ADULT_CHANNELS } from './src/live.mjs';
 import {
   collectIssues,
   applyIssues,
@@ -469,9 +469,10 @@ async function getLiveChannels() {
       return {
         channels: ((liveChannelCache.payload?.channels || []).length
           ? liveChannelCache.payload.channels
-          : LIVE_CHANNELS.map((channel) => ({
+          : LIVE_CHANNELS.concat(ADULT_CHANNELS).map((channel) => ({
               id: channel.id,
               name: channel.name,
+              group: channel.group || '',
               watch: channel.watch || '',
               sources: channel.fallbacks || [],
             }))
