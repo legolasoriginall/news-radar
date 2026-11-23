@@ -107,6 +107,8 @@ jobs:
           cp favicon.svg _site/
           cp Adult.m3u _site/
           cp AdultVod.m3u _site/
+          # کانال‌ها و منابع اختصاصی پنل مدیر در سایت هم دیده شوند
+          if [ -f custom-sources.json ]; then cp custom-sources.json _site/; fi
           cp news.xlsx _site/
           # صفحهٔ اصلی فهرست سبک کارت‌ها را می‌خواند و جزئیات هر خبر فایل جداست؛
           # ساخت این فایل‌ها در scripts/build-feed.mjs است و با npm test بررسی می‌شود.

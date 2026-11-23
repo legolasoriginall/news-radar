@@ -290,6 +290,7 @@ label.muted { display: inline-flex; align-items: center; min-height: 44px; }
         <span class="muted" id="lv-msg"></span>
       </div>
       <ul class="custom-list" id="live-custom-list"></ul>
+      <p class="muted">پیش از ذخیره، هر مسیر از مسیر پروکسی رسانه خوانده می‌شود و فقط وقتی دست‌کم یک مسیر فهرست HLS سالم برگرداند ثبت می‌شود. در پنل محلی در <code>.custom-sources.json</code> و در نسخهٔ گیت‌هابی در <code>custom-sources.json</code> مخزن ذخیره و با بازسازی سایت منتشر می‌شود.</p>
     </div>
 
     <div class="card" id="advanced-card" style="margin-bottom:14px">
@@ -360,6 +361,10 @@ label.muted { display: inline-flex; align-items: center; min-height: 44px; }
   var state = { messages: [], busy: false, alertTimer: null };
   var github = { static: false, token: '' };
   var TOKEN_KEY = 'newsradar:ghToken';
+  // همان پروکسی رسانهٔ صفحهٔ اصلی؛ آزمون سلامت هم از همین مسیر انجام می‌شود تا
+  // نتیجه با شرایط واقعی پخش (CORS و مسیرهای http روی https) یکی باشد.
+  var MEDIA_PROXY = 'https://site-d8a4f0f399a7479d917f3eefd8b81171.freebuff.page/';
+  var LIVE_URL_RE = /^https?:\/\/[^\s#?]+\.m3u8(\?[^\s]*)?$/i;
   // مخزن از خود آدرس صفحه تشخیص داده می‌شود (owner.github.io/repo).
   var REPO = (function () {
     var m = String(location.hostname || '').match(/^([a-z0-9-]+)\.github\.io$/i);
@@ -1845,34 +1850,92 @@ label.muted { display: inline-flex; align-items: center; min-height: 44px; }
     }
   });
 
+  // یک نشانی را از مسیر پروکسی می‌خواند و تأیید می‌کند فهرست پخش HLS برمی‌گرداند.
+  async function probeLiveUrl(url) {
+    var started = Date.now();
+    try {
+      var target = MEDIA_PROXY ? MEDIA_PROXY + '?url=' + encodeURIComponent(url) : url;
+      var response = await fetch(target, { cache: 'no-store', signal: AbortSignal.timeout(9000) });
+      var body = response.ok ? await response.text() : '';
+      return { url: url, ok: response.ok && body.indexOf('#EXTM3U') >= 0, status: response.status, ms: Date.now() - started };
+    } catch (error) {
+      return { url: url, ok: false, status: 0, ms: Date.now() - started, error: String((error && error.message) || error) };
+    }
+  }
+
+  async function probeLiveCandidates(urls) {
+    var out = [];
+    for (var i = 0; i < urls.length; i++) {
+      // eslint-disable-next-line no-await-in-loop
+      out.push(await probeLiveUrl(urls[i]));
+    }
+    return out;
+  }
+
+  function liveProbeSummary(probes) {
+    var ok = 0;
+    var lines = probes.map(function (probe) {
+      if (probe.ok) ok += 1;
+      return (probe.ok ? '✓' : '✕') + ' ' + probe.url + (probe.status ? ' (HTTP ' + probe.status + ')' : '') + ' · ' + probe.ms + 'ms';
+    });
+    return { ok: ok, text: lines.join(' | ') };
+  }
+
   el('lv-add').addEventListener('click', async function () {
     var msg = el('lv-msg');
     var name = el('lv-name').value.trim();
     var url = el('lv-url').value.trim();
     var fallbacks = el('lv-fallbacks').value.split(/\r?\n/).map(function (line) { return line.trim(); }).filter(Boolean);
     var watch = el('lv-watch').value.trim();
-    if (!name || !url) { msg.textContent = 'نام و آدرس اصلی لازم است'; return; }
-    try { new URL(url); } catch (e) { msg.textContent = 'آدرس اصلی معتبر نیست'; return; }
-    msg.textContent = 'در حال ذخیره…';
-    el('lv-add').disabled = true;
-    try {
-      if (github.static) {
+    if (!name) { msg.textContent = 'نام شبکه را بده'; return; }
+    if (!LIVE_URL_RE.test(url)) { msg.textContent = 'آدرس اصلی باید لینک HLS با پسوند .m3u8 باشد'; return; }
+    if (fallbacks.length > 5) { msg.textContent = 'حداکثر ۵ مسیر جایگزین مجاز است'; return; }
+    var badFallback = fallbacks.filter(function (line) { return !LIVE_URL_RE.test(line); });
+    if (badFallback.length) { msg.textContent = 'مسیر جایگزین معتبر نیست: ' + badFallback[0]; return; }
+    if (watch) {
+      try { new URL(watch); } catch (e) { msg.textContent = 'آدرس صفحهٔ رسمی معتبر نیست'; return; }
+    }
+    if (github.static) {
+      // در نسخهٔ گیت‌هابی سروری برای probe نیست؛ پیش از ثبت در مخزن همان پروکسی
+      // رسانه سالم‌بودن فهرست پخش را تأیید می‌کند.
+      el('lv-add').disabled = true;
+      msg.textContent = 'در حال بررسی سلامت مسیرها…';
+      try {
+        var probes = await probeLiveCandidates([url].concat(fallbacks));
+        var summary = liveProbeSummary(probes);
+        if (!summary.ok) {
+          msg.textContent = 'هیچ مسیری HLS سالم برنگرداند؛ ذخیره نشد · ' + summary.text;
+          return;
+        }
         var repo = await readRepoCustom();
         repo.data.live = Array.isArray(repo.data.live) ? repo.data.live : [];
         if (repo.data.live.some(function (c) { return String(c.url || '').toLowerCase() === url.toLowerCase(); })) {
-          throw new Error('این آدرس از قبل در فهرست هست');
+          throw new Error('این آدرس از قبل در فهرست هست: ' + url);
         }
         repo.data.live.push({ id: 'live_' + Math.random().toString(36).slice(2, 10), name: name, url: url, fallbacks: fallbacks.slice(0, 5), watch: watch, custom: true });
         await saveRepoCustom(repo.data);
-        msg.textContent = 'ذخیره شد؛ سلامت مسیرها هنگام پخش در سایت بررسی می‌شود و از بازسازی سایت دیده می‌شود.';
-      } else {
-        var result = await api('/admin/api/custom/live', {
-          method: 'POST',
-          body: JSON.stringify({ name: name, url: url, fallbacks: fallbacks, watch: watch })
-        });
-        var okCount = (result.probes || []).filter(function (p) { return p.ok; }).length;
-        msg.textContent = 'افزوده شد · ' + okCount + ' از ' + (result.probes || []).length + ' مسیر سالم' + (result.note ? ' · ' + result.note : '');
+        msg.textContent = 'ذخیره شد · ' + summary.ok + ' از ' + probes.length + ' مسیر سالم · از بازسازی بعدی سایت دیده می‌شود.';
+        el('lv-name').value = '';
+        el('lv-url').value = '';
+        el('lv-fallbacks').value = '';
+        el('lv-watch').value = '';
+        loadCustom();
+      } catch (error) {
+        msg.textContent = error.message || 'افزودن ممکن نشد';
+      } finally {
+        el('lv-add').disabled = false;
       }
+      return;
+    }
+    el('lv-add').disabled = true;
+    msg.textContent = 'در حال بررسی سلامت و ذخیره…';
+    try {
+      var result = await api('/admin/api/custom/live', {
+        method: 'POST',
+        body: JSON.stringify({ name: name, url: url, fallbacks: fallbacks, watch: watch })
+      });
+      var okCount = (result.probes || []).filter(function (p) { return p.ok; }).length;
+      msg.textContent = 'افزوده شد · ' + okCount + ' از ' + (result.probes || []).length + ' مسیر سالم' + (result.note ? ' · ' + result.note : '');
       el('lv-name').value = '';
       el('lv-url').value = '';
       el('lv-fallbacks').value = '';
